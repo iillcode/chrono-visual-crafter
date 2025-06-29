@@ -233,9 +233,9 @@ const Index = () => {
   }, [isRecording, isPaused, counterSettings]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white flex flex-col">
+    <div className="h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-b border-gray-800/50 backdrop-blur-sm bg-gray-900/30 px-4 sm:px-6 py-4 sticky top-0 z-30">
+      <header className="border-b border-gray-800/50 backdrop-blur-sm bg-gray-900/30 px-4 sm:px-6 py-3 sticky top-0 z-30 flex-shrink-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-blue-200 to-purple-300 bg-clip-text text-transparent">
@@ -255,12 +255,22 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="flex-1 flex relative">
+      <div className="flex-1 flex overflow-hidden">
+        {/* Studio Sidebar - Now on Left */}
+        <StudioSidebar
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          counterSettings={counterSettings}
+          onCounterSettingsChange={setCounterSettings}
+          textSettings={textSettings}
+          onTextSettingsChange={setTextSettings}
+        />
+
         {/* Main Content Area */}
-        <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:mr-80' : ''}`}>
-          {/* Preview Area - Fixed Height, No Scroll */}
-          <div className="flex-1 flex items-center justify-center p-4 lg:p-8 min-h-0">
-            <div className="w-full max-w-4xl aspect-[4/3] bg-gray-900/30 rounded-lg border border-gray-700/50 backdrop-blur-sm overflow-hidden">
+        <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-80' : ''} overflow-hidden`}>
+          {/* Preview Area - Fixed Height, Smaller Size */}
+          <div className="flex-1 flex items-center justify-center p-4 lg:p-6 min-h-0">
+            <div className="w-full max-w-3xl aspect-[4/3] bg-gray-900/30 rounded-lg border border-gray-700/50 backdrop-blur-sm overflow-hidden">
               <CounterPreview 
                 ref={canvasRef}
                 settings={counterSettings}
@@ -271,8 +281,8 @@ const Index = () => {
             </div>
           </div>
           
-          {/* Bottom Controls - Always Visible */}
-          <div className="border-t border-gray-800/50 p-4 lg:p-6 bg-gray-950/30 backdrop-blur-sm">
+          {/* Recording Controls - Directly Below Preview */}
+          <div className="border-t border-gray-800/50 p-4 lg:p-4 bg-gray-950/30 backdrop-blur-sm flex-shrink-0">
             <RecordingControls
               isRecording={isRecording}
               isPaused={isPaused}
@@ -287,16 +297,6 @@ const Index = () => {
             />
           </div>
         </div>
-
-        {/* Studio Sidebar */}
-        <StudioSidebar
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-          counterSettings={counterSettings}
-          onCounterSettingsChange={setCounterSettings}
-          textSettings={textSettings}
-          onTextSettingsChange={setTextSettings}
-        />
       </div>
     </div>
   );

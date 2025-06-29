@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { X, Type, Hash, Palette, Play, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Type, Hash, Palette, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import ControlPanel from './ControlPanel';
 import DesignSelector from './DesignSelector';
 import TextControls from './TextControls';
@@ -37,12 +37,12 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
         />
       )}
       
-      {/* Sidebar */}
+      {/* Sidebar - Moved to Left */}
       <div className={`
-        fixed right-0 top-0 h-full w-80 bg-gray-950 border-l border-gray-800 z-50 transform transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : 'translate-x-full'}
+        fixed left-0 top-0 h-full w-80 bg-gray-950 border-r border-gray-800 z-50 transform transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:relative lg:translate-x-0 lg:z-auto
-        ${!isOpen && 'lg:w-0 lg:border-l-0'}
+        ${!isOpen && 'lg:w-0 lg:border-r-0'}
       `}>
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -76,41 +76,43 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
                 </TabsTrigger>
               </TabsList>
 
-              <div className="flex-1 overflow-y-auto px-4 pb-4">
-                <TabsContent value="counter" className="mt-0">
-                  <ControlPanel 
-                    settings={counterSettings}
-                    onSettingsChange={onCounterSettingsChange}
-                  />
-                </TabsContent>
+              <div className="flex-1 overflow-hidden px-4 pb-4">
+                <ScrollArea className="h-full custom-scrollbar">
+                  <TabsContent value="counter" className="mt-0">
+                    <ControlPanel 
+                      settings={counterSettings}
+                      onSettingsChange={onCounterSettingsChange}
+                    />
+                  </TabsContent>
 
-                <TabsContent value="text" className="mt-0">
-                  <TextControls
-                    settings={textSettings}
-                    onSettingsChange={onTextSettingsChange}
-                  />
-                </TabsContent>
+                  <TabsContent value="text" className="mt-0">
+                    <TextControls
+                      settings={textSettings}
+                      onSettingsChange={onTextSettingsChange}
+                    />
+                  </TabsContent>
 
-                <TabsContent value="design" className="mt-0">
-                  <DesignSelector
-                    selectedDesign={counterSettings.design}
-                    onDesignChange={(design) => onCounterSettingsChange(prev => ({ ...prev, design }))}
-                  />
-                </TabsContent>
+                  <TabsContent value="design" className="mt-0">
+                    <DesignSelector
+                      selectedDesign={counterSettings.design}
+                      onDesignChange={(design) => onCounterSettingsChange(prev => ({ ...prev, design }))}
+                    />
+                  </TabsContent>
+                </ScrollArea>
               </div>
             </Tabs>
           </div>
         </div>
       </div>
 
-      {/* Toggle Button (when sidebar is closed) */}
+      {/* Toggle Button (when sidebar is closed) - Now on left */}
       {!isOpen && (
         <Button
           onClick={onToggle}
-          className="fixed right-4 top-20 z-30 bg-gray-900 hover:bg-gray-800 border border-gray-700"
+          className="fixed left-4 top-20 z-30 bg-gray-900 hover:bg-gray-800 border border-gray-700"
           size="sm"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4" />
           <span className="ml-1 text-xs">Studio</span>
         </Button>
       )}
