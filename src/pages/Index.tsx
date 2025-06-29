@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -8,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { play, stop, restart, download, gif } from 'lucide-react';
 import CounterPreview from '@/components/CounterPreview';
 import ControlPanel from '@/components/ControlPanel';
 import DesignSelector from '@/components/DesignSelector';

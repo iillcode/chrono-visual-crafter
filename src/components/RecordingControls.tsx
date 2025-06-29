@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { play, stop, restart, download, gif } from 'lucide-react';
+import { Play, Square, RotateCcw, Download, Image } from 'lucide-react';
 
 interface RecordingControlsProps {
   isRecording: boolean;
@@ -42,7 +42,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
               className="bg-red-600 hover:bg-red-700 text-white"
               size="lg"
             >
-              <play className="w-4 h-4 mr-2" />
+              <Play className="w-4 h-4 mr-2" />
               Start Recording
             </Button>
           ) : (
@@ -61,7 +61,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
                 className="border-red-600 text-red-400 hover:bg-red-900"
                 size="lg"
               >
-                <stop className="w-4 h-4 mr-2" />
+                <Square className="w-4 h-4 mr-2" />
                 Stop
               </Button>
             </>
@@ -73,7 +73,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
             className="border-gray-600 text-white hover:bg-gray-800"
             size="lg"
           >
-            <restart className="w-4 h-4 mr-2" />
+            <RotateCcw className="w-4 h-4 mr-2" />
             Restart
           </Button>
         </div>
@@ -103,7 +103,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
           variant="outline"
           className="border-blue-600 text-blue-400 hover:bg-blue-900 disabled:opacity-50"
         >
-          <download className="w-4 h-4 mr-2" />
+          <Download className="w-4 h-4 mr-2" />
           Download Video
         </Button>
         
@@ -113,7 +113,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
           variant="outline"
           className="border-purple-600 text-purple-400 hover:bg-purple-900 disabled:opacity-50"
         >
-          <gif className="w-4 h-4 mr-2" />
+          <Image className="w-4 h-4 mr-2" />
           Export GIF
         </Button>
       </div>
