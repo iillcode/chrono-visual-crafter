@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
-import { X, Type, Hash, Palette, ChevronRight, ChevronLeft } from 'lucide-react';
+import { X, Type, Hash, Palette, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import ControlPanel from './ControlPanel';
-import DesignSelector from './DesignSelector';
+import DesignPreview from './DesignPreview';
 import TextControls from './TextControls';
 
 interface StudioSidebarProps {
@@ -93,7 +93,7 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
                   </TabsContent>
 
                   <TabsContent value="design" className="mt-0">
-                    <DesignSelector
+                    <DesignPreview
                       selectedDesign={counterSettings.design}
                       onDesignChange={(design) => onCounterSettingsChange(prev => ({ ...prev, design }))}
                     />

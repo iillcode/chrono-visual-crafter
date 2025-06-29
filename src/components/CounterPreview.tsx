@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 
 interface CounterPreviewProps {
@@ -32,6 +33,8 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
   ({ settings, textSettings, currentValue, isRecording }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>();
+    const lastValueRef = useRef<number>(settings.startValue);
+    const transitionStartTimeRef = useRef<number>(0);
 
     useImperativeHandle(ref, () => canvasRef.current!);
 
@@ -39,7 +42,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       if (!fontName) return Promise.resolve();
       
       const link = document.createElement('link');
-      link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+      link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, '+').replace(/[^a-zA-Z0-9+]/g, '')}:wght@400;700&display=swap`;
       link.rel = 'stylesheet';
       
       if (!document.querySelector(`link[href="${link.href}"]`)) {
@@ -70,6 +73,138 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       return fontMap[fontKey] || '"Inter", sans-serif';
     };
 
+    const applyTransitionEffect = (ctx: CanvasRenderingContext2D, progress: number, x: number, y: number) => {
+      const effects = {
+        slideUp: () => {
+          const offset = (1 - progress) * 50;
+          ctx.globalAlpha = progress;
+          return { x, y: y + offset };
+        },
+        slideDown: () => {
+          const offset = (1 - progress) * -50;
+          ctx.globalAlpha = progress;
+          return { x, y: y + offset };
+        },
+        slideLeft: () => {
+          const offset = (1 - progress) * 50;
+          ctx.globalAlpha = progress;
+          return { x: x + offset, y };
+        },
+        slideRight: () => {
+          const offset = (1 - progress) * -50;
+          ctx.globalAlpha = progress;
+          return { x: x + offset, y };
+        },
+        fadeIn: () => {
+          ctx.globalAlpha = progress;
+          return { x, y };
+        },
+        scale: () => {
+          const scale = 0.5 + (progress * 0.5);
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(scale, scale);
+          ctx.translate(-x, -y);
+          return { x, y };
+        },
+        rotate: () => {
+          const rotation = (1 - progress) * Math.PI * 2;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(rotation);
+          ctx.translate(-x, -y);
+          return { x, y };
+        },
+        bounce: () => {
+          const bounceHeight = Math.sin(progress * Math.PI) * 30;
+          return { x, y: y - bounceHeight };
+        },
+        elastic: () => {
+          const elasticOffset = Math.sin(progress * Math.PI * 4) * (1 - progress) * 20;
+          return { x, y: y + elasticOffset };
+        },
+        wave: () => {
+          const waveOffset = Math.sin(progress * Math.PI * 2) * 10;
+          return { x: x + waveOffset, y };
+        },
+        spiral: () => {
+          const angle = progress * Math.PI * 4;
+          const radius = (1 - progress) * 50;
+          const spiralX = Math.cos(angle) * radius;
+          const spiralY = Math.sin(angle) * radius;
+          return { x: x + spiralX, y: y + spiralY };
+        },
+        zoom: () => {
+          const scale = progress * 2;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(scale, scale);
+          ctx.translate(-x, -y);
+          ctx.globalAlpha = Math.min(progress * 2, 1);
+          return { x, y };
+        },
+        flip: () => {
+          const flipProgress = Math.sin(progress * Math.PI);
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.scale(1, flipProgress);
+          ctx.translate(-x, -y);
+          return { x, y };
+        },
+        typewriter: () => {
+          // This effect is handled differently in the text rendering
+          return { x, y };
+        }
+      };
+
+      const effect = effects[settings.transition] || (() => ({ x, y }));
+      return effect();
+    };
+
+    const createGradient = (ctx: CanvasRenderingContext2D, x: number, y: number, fontSize: number, type: string) => {
+      let gradient;
+      
+      switch (type) {
+        case 'rainbow':
+          gradient = ctx.createLinearGradient(x - fontSize, y - fontSize/2, x + fontSize, y + fontSize/2);
+          gradient.addColorStop(0, '#FF0000');
+          gradient.addColorStop(0.17, '#FF8800');
+          gradient.addColorStop(0.33, '#FFFF00');
+          gradient.addColorStop(0.5, '#00FF00');
+          gradient.addColorStop(0.67, '#0088FF');
+          gradient.addColorStop(0.83, '#8800FF');
+          gradient.addColorStop(1, '#FF0088');
+          break;
+        case 'fire':
+          gradient = ctx.createLinearGradient(x, y - fontSize/2, x, y + fontSize/2);
+          gradient.addColorStop(0, '#FF4444');
+          gradient.addColorStop(0.5, '#FF8800');
+          gradient.addColorStop(1, '#FFFF00');
+          break;
+        case 'ocean':
+          gradient = ctx.createLinearGradient(x, y - fontSize/2, x, y + fontSize/2);
+          gradient.addColorStop(0, '#00AAFF');
+          gradient.addColorStop(0.5, '#0066CC');
+          gradient.addColorStop(1, '#003388');
+          break;
+        case 'sunset':
+          gradient = ctx.createLinearGradient(x, y - fontSize/2, x, y + fontSize/2);
+          gradient.addColorStop(0, '#FF6B6B');
+          gradient.addColorStop(0.5, '#FF8E53');
+          gradient.addColorStop(1, '#FF6B9D');
+          break;
+        default:
+          gradient = ctx.createLinearGradient(x - fontSize, y - fontSize/2, x + fontSize, y + fontSize/2);
+          gradient.addColorStop(0, '#FF6B6B');
+          gradient.addColorStop(0.25, '#4ECDC4');
+          gradient.addColorStop(0.5, '#45B7D1');
+          gradient.addColorStop(0.75, '#96CEB4');
+          gradient.addColorStop(1, '#FFEAA7');
+      }
+      
+      return gradient;
+    };
+
     const applyDesignEffects = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fontSize: number) => {
       const effects = {
         classic: () => {
@@ -78,44 +213,71 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         },
         
         neon: () => {
+          // Outer glow
           ctx.shadowColor = '#00FFFF';
-          ctx.shadowBlur = 20;
-          ctx.fillStyle = '#00FFFF';
+          ctx.shadowBlur = 30;
+          ctx.strokeStyle = '#00FFFF';
+          ctx.lineWidth = 2;
+          ctx.strokeText(text, x, y);
+          
+          // Inner fill
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = '#FFFFFF';
           ctx.fillText(text, x, y);
+          
           ctx.shadowBlur = 0;
         },
         
         glow: () => {
-          ctx.shadowColor = settings.background === 'white' ? '#000000' : '#FFFFFF';
-          ctx.shadowBlur = 15;
-          ctx.fillStyle = settings.background === 'white' ? '#000000' : '#FFFFFF';
-          ctx.fillText(text, x, y);
+          const glowColor = settings.background === 'white' ? '#000000' : '#FFFFFF';
+          
+          // Multiple glow layers
+          for (let i = 0; i < 3; i++) {
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 20 + (i * 10);
+            ctx.fillStyle = glowColor;
+            ctx.fillText(text, x, y);
+          }
+          
           ctx.shadowBlur = 0;
         },
 
         gradient: () => {
-          const gradient = ctx.createLinearGradient(x - fontSize, y - fontSize/2, x + fontSize, y + fontSize/2);
-          gradient.addColorStop(0, '#FF6B6B');
-          gradient.addColorStop(0.25, '#4ECDC4');
-          gradient.addColorStop(0.5, '#45B7D1');
-          gradient.addColorStop(0.75, '#96CEB4');
-          gradient.addColorStop(1, '#FFEAA7');
+          const gradient = createGradient(ctx, x, y, fontSize, 'default');
           ctx.fillStyle = gradient;
           ctx.fillText(text, x, y);
         },
 
         fire: () => {
-          const gradient = ctx.createLinearGradient(x, y - fontSize/2, x, y + fontSize/2);
-          gradient.addColorStop(0, '#FF4444');
-          gradient.addColorStop(0.5, '#FF8800');
-          gradient.addColorStop(1, '#FFFF00');
+          const gradient = createGradient(ctx, x, y, fontSize, 'fire');
           ctx.fillStyle = gradient;
           ctx.fillText(text, x, y);
           
+          // Add fire glow effect
           ctx.shadowColor = '#FF4444';
-          ctx.shadowBlur = 10;
+          ctx.shadowBlur = 15;
           ctx.fillText(text, x, y);
           ctx.shadowBlur = 0;
+        },
+
+        rainbow: () => {
+          const gradient = createGradient(ctx, x, y, fontSize, 'rainbow');
+          ctx.fillStyle = gradient;
+          ctx.fillText(text, x, y);
+        },
+
+        chrome: () => {
+          // Chrome effect with multiple layers
+          ctx.fillStyle = '#E8E8E8';
+          ctx.fillText(text, x, y);
+          
+          const gradient = ctx.createLinearGradient(x, y - fontSize/2, x, y + fontSize/2);
+          gradient.addColorStop(0, '#FFFFFF');
+          gradient.addColorStop(0.5, '#CCCCCC');
+          gradient.addColorStop(1, '#999999');
+          
+          ctx.fillStyle = gradient;
+          ctx.fillText(text, x, y);
         }
       };
 
@@ -156,8 +318,15 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       const previousAlpha = ctx.globalAlpha;
       ctx.globalAlpha = textSettings.opacity;
       
-      // Apply color
-      ctx.fillStyle = textSettings.color;
+      // Apply color (could be gradient)
+      if (textSettings.color.startsWith('gradient-')) {
+        const gradientType = textSettings.color.replace('gradient-', '');
+        const gradient = createGradient(ctx, x, y, fontSize, gradientType);
+        ctx.fillStyle = gradient;
+      } else {
+        ctx.fillStyle = textSettings.color;
+      }
+      
       ctx.fillText(textSettings.text, x, y);
       
       // Restore alpha
@@ -188,6 +357,19 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         await loadGoogleFont(settings.customFont);
       }
 
+      // Calculate transition progress
+      let transitionProgress = 1;
+      if (Math.floor(currentValue) !== Math.floor(lastValueRef.current)) {
+        transitionStartTimeRef.current = Date.now();
+        lastValueRef.current = Math.floor(currentValue);
+      }
+      
+      if (settings.transition !== 'none') {
+        const timeSinceTransition = Date.now() - transitionStartTimeRef.current;
+        const transitionDuration = 300; // 300ms transition
+        transitionProgress = Math.min(timeSinceTransition / transitionDuration, 1);
+      }
+
       // Draw counter
       const fontSize = settings.fontSize;
       const fontFamily = getFontFamily(settings.fontFamily, settings.customFont);
@@ -197,11 +379,17 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       ctx.textBaseline = 'middle';
 
       const counterText = Math.floor(currentValue).toString();
-      const x = canvas.width / 2;
-      const y = canvas.height / 2;
+      let x = canvas.width / 2;
+      let y = canvas.height / 2;
 
       // Apply transition effects
       ctx.save();
+      
+      if (settings.transition !== 'none') {
+        const newPos = applyTransitionEffect(ctx, transitionProgress, x, y);
+        x = newPos.x;
+        y = newPos.y;
+      }
       
       // Apply design effects to counter
       applyDesignEffects(ctx, counterText, x, y, fontSize);

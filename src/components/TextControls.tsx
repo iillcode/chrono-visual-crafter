@@ -44,6 +44,21 @@ const TextControls: React.FC<TextControlsProps> = ({ settings, onSettingsChange 
     { value: 'center', label: 'Center' },
   ];
 
+  const colorOptions = [
+    { value: '#ffffff', label: 'White', preview: '#ffffff' },
+    { value: '#000000', label: 'Black', preview: '#000000' },
+    { value: '#ff0000', label: 'Red', preview: '#ff0000' },
+    { value: '#00ff00', label: 'Green', preview: '#00ff00' },
+    { value: '#0000ff', label: 'Blue', preview: '#0000ff' },
+    { value: '#ffff00', label: 'Yellow', preview: '#ffff00' },
+    { value: '#ff00ff', label: 'Magenta', preview: '#ff00ff' },
+    { value: '#00ffff', label: 'Cyan', preview: '#00ffff' },
+    { value: 'gradient-rainbow', label: 'Rainbow Gradient', preview: 'linear-gradient(45deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff)' },
+    { value: 'gradient-fire', label: 'Fire Gradient', preview: 'linear-gradient(45deg, #ff4444, #ff8800, #ffff00)' },
+    { value: 'gradient-ocean', label: 'Ocean Gradient', preview: 'linear-gradient(45deg, #00aaff, #0066cc, #003388)' },
+    { value: 'gradient-sunset', label: 'Sunset Gradient', preview: 'linear-gradient(45deg, #ff6b6b, #ff8e53, #ff6b9d)' },
+  ];
+
   return (
     <div className="space-y-4">
       {/* Enable Text */}
@@ -134,10 +149,36 @@ const TextControls: React.FC<TextControlsProps> = ({ settings, onSettingsChange 
               </div>
 
               <div className="space-y-2">
-                <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">Text Color</Label>
+                <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">Text Color & Gradients</Label>
+                <Select value={settings.color} onValueChange={(value) => updateSetting('color', value)}>
+                  <SelectTrigger className="bg-gray-800/80 border-gray-600/50 text-white text-sm h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600 max-h-60">
+                    {colorOptions.map((color) => (
+                      <SelectItem key={color.value} value={color.value} className="text-white text-sm">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-4 h-4 rounded border border-gray-500"
+                            style={{ 
+                              background: color.preview.startsWith('linear-gradient') 
+                                ? color.preview 
+                                : color.preview 
+                            }}
+                          />
+                          {color.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">Custom Color</Label>
                 <Input
                   type="color"
-                  value={settings.color}
+                  value={settings.color.startsWith('#') ? settings.color : '#ffffff'}
                   onChange={(e) => updateSetting('color', e.target.value)}
                   className="bg-gray-800/80 border-gray-600/50 h-9 w-full"
                 />
@@ -194,6 +235,33 @@ const TextControls: React.FC<TextControlsProps> = ({ settings, onSettingsChange 
                   step={5}
                   className="w-full"
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Preview Demo */}
+          <Card className="bg-gray-900/50 border-gray-700/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white text-base font-medium">Text Preview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gray-800/50 rounded-lg p-4 min-h-[80px] flex items-center justify-center">
+                <div 
+                  className="text-center"
+                  style={{
+                    fontSize: `${Math.min(settings.fontSize, 32)}px`,
+                    fontFamily: settings.fontFamily,
+                    color: settings.color.startsWith('gradient-') ? 'transparent' : settings.color,
+                    background: settings.color.startsWith('gradient-') 
+                      ? colorOptions.find(c => c.value === settings.color)?.preview || 'white'
+                      : 'transparent',
+                    backgroundClip: settings.color.startsWith('gradient-') ? 'text' : 'unset',
+                    WebkitBackgroundClip: settings.color.startsWith('gradient-') ? 'text' : 'unset',
+                    opacity: settings.opacity
+                  }}
+                >
+                  {settings.text || 'Sample Text'}
+                </div>
               </div>
             </CardContent>
           </Card>
