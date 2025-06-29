@@ -1,18 +1,17 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import CounterPreview from '@/components/CounterPreview';
 import ControlPanel from '@/components/ControlPanel';
 import DesignSelector from '@/components/DesignSelector';
 import RecordingControls from '@/components/RecordingControls';
 
+// @ts-ignore
+import GIF from 'gif.js';
+
 const Index = () => {
+  const { toast } = useToast();
   const [counterSettings, setCounterSettings] = useState({
     startValue: 0,
     endValue: 100,
@@ -22,28 +21,33 @@ const Index = () => {
     design: 'classic',
     background: 'black',
     speed: 1,
-    customFont: ''
+    customFont: '',
+    transition: 'slideUp'
   });
 
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentValue, setCurrentValue] = useState(0);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isGeneratingGif, setIsGeneratingGif] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunks = useRef<Blob[]>([]);
+  const frameDataRef = useRef<ImageData[]>([]);
 
   const handleStartRecording = async () => {
     if (!canvasRef.current) return;
 
     try {
-      const stream = canvasRef.current.captureStream(60); // 60 FPS
+      const stream = canvasRef.current.captureStream(60);
       mediaRecorderRef.current = new MediaRecorder(stream, {
         mimeType: 'video/webm;codecs=vp9'
       });
 
       recordedChunks.current = [];
+      frameDataRef.current = [];
+      
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           recordedChunks.current.push(event.data);
@@ -53,9 +57,17 @@ const Index = () => {
       mediaRecorderRef.current.start();
       setIsRecording(true);
       setCurrentValue(counterSettings.startValue);
-      console.log('Recording started');
+      toast({
+        title: "Recording Started",
+        description: "Counter animation recording has begun.",
+      });
     } catch (error) {
       console.error('Failed to start recording:', error);
+      toast({
+        title: "Recording Failed",
+        description: "Could not start recording. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -64,7 +76,10 @@ const Index = () => {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setIsPaused(false);
-      console.log('Recording stopped');
+      toast({
+        title: "Recording Stopped",
+        description: "Your counter animation is ready for export.",
+      });
     }
   };
 
@@ -73,11 +88,17 @@ const Index = () => {
       if (isPaused) {
         mediaRecorderRef.current.resume();
         setIsPaused(false);
-        console.log('Recording resumed');
+        toast({
+          title: "Recording Resumed",
+          description: "Counter animation recording continued.",
+        });
       } else {
         mediaRecorderRef.current.pause();
         setIsPaused(true);
-        console.log('Recording paused');
+        toast({
+          title: "Recording Paused",
+          description: "Counter animation recording paused.",
+        });
       }
     }
   };
@@ -94,7 +115,86 @@ const Index = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    console.log('Video downloaded');
+    
+    toast({
+      title: "Video Downloaded",
+      description: "Your counter animation video has been saved.",
+    });
+  };
+
+  const handleDownloadGif = async () => {
+    if (!canvasRef.current || recordedChunks.current.length === 0) return;
+
+    setIsGeneratingGif(true);
+    
+    try {
+      const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        width: 800,
+        height: 600
+      });
+
+      // Capture frames from canvas during a replay
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const frameCount = 30; // Number of frames for GIF
+      const delay = 100; // Delay between frames in ms
+      
+      // Simulate the counter animation to capture frames
+      for (let i = 0; i < frameCount; i++) {
+        const progress = i / (frameCount - 1);
+        const value = counterSettings.startValue + 
+          (counterSettings.endValue - counterSettings.startValue) * progress;
+        
+        // Clear and redraw canvas for this frame
+        if (counterSettings.background === 'transparent') {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        } else {
+          ctx.fillStyle = counterSettings.background === 'white' ? '#FFFFFF' : '#000000';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Draw the counter value
+        ctx.fillStyle = counterSettings.background === 'white' ? '#000000' : '#FFFFFF';
+        ctx.font = `${counterSettings.fontSize}px ${counterSettings.fontFamily}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(Math.floor(value).toString(), canvas.width / 2, canvas.height / 2);
+
+        // Add frame to GIF
+        gif.addFrame(canvas, { delay });
+      }
+
+      gif.on('finished', (blob: Blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `counter-animation-${Date.now()}.gif`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        setIsGeneratingGif(false);
+        toast({
+          title: "GIF Downloaded",
+          description: "Your counter animation GIF has been saved.",
+        });
+      });
+
+      gif.render();
+    } catch (error) {
+      console.error('Failed to generate GIF:', error);
+      setIsGeneratingGif(false);
+      toast({
+        title: "GIF Generation Failed",
+        description: "Could not generate GIF. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleRestartRecording = () => {
@@ -122,26 +222,27 @@ const Index = () => {
       });
 
       setRecordingTime(prev => prev + (1000 / 60));
-    }, 1000 / 60); // 60 FPS
+    }, 1000 / 60);
 
     return () => clearInterval(interval);
   }, [isRecording, isPaused, counterSettings]);
 
   return (
-    <div className="min-h-screen bg-black text-white font-inter">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white">
       {/* Header */}
-      <header className="border-b border-gray-800 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-              Counter Studio
+      <header className="border-b border-gray-800/50 backdrop-blur-sm bg-gray-900/30 px-4 sm:px-6 py-4 sticky top-0 z-50">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-blue-200 to-purple-300 bg-clip-text text-transparent">
+              Counter Studio Pro
             </h1>
-            <Badge variant="secondary" className="bg-gray-800 text-gray-300">
+            <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0">
               Professional
             </Badge>
           </div>
-          <div className="flex items-center space-x-2 text-sm text-gray-400">
-            <span>Recording Time: {(recordingTime / 1000).toFixed(1)}s</span>
+          <div className="flex items-center gap-3 text-sm text-gray-400">
+            <span className="hidden sm:inline">Recording Time:</span>
+            <span className="font-mono text-blue-400">{(recordingTime / 1000).toFixed(1)}s</span>
             {isRecording && (
               <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
             )}
@@ -149,9 +250,9 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-73px)]">
+      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-73px)]">
         {/* Left Panel - Controls */}
-        <div className="w-80 border-r border-gray-800 p-6 overflow-y-auto">
+        <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-gray-800/50 p-4 lg:p-6 bg-gray-950/50">
           <ControlPanel 
             settings={counterSettings}
             onSettingsChange={setCounterSettings}
@@ -159,18 +260,20 @@ const Index = () => {
         </div>
 
         {/* Center - Preview */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 flex items-center justify-center p-8">
-            <CounterPreview 
-              ref={canvasRef}
-              settings={counterSettings}
-              currentValue={currentValue}
-              isRecording={isRecording}
-            />
+        <div className="flex-1 flex flex-col min-h-[50vh] lg:min-h-auto">
+          <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
+            <div className="w-full max-w-4xl aspect-[4/3] bg-gray-900/30 rounded-lg border border-gray-700/50 backdrop-blur-sm">
+              <CounterPreview 
+                ref={canvasRef}
+                settings={counterSettings}
+                currentValue={currentValue}
+                isRecording={isRecording}
+              />
+            </div>
           </div>
           
           {/* Bottom Controls */}
-          <div className="border-t border-gray-800 p-6">
+          <div className="border-t border-gray-800/50 p-4 lg:p-6 bg-gray-950/30 backdrop-blur-sm">
             <RecordingControls
               isRecording={isRecording}
               isPaused={isPaused}
@@ -179,13 +282,15 @@ const Index = () => {
               onPause={handlePauseRecording}
               onRestart={handleRestartRecording}
               onDownloadVideo={handleDownloadVideo}
+              onDownloadGif={handleDownloadGif}
               recordedChunksLength={recordedChunks.current.length}
+              isGeneratingGif={isGeneratingGif}
             />
           </div>
         </div>
 
         {/* Right Panel - Designs */}
-        <div className="w-80 border-l border-gray-800 p-6 overflow-y-auto">
+        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-gray-800/50 p-4 lg:p-6 bg-gray-950/50 max-h-96 lg:max-h-none overflow-y-auto">
           <DesignSelector
             selectedDesign={counterSettings.design}
             onDesignChange={(design) => setCounterSettings(prev => ({ ...prev, design }))}
