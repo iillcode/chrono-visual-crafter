@@ -1,17 +1,17 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import CounterPreview from '@/components/CounterPreview';
-import ControlPanel from '@/components/ControlPanel';
-import DesignSelector from '@/components/DesignSelector';
 import RecordingControls from '@/components/RecordingControls';
+import StudioSidebar from '@/components/StudioSidebar';
 
 // @ts-ignore
 import GIF from 'gif.js';
 
 const Index = () => {
   const { toast } = useToast();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
   const [counterSettings, setCounterSettings] = useState({
     startValue: 0,
     endValue: 100,
@@ -25,6 +25,18 @@ const Index = () => {
     transition: 'slideUp'
   });
 
+  const [textSettings, setTextSettings] = useState({
+    enabled: false,
+    text: 'Sample Text',
+    position: 'bottom',
+    fontSize: 32,
+    fontFamily: 'inter',
+    color: '#ffffff',
+    offsetX: 0,
+    offsetY: 0,
+    opacity: 1
+  });
+
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentValue, setCurrentValue] = useState(0);
@@ -34,7 +46,6 @@ const Index = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunks = useRef<Blob[]>([]);
-  const frameDataRef = useRef<ImageData[]>([]);
 
   const handleStartRecording = async () => {
     if (!canvasRef.current) return;
@@ -46,7 +57,6 @@ const Index = () => {
       });
 
       recordedChunks.current = [];
-      frameDataRef.current = [];
       
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -135,21 +145,18 @@ const Index = () => {
         height: 600
       });
 
-      // Capture frames from canvas during a replay
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      const frameCount = 30; // Number of frames for GIF
-      const delay = 100; // Delay between frames in ms
+      const frameCount = 30;
+      const delay = 100;
       
-      // Simulate the counter animation to capture frames
       for (let i = 0; i < frameCount; i++) {
         const progress = i / (frameCount - 1);
         const value = counterSettings.startValue + 
           (counterSettings.endValue - counterSettings.startValue) * progress;
         
-        // Clear and redraw canvas for this frame
         if (counterSettings.background === 'transparent') {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         } else {
@@ -157,14 +164,12 @@ const Index = () => {
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Draw the counter value
         ctx.fillStyle = counterSettings.background === 'white' ? '#000000' : '#FFFFFF';
         ctx.font = `${counterSettings.fontSize}px ${counterSettings.fontFamily}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(Math.floor(value).toString(), canvas.width / 2, canvas.height / 2);
 
-        // Add frame to GIF
         gif.addFrame(canvas, { delay });
       }
 
@@ -228,9 +233,9 @@ const Index = () => {
   }, [isRecording, isPaused, counterSettings]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white flex flex-col">
       {/* Header */}
-      <header className="border-b border-gray-800/50 backdrop-blur-sm bg-gray-900/30 px-4 sm:px-6 py-4 sticky top-0 z-50">
+      <header className="border-b border-gray-800/50 backdrop-blur-sm bg-gray-900/30 px-4 sm:px-6 py-4 sticky top-0 z-30">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-blue-200 to-purple-300 bg-clip-text text-transparent">
@@ -250,29 +255,23 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-73px)]">
-        {/* Left Panel - Controls */}
-        <div className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r border-gray-800/50 p-4 lg:p-6 bg-gray-950/50">
-          <ControlPanel 
-            settings={counterSettings}
-            onSettingsChange={setCounterSettings}
-          />
-        </div>
-
-        {/* Center - Preview */}
-        <div className="flex-1 flex flex-col min-h-[50vh] lg:min-h-auto">
-          <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
-            <div className="w-full max-w-4xl aspect-[4/3] bg-gray-900/30 rounded-lg border border-gray-700/50 backdrop-blur-sm">
+      <div className="flex-1 flex relative">
+        {/* Main Content Area */}
+        <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:mr-80' : ''}`}>
+          {/* Preview Area - Fixed Height, No Scroll */}
+          <div className="flex-1 flex items-center justify-center p-4 lg:p-8 min-h-0">
+            <div className="w-full max-w-4xl aspect-[4/3] bg-gray-900/30 rounded-lg border border-gray-700/50 backdrop-blur-sm overflow-hidden">
               <CounterPreview 
                 ref={canvasRef}
                 settings={counterSettings}
+                textSettings={textSettings}
                 currentValue={currentValue}
                 isRecording={isRecording}
               />
             </div>
           </div>
           
-          {/* Bottom Controls */}
+          {/* Bottom Controls - Always Visible */}
           <div className="border-t border-gray-800/50 p-4 lg:p-6 bg-gray-950/30 backdrop-blur-sm">
             <RecordingControls
               isRecording={isRecording}
@@ -289,13 +288,15 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Right Panel - Designs */}
-        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-gray-800/50 p-4 lg:p-6 bg-gray-950/50 max-h-96 lg:max-h-none overflow-y-auto">
-          <DesignSelector
-            selectedDesign={counterSettings.design}
-            onDesignChange={(design) => setCounterSettings(prev => ({ ...prev, design }))}
-          />
-        </div>
+        {/* Studio Sidebar */}
+        <StudioSidebar
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          counterSettings={counterSettings}
+          onCounterSettingsChange={setCounterSettings}
+          textSettings={textSettings}
+          onTextSettingsChange={setTextSettings}
+        />
       </div>
     </div>
   );
