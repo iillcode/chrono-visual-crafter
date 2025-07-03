@@ -27,7 +27,7 @@ const PricingCard: React.FC<PricingCardProps> = ({ plan, className = '' }) => {
   const { openCheckout } = usePaddle();
   const { isSignedIn } = useUser();
   const { toast } = useToast();
-
+console.log(plan,'plan')
   const handleSubscribe = () => {
     if (!isSignedIn) {
       toast({
