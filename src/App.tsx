@@ -22,15 +22,15 @@ const App = () => {
   console.log('VITE_CLERK_PUBLISHABLE_KEY exists:', !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
   console.log('VITE_SUPABASE_URL exists:', !!import.meta.env.VITE_SUPABASE_URL);
   console.log('VITE_PADDLE_CLIENT_TOKEN exists:', !!import.meta.env.VITE_PADDLE_CLIENT_TOKEN);
-
+  
   return (
     <QueryClientProvider client={queryClient}>
       <ClerkAuthWrapper>
-        <PaddleProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <PaddleProvider>  {/* ← Moved inside BrowserRouter */}
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
@@ -53,9 +53,9 @@ const App = () => {
                 />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </PaddleProvider>
+            </PaddleProvider>
+          </BrowserRouter>
+        </TooltipProvider>
       </ClerkAuthWrapper>
     </QueryClientProvider>
   );
