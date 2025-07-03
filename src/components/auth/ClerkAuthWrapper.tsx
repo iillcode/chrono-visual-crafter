@@ -4,7 +4,7 @@ import { dark } from '@clerk/themes';
 import { motion } from 'framer-motion';
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
+console.log(clerkPubKey)
 interface ClerkAuthWrapperProps {
   children: React.ReactNode;
 }
