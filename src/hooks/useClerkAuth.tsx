@@ -2,6 +2,7 @@ import { useUser, useAuth as useClerkAuthHook } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'react-router-dom';
 
 export const useClerkAuth = () => {
   const { user, isLoaded: userLoaded } = useUser();
@@ -9,6 +10,21 @@ export const useClerkAuth = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    // Check for payment success parameter
+    if (searchParams.get('payment') === 'success') {
+      toast({
+        title: "Welcome to Pro!",
+        description: "Your subscription is now active. Enjoy all the premium features!",
+      });
+      
+      // Remove the parameter from URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [searchParams, toast]);
 
   useEffect(() => {
     const syncUserWithSupabase = async () => {

@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { usePaddle } from './PaddleProvider';
 import { useUser } from '@clerk/clerk-react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface PricingCardProps {
   plan: {
@@ -27,7 +28,8 @@ const PricingCard: React.FC<PricingCardProps> = ({ plan, className = '' }) => {
   const { openCheckout } = usePaddle();
   const { isSignedIn } = useUser();
   const { toast } = useToast();
-console.log(plan,'plan')
+  const navigate = useNavigate();
+
   const handleSubscribe = () => {
     if (!isSignedIn) {
       toast({
@@ -35,14 +37,16 @@ console.log(plan,'plan')
         description: "Please sign in to subscribe to a plan.",
         variant: "destructive"
       });
+      navigate('/auth');
       return;
     }
 
     if (plan.price === 0) {
       toast({
         title: "Free Plan Active",
-        description: "You're already on the free plan!",
+        description: "You're already on the free plan! Redirecting to studio...",
       });
+      navigate('/studio');
       return;
     }
 
