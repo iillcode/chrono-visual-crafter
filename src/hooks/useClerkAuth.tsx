@@ -19,6 +19,8 @@ export const useClerkAuth = () => {
       }
 
       try {
+        console.log('Syncing user with Supabase:', user.id);
+        
         // Check if user exists in Supabase
         const { data: existingProfile, error: fetchError } = await supabase
           .from('profiles')
@@ -33,6 +35,7 @@ export const useClerkAuth = () => {
         }
 
         if (!existingProfile) {
+          console.log('Creating new profile for user:', user.id);
           // Create new profile in Supabase
           const { data: newProfile, error: insertError } = await supabase
             .from('profiles')
@@ -55,9 +58,11 @@ export const useClerkAuth = () => {
               variant: "destructive"
             });
           } else {
+            console.log('Profile created successfully:', newProfile);
             setProfile(newProfile);
           }
         } else {
+          console.log('Updating existing profile:', existingProfile);
           // Update existing profile with latest Clerk data
           const { data: updatedProfile, error: updateError } = await supabase
             .from('profiles')
@@ -75,6 +80,7 @@ export const useClerkAuth = () => {
             console.error('Error updating profile:', updateError);
             setProfile(existingProfile);
           } else {
+            console.log('Profile updated successfully:', updatedProfile);
             setProfile(updatedProfile);
           }
         }
