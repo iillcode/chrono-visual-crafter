@@ -91,7 +91,6 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({ children }) => {
       items: [{ priceId }],
       customer: {
         email: user.primaryEmailAddress?.emailAddress,
-        id: user.id,
       },
       customData: {
         userId: user.id,
