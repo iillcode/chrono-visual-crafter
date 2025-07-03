@@ -60,6 +60,128 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          paddle_customer_id: string | null
+          subscription_plan: string | null
+          subscription_status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          paddle_customer_id?: string | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          paddle_customer_id?: string | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          currency: string | null
+          description: string | null
+          features: Json | null
+          id: string
+          interval_type: string
+          is_active: boolean | null
+          name: string
+          paddle_product_id: string | null
+          price: number
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string
+          interval_type?: string
+          is_active?: boolean | null
+          name: string
+          paddle_product_id?: string | null
+          price: number
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string
+          interval_type?: string
+          is_active?: boolean | null
+          name?: string
+          paddle_product_id?: string | null
+          price?: number
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          paddle_subscription_id: string | null
+          plan_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          paddle_subscription_id?: string | null
+          plan_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          paddle_subscription_id?: string | null
+          plan_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string

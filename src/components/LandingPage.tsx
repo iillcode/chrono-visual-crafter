@@ -1,9 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Play, Zap, Palette, Download, Users, Star } from 'lucide-react';
+import AuthPage from './AuthPage';
+import PricingPage from './PricingPage';
+import CheckoutPage from './CheckoutPage';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -11,6 +13,10 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const [demoCounter, setDemoCounter] = useState(0);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showPricing, setShowPricing] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -55,6 +61,32 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white overflow-y-auto">
+      {/* Navigation */}
+      <nav className="flex justify-between items-center p-6">
+        <div className="text-2xl font-bold text-white">
+          Timer Studio
+        </div>
+        <div className="space-x-4">
+          <Button variant="ghost" className="text-white hover:text-gray-300">
+            Features
+          </Button>
+          <Button 
+            variant="ghost" 
+            className="text-white hover:text-gray-300"
+            onClick={() => setShowPricing(true)}
+          >
+            Pricing
+          </Button>
+          <Button 
+            variant="outline" 
+            className="border-white text-white hover:bg-white hover:text-black"
+            onClick={() => setShowAuth(true)}
+          >
+            Sign In
+          </Button>
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-20">
         <div className="text-center mb-16">
@@ -80,14 +112,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
           </div>
 
-          <Button 
-            onClick={onGetStarted}
-            size="lg" 
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg"
-          >
-            <Play className="w-5 h-5 mr-2" />
-            Start Creating Now
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button 
+              onClick={onGetStarted}
+              size="lg"
+              className="bg-white text-black hover:bg-gray-100 font-semibold px-8 py-4 text-lg rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+            >
+              Get Started Free
+            </Button>
+            <Button 
+              onClick={() => setShowPricing(true)}
+              size="lg"
+              variant="outline"
+              className="border-white text-white hover:bg-white hover:text-black font-semibold px-8 py-4 text-lg rounded-full transition-all duration-300 transform hover:scale-105"
+            >
+              View Pricing
+            </Button>
+          </div>
         </div>
 
         {/* Features Grid */}
@@ -132,15 +173,62 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <div className="text-center bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-2xl border border-gray-700/50 backdrop-blur-sm p-12">
           <h2 className="text-3xl font-bold mb-4">Ready to Create Amazing Counters?</h2>
           <p className="text-gray-300 mb-8 text-lg">Join thousands of creators using Counter Studio Pro</p>
-          <Button 
-            onClick={onGetStarted}
-            size="lg" 
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg"
-          >
-            Get Started Free
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button 
+              onClick={onGetStarted}
+              size="lg" 
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg rounded-full transition-all duration-300 transform hover:scale-105"
+            >
+              Get Started Free
+            </Button>
+            <Button 
+              onClick={() => setShowAuth(true)}
+              size="lg"
+              variant="outline"
+              className="border-white text-white hover:bg-white hover:text-black px-8 py-4 text-lg rounded-full transition-all duration-300 transform hover:scale-105"
+            >
+              Sign In to Pro
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Auth Modal */}
+      {showAuth && (
+        <AuthPage onClose={() => setShowAuth(false)} />
+      )}
+
+      {/* Pricing Modal */}
+      {showPricing && !showCheckout && (
+        <PricingPage 
+          onClose={() => setShowPricing(false)}
+          onSelectPlan={(plan) => {
+            setSelectedPlan(plan);
+            if (plan.price > 0) {
+              setShowCheckout(true);
+            } else {
+              setShowPricing(false);
+              onGetStarted();
+            }
+          }}
+        />
+      )}
+
+      {/* Checkout Modal */}
+      {showCheckout && selectedPlan && (
+        <CheckoutPage 
+          plan={selectedPlan}
+          onBack={() => {
+            setShowCheckout(false);
+            setSelectedPlan(null);
+          }}
+          onClose={() => {
+            setShowCheckout(false);
+            setShowPricing(false);
+            setSelectedPlan(null);
+          }}
+        />
+      )}
     </div>
   );
 };
