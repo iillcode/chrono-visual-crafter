@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Settings, Crown, Users, CreditCard, LogOut } from 'lucide-react';
+import { User, Settings, Crown, Users, CreditCard, LogOut, Home } from 'lucide-react';
 
 interface UserProfile {
   id: string;

@@ -1,15 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import CounterPreview from '@/components/CounterPreview';
 import RecordingControls from '@/components/RecordingControls';
 import StudioSidebar from '@/components/StudioSidebar';
+import { User, Home } from 'lucide-react';
 
 // @ts-ignore
 import GIF from 'gif.js';
 
 const Index = () => {
   const { toast } = useToast();
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
   const [counterSettings, setCounterSettings] = useState({
@@ -245,12 +251,39 @@ const Index = () => {
               Professional
             </Badge>
           </div>
-          <div className="flex items-center gap-3 text-sm text-gray-400">
-            <span className="hidden sm:inline">Recording Time:</span>
-            <span className="font-mono text-blue-400">{(recordingTime / 1000).toFixed(1)}s</span>
-            {isRecording && (
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-            )}
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 text-sm text-gray-400">
+              <span className="hidden sm:inline">Recording Time:</span>
+              <span className="font-mono text-blue-400">{(recordingTime / 1000).toFixed(1)}s</span>
+              {isRecording && (
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/')}
+                className="border-white/30 text-white hover:bg-white/20"
+              >
+                <Home className="w-4 h-4 mr-1" />
+                Home
+              </Button>
+              
+              {user && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/profile')}
+                  className="border-white/30 text-white hover:bg-white/20"
+                >
+                  <User className="w-4 h-4 mr-1" />
+                  {profile?.full_name?.split(' ')[0] || 'Profile'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </header>

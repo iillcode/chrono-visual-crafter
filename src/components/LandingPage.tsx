@@ -3,20 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Play, Zap, Palette, Download, Users, Star } from 'lucide-react';
-import AuthPage from './AuthPage';
-import PricingPage from './PricingPage';
-import CheckoutPage from './CheckoutPage';
+import { useNavigate } from 'react-router-dom';
 
 interface LandingPageProps {
   onGetStarted: () => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
+  const navigate = useNavigate();
   const [demoCounter, setDemoCounter] = useState(0);
-  const [showAuth, setShowAuth] = useState(false);
-  const [showPricing, setShowPricing] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -73,14 +68,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           <Button 
             variant="ghost" 
             className="text-white hover:text-gray-300"
-            onClick={() => setShowPricing(true)}
+            onClick={() => navigate('/pricing')}
           >
             Pricing
           </Button>
           <Button 
             variant="outline" 
             className="border-white text-white hover:bg-white hover:text-black"
-            onClick={() => setShowAuth(true)}
+            onClick={() => navigate('/auth')}
           >
             Sign In
           </Button>
@@ -121,7 +116,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               Get Started Free
             </Button>
             <Button 
-              onClick={() => setShowPricing(true)}
+              onClick={() => navigate('/pricing')}
               size="lg"
               variant="outline"
               className="border-white text-white hover:bg-white hover:text-black font-semibold px-8 py-4 text-lg rounded-full transition-all duration-300 transform hover:scale-105"
@@ -182,7 +177,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               Get Started Free
             </Button>
             <Button 
-              onClick={() => setShowAuth(true)}
+              onClick={() => navigate('/auth')}
               size="lg"
               variant="outline"
               className="border-white text-white hover:bg-white hover:text-black px-8 py-4 text-lg rounded-full transition-all duration-300 transform hover:scale-105"
@@ -193,42 +188,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         </div>
       </div>
 
-      {/* Auth Modal */}
-      {showAuth && (
-        <AuthPage onClose={() => setShowAuth(false)} />
-      )}
-
-      {/* Pricing Modal */}
-      {showPricing && !showCheckout && (
-        <PricingPage 
-          onClose={() => setShowPricing(false)}
-          onSelectPlan={(plan) => {
-            setSelectedPlan(plan);
-            if (plan.price > 0) {
-              setShowCheckout(true);
-            } else {
-              setShowPricing(false);
-              onGetStarted();
-            }
-          }}
-        />
-      )}
-
-      {/* Checkout Modal */}
-      {showCheckout && selectedPlan && (
-        <CheckoutPage 
-          plan={selectedPlan}
-          onBack={() => {
-            setShowCheckout(false);
-            setSelectedPlan(null);
-          }}
-          onClose={() => {
-            setShowCheckout(false);
-            setShowPricing(false);
-            setSelectedPlan(null);
-          }}
-        />
-      )}
     </div>
   );
 };

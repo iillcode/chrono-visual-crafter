@@ -45,7 +45,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onClose, onSelectPlan }) => {
 
       setPlans(data.map(plan => ({
         ...plan,
-        features: JSON.parse(plan.features as string)
+        features: Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features as string)
       })));
     } catch (error: any) {
       toast({

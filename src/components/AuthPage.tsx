@@ -44,13 +44,14 @@ const AuthPage: React.FC<AuthPageProps> = ({ onClose }) => {
         description: error.message,
         variant: "destructive"
       });
-    } else {
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in."
-      });
-      onClose();
-    }
+      } else {
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully signed in."
+        });
+        // Redirect to studio after successful login
+        window.location.href = '/studio';
+      }
 
     setIsLoading(false);
   };
