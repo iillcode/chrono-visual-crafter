@@ -119,5 +119,5 @@ CREATE TRIGGER on_auth_user_created
 -- Insert sample subscription plans
 INSERT INTO public.subscription_plans (name, description, price, interval_type, features,paddlePriceId) VALUES
 ('Free', 'Basic timer functionality', 0.00, 'month', '["Basic timer", "3 custom designs", "Local storage"]'),
-('Pro', 'Advanced features and customization', 9.99, 'month', '["Unlimited timers", "All designs", "Cloud sync", "Advanced analytics", "Priority support"], "1"'),
-('Premium', 'Everything + team features', 19.99, 'month', '["Everything in Pro", "Team collaboration", "Advanced reporting", "Custom branding", "API access"], "2"');
+('Pro', 'Advanced features and customization', 9.99, 'month', '["Unlimited timers", "All designs", "Cloud sync", "Advanced analytics", "Priority support"], "", "1"'),
+('Premium', 'Everything + team features', 19.99, 'month', '["Everything in Pro", "Team collaboration", "Advanced reporting", "Custom branding", "API access"],,"", "2"');
