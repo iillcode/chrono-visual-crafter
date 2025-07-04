@@ -1,47 +1,47 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { useClerkAuth } from '@/hooks/useClerkAuth';
-import { useNavigate } from 'react-router-dom';
-import CounterPreview from '@/components/CounterPreview';
-import RecordingControls from '@/components/RecordingControls';
-import StudioSidebar from '@/components/StudioSidebar';
-import GlassCard from '@/components/ui/glass-card';
-import AuthButton from '@/components/auth/AuthButton';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useClerkAuth } from "@/hooks/useClerkAuth";
+import { useNavigate } from "react-router-dom";
+import CounterPreview from "@/components/CounterPreview";
+import RecordingControls from "@/components/RecordingControls";
+import StudioSidebar from "@/components/StudioSidebar";
+import GlassCard from "@/components/ui/glass-card";
+import AuthButton from "@/components/auth/AuthButton";
+import { Loader2 } from "lucide-react";
 
 // @ts-ignore
-import GIF from 'gif.js';
+import GIF from "gif.js";
 
 const Studio = () => {
   const { toast } = useToast();
   const { user, profile, loading } = useClerkAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  
+
   const [counterSettings, setCounterSettings] = useState({
     startValue: 0,
     endValue: 100,
     duration: 5,
-    fontFamily: 'orbitron',
+    fontFamily: "orbitron",
     fontSize: 120,
-    design: 'classic',
-    background: 'black',
+    design: "classic",
+    background: "black",
     speed: 1,
-    customFont: '',
-    transition: 'slideUp'
+    customFont: "",
+    transition: "slideUp",
   });
 
   const [textSettings, setTextSettings] = useState({
     enabled: false,
-    text: 'Sample Text',
-    position: 'bottom',
+    text: "Sample Text",
+    position: "bottom",
     fontSize: 32,
-    fontFamily: 'inter',
-    color: '#ffffff',
+    fontFamily: "inter",
+    color: "#ffffff",
     offsetX: 0,
     offsetY: 0,
-    opacity: 1
+    opacity: 1,
   });
 
   const [isRecording, setIsRecording] = useState(false);
@@ -60,11 +60,11 @@ const Studio = () => {
     try {
       const stream = canvasRef.current.captureStream(60);
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
+        mimeType: "video/webm;codecs=vp9",
       });
 
       recordedChunks.current = [];
-      
+
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           recordedChunks.current.push(event.data);
@@ -79,11 +79,11 @@ const Studio = () => {
         description: "Counter animation recording has begun.",
       });
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      console.error("Failed to start recording:", error);
       toast({
         title: "Recording Failed",
         description: "Could not start recording. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -123,16 +123,16 @@ const Studio = () => {
   const handleDownloadVideo = () => {
     if (recordedChunks.current.length === 0) return;
 
-    const blob = new Blob(recordedChunks.current, { type: 'video/webm' });
+    const blob = new Blob(recordedChunks.current, { type: "video/webm" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `counter-animation-${Date.now()}.webm`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     toast({
       title: "Video Downloaded",
       description: "Your counter animation video has been saved.",
@@ -143,53 +143,60 @@ const Studio = () => {
     if (!canvasRef.current || recordedChunks.current.length === 0) return;
 
     setIsGeneratingGif(true);
-    
+
     try {
       const gif = new GIF({
         workers: 2,
         quality: 10,
         width: 800,
-        height: 600
+        height: 600,
       });
 
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
       const frameCount = 30;
       const delay = 100;
-      
+
       for (let i = 0; i < frameCount; i++) {
         const progress = i / (frameCount - 1);
-        const value = counterSettings.startValue + 
+        const value =
+          counterSettings.startValue +
           (counterSettings.endValue - counterSettings.startValue) * progress;
-        
-        if (counterSettings.background === 'transparent') {
+
+        if (counterSettings.background === "transparent") {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         } else {
-          ctx.fillStyle = counterSettings.background === 'white' ? '#FFFFFF' : '#000000';
+          ctx.fillStyle =
+            counterSettings.background === "white" ? "#FFFFFF" : "#000000";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        ctx.fillStyle = counterSettings.background === 'white' ? '#000000' : '#FFFFFF';
+        ctx.fillStyle =
+          counterSettings.background === "white" ? "#000000" : "#FFFFFF";
         ctx.font = `${counterSettings.fontSize}px ${counterSettings.fontFamily}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(Math.floor(value).toString(), canvas.width / 2, canvas.height / 2);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+          Math.floor(value).toString(),
+          canvas.width / 2,
+          canvas.height / 2
+        );
 
         gif.addFrame(canvas, { delay });
       }
 
-      gif.on('finished', (blob: Blob) => {
+      gif.on("finished", (blob: Blob) => {
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
         a.download = `counter-animation-${Date.now()}.gif`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         setIsGeneratingGif(false);
         toast({
           title: "GIF Downloaded",
@@ -199,12 +206,12 @@ const Studio = () => {
 
       gif.render();
     } catch (error) {
-      console.error('Failed to generate GIF:', error);
+      console.error("Failed to generate GIF:", error);
       setIsGeneratingGif(false);
       toast({
         title: "GIF Generation Failed",
         description: "Could not generate GIF. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -222,18 +229,22 @@ const Studio = () => {
     if (!isRecording || isPaused) return;
 
     const interval = setInterval(() => {
-      setCurrentValue(prev => {
-        const progress = (prev - counterSettings.startValue) / (counterSettings.endValue - counterSettings.startValue);
+      setCurrentValue((prev) => {
+        const progress =
+          (prev - counterSettings.startValue) /
+          (counterSettings.endValue - counterSettings.startValue);
         if (progress >= 1) {
           handleStopRecording();
           return counterSettings.endValue;
         }
-        
-        const step = (counterSettings.endValue - counterSettings.startValue) / (counterSettings.duration * 60 / counterSettings.speed);
+
+        const step =
+          (counterSettings.endValue - counterSettings.startValue) /
+          ((counterSettings.duration * 60) / counterSettings.speed);
         return Math.min(prev + step, counterSettings.endValue);
       });
 
-      setRecordingTime(prev => prev + (1000 / 60));
+      setRecordingTime((prev) => prev + 1000 / 60);
     }, 1000 / 60);
 
     return () => clearInterval(interval);
@@ -262,20 +273,20 @@ const Studio = () => {
               Counter Studio Pro
             </h1>
           </div>
-          
+
           <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3 text-sm text-gray-400 px-3 py-1 rounded border border-[#2BA6FF]/30">
-                <span className="hidden sm:inline">Recording Time:</span>
-                <span className="font-mono text-[#2BA6FF]">{(recordingTime / 1000).toFixed(1)}s</span>
-                {isRecording && (
-                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                )}
-              </div>
-            
-            <div className="flex items-center gap-2">
-              {user && (
-                <AuthButton mode="user" />
+            <div className="flex items-center gap-3 text-sm text-gray-400 px-3 py-1 rounded border border-[#2BA6FF]/30">
+              <span className="hidden sm:inline">Recording Time:</span>
+              <span className="font-mono text-[#2BA6FF]">
+                {(recordingTime / 1000).toFixed(1)}s
+              </span>
+              {isRecording && (
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {user && <AuthButton mode="user" />}
             </div>
           </div>
         </div>
@@ -293,36 +304,37 @@ const Studio = () => {
         />
 
         {/* Main Content Area */}
-        <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-80' : ''} overflow-hidden h-full`}>
-          {/* Preview Area - Full Container */}
-          <div className="flex-1 p-0 relative">
-            <div className="w-full h-full">
-              <div className="w-full h-full bg-[#171717] border border-white/10">
-                <CounterPreview 
-                  ref={canvasRef}
-                  settings={counterSettings}
-                  textSettings={textSettings}
-                  currentValue={currentValue}
-                  isRecording={isRecording}
-                />
-              </div>
-            </div>
-            
-            {/* Floating Recording Controls */}
-            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-              <RecordingControls
+        <div
+          className={`flex-1 flex flex-col transition-all duration-300 ${
+            sidebarOpen ? "" : ""
+          } overflow-hidden h-full`}
+        >
+          {/* Preview Area - Smaller and on Left */}
+          <div className="flex-1 flex p-4 justify-center items-center">
+            <div className="w-[600px] h-[450px] bg-[#171717] border border-white/10 flex items-center justify-center rounded-lg overflow-hidden">
+              <CounterPreview
+                ref={canvasRef}
+                settings={counterSettings}
+                textSettings={textSettings}
+                currentValue={currentValue}
                 isRecording={isRecording}
-                isPaused={isPaused}
-                onStart={handleStartRecording}
-                onStop={handleStopRecording}
-                onPause={handlePauseRecording}
-                onRestart={handleRestartRecording}
-                onDownloadVideo={handleDownloadVideo}
-                onDownloadGif={handleDownloadGif}
-                recordedChunksLength={recordedChunks.current.length}
-                isGeneratingGif={isGeneratingGif}
               />
             </div>
+          </div>
+          {/* Recording Controls - Moved to Top */}
+          <div className="flex-shrink-0 p-4   flex items-center justify-center">
+            <RecordingControls
+              isRecording={isRecording}
+              isPaused={isPaused}
+              onStart={handleStartRecording}
+              onStop={handleStopRecording}
+              onPause={handlePauseRecording}
+              onRestart={handleRestartRecording}
+              onDownloadVideo={handleDownloadVideo}
+              onDownloadGif={handleDownloadGif}
+              recordedChunksLength={recordedChunks.current.length}
+              isGeneratingGif={isGeneratingGif}
+            />
           </div>
         </div>
       </div>
