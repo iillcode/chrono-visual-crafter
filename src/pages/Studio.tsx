@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useClerkAuth } from '@/hooks/useClerkAuth';
@@ -10,7 +9,7 @@ import RecordingControls from '@/components/RecordingControls';
 import StudioSidebar from '@/components/StudioSidebar';
 import GlassCard from '@/components/ui/glass-card';
 import AuthButton from '@/components/auth/AuthButton';
-import { Home, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 // @ts-ignore
 import GIF from 'gif.js';
@@ -243,7 +242,7 @@ const Studio = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center">
+      <div className="min-h-screen bg-[#101010] flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -254,7 +253,7 @@ const Studio = () => {
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             className="inline-block mb-4"
           >
-            <Loader2 className="w-8 h-8 text-blue-400" />
+            <Loader2 className="w-8 h-8 text-[#2BA6FF]" />
           </motion.div>
           <p className="text-white">Loading Studio...</p>
         </motion.div>
@@ -263,24 +262,21 @@ const Studio = () => {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#101010] text-white flex flex-col overflow-hidden">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="border-b border-white/10 backdrop-blur-xl bg-white/5 px-4 sm:px-6 py-3 sticky top-0 z-30 flex-shrink-0"
+        className="border-b border-white/10 bg-[#171717] px-4 sm:px-6 py-3 sticky top-0 z-30 flex-shrink-0"
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <motion.h1
               whileHover={{ scale: 1.05 }}
-              className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-blue-200 to-purple-300 bg-clip-text text-transparent"
+              className="text-xl sm:text-2xl font-bold text-white"
             >
               Counter Studio Pro
             </motion.h1>
-            <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0">
-              Professional
-            </Badge>
           </div>
           
           <div className="flex items-center gap-4">
@@ -288,10 +284,10 @@ const Studio = () => {
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-3 text-sm text-gray-400"
+                className="flex items-center gap-3 text-sm text-gray-400 px-3 py-1 rounded border border-[#2BA6FF]/30"
               >
                 <span className="hidden sm:inline">Recording Time:</span>
-                <span className="font-mono text-blue-400">{(recordingTime / 1000).toFixed(1)}s</span>
+                <span className="font-mono text-[#2BA6FF]">{(recordingTime / 1000).toFixed(1)}s</span>
                 {isRecording && (
                   <motion.div
                     animate={{ scale: [1, 1.2, 1] }}
@@ -303,16 +299,6 @@ const Studio = () => {
             </AnimatePresence>
             
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/')}
-                className="border-white/30 text-white hover:bg-white/20 backdrop-blur-sm"
-              >
-                <Home className="w-4 h-4 mr-1" />
-                Home
-              </Button>
-              
               {user && (
                 <AuthButton mode="user" />
               )}
@@ -333,16 +319,16 @@ const Studio = () => {
         />
 
         {/* Main Content Area */}
-        <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-80' : ''} overflow-hidden`}>
-          {/* Preview Area */}
-          <div className="flex-1 flex items-center justify-center p-4 lg:p-2 min-h-0">
+        <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-80' : ''} overflow-hidden h-full`}>
+          {/* Preview Area - Full Container */}
+          <div className="flex-1 p-0 relative">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}  
               transition={{ duration: 0.5 }}
-              className="w-full max-w-3xl aspect-[4/3]"
+              className="w-full h-full"
             >
-              <GlassCard className="w-full h-full rounded-lg overflow-hidden">
+              <div className="w-full h-full bg-[#171717] border border-white/10">
                 <CounterPreview 
                   ref={canvasRef}
                   settings={counterSettings}
@@ -350,30 +336,30 @@ const Studio = () => {
                   currentValue={currentValue}
                   isRecording={isRecording}
                 />
-              </GlassCard>
+              </div>
+            </motion.div>
+            
+            {/* Floating Recording Controls */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10"
+            >
+              <RecordingControls
+                isRecording={isRecording}
+                isPaused={isPaused}
+                onStart={handleStartRecording}
+                onStop={handleStopRecording}
+                onPause={handlePauseRecording}
+                onRestart={handleRestartRecording}
+                onDownloadVideo={handleDownloadVideo}
+                onDownloadGif={handleDownloadGif}
+                recordedChunksLength={recordedChunks.current.length}
+                isGeneratingGif={isGeneratingGif}
+              />
             </motion.div>
           </div>
-          
-          {/* Recording Controls */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="border-t border-white/10 p-4 lg:p-4 backdrop-blur-xl bg-white/5 flex-shrink-0"
-          >
-            <RecordingControls
-              isRecording={isRecording}
-              isPaused={isPaused}
-              onStart={handleStartRecording}
-              onStop={handleStopRecording}
-              onPause={handlePauseRecording}
-              onRestart={handleRestartRecording}
-              onDownloadVideo={handleDownloadVideo}
-              onDownloadGif={handleDownloadGif}
-              recordedChunksLength={recordedChunks.current.length}
-              isGeneratingGif={isGeneratingGif}
-            />
-          </motion.div>
         </div>
       </div>
     </div>

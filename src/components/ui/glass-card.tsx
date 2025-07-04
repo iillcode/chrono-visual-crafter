@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -15,7 +16,7 @@ const GlassCard: React.FC<GlassCardProps> = ({
   className = '',
   hover = true,
   blur = 'xl',
-  opacity = 0.1
+  opacity = 0.8
 }) => {
   const blurClasses = {
     sm: 'backdrop-blur-sm',
@@ -31,9 +32,9 @@ const GlassCard: React.FC<GlassCardProps> = ({
       transition={{ duration: 0.5 }}
       whileHover={hover ? { y: -2, scale: 1.02 } : undefined}
       className={cn(
-        `${blurClasses[blur]} border border-white/20 shadow-2xl transition-all duration-300`,
-        `bg-white/${Math.round(opacity * 100)}`,
-        hover && 'hover:shadow-3xl hover:border-white/30',
+        `${blurClasses[blur]} border border-white/10 shadow-2xl transition-all duration-300`,
+        `bg-[#171717]/${Math.round(opacity * 100)}`,
+        hover && 'hover:shadow-3xl hover:border-[#2BA6FF]/30',
         className
       )}
     >

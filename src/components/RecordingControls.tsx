@@ -2,8 +2,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Play, Square, RotateCcw, Download, Image, Loader2 } from 'lucide-react';
+import { Play, Square, RotateCcw, Download, Image, Loader2, Pause, PlayIcon } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface RecordingControlsProps {
   isRecording: boolean;
@@ -31,101 +31,90 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   isGeneratingGif
 }) => {
   return (
-    <div className="flex flex-col lg:flex-row items-center justify-between gap-4 p-4 bg-gray-900/50 backdrop-blur-sm rounded-lg border border-gray-700/50">
-      <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
-        {/* Recording Controls */}
-        <div className="flex items-center gap-2">
-          {!isRecording ? (
-            <Button 
-              onClick={onStart}
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg hover:shadow-red-500/25 transition-all duration-200"
-              size="lg"
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Start Recording
-            </Button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button 
-                onClick={onPause}
-                variant="outline"
-                className="border-gray-600 text-white hover:bg-gray-800 bg-gray-900/50 backdrop-blur-sm"
-                size="lg"
-              >
-                {isPaused ? 'Resume' : 'Pause'}
-              </Button>
-              <Button 
-                onClick={onStop}
-                variant="outline"
-                className="border-red-600 text-red-400 hover:bg-red-900/30 bg-gray-900/50 backdrop-blur-sm"
-                size="lg"
-              >
-                <Square className="w-4 h-4 mr-2" />
-                Stop
-              </Button>
-            </div>
-          )}
-          
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-4"
+    >
+      {/* Recording Controls */}
+      <div className="flex items-center gap-3">
+        {!isRecording ? (
           <Button 
-            onClick={onRestart}
-            variant="outline"
-            className="border-gray-600 text-white hover:bg-gray-800 bg-gray-900/50 backdrop-blur-sm"
-            size="lg"
+            onClick={onStart}
+            size="icon"
+            className="w-14 h-14 rounded-full bg-red-600/90 hover:bg-red-700 text-white shadow-lg hover:shadow-red-500/25 transition-all duration-200 border-0"
           >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Restart
+            <Play className="w-6 h-6" />
           </Button>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={onPause}
+              size="icon"
+              className="w-12 h-12 rounded-full bg-[#2BA6FF]/90 hover:bg-[#2BA6FF] text-white shadow-lg border-0"
+            >
+              {isPaused ? <PlayIcon className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+            </Button>
+            <Button 
+              onClick={onStop}
+              size="icon"
+              className="w-12 h-12 rounded-full bg-red-600/90 hover:bg-red-700 text-white shadow-lg border-0"
+            >
+              <Square className="w-5 h-5" />
+            </Button>
+          </div>
+        )}
+        
+        <Button 
+          onClick={onRestart}
+          size="icon"
+          className="w-12 h-12 rounded-full bg-gray-700/90 hover:bg-gray-600 text-white shadow-lg border-0"
+        >
+          <RotateCcw className="w-5 h-5" />
+        </Button>
+      </div>
 
-        <Separator orientation="vertical" className="h-8 bg-gray-600 hidden sm:block" />
-
-        {/* Status */}
+      {/* Status Badge */}
+      {(isRecording || recordedChunksLength > 0) && (
         <div className="flex items-center gap-2">
           {isRecording && (
-            <Badge variant="destructive" className="animate-pulse bg-red-600/90 backdrop-blur-sm">
-              {isPaused ? 'PAUSED' : 'RECORDING'}
+            <Badge className="bg-red-600/90 text-white animate-pulse border-0 px-3 py-1">
+              {isPaused ? 'PAUSED' : 'REC'}
             </Badge>
           )}
           {recordedChunksLength > 0 && !isRecording && (
-            <Badge className="bg-green-800/90 text-green-200 backdrop-blur-sm">
-              Ready to Export
+            <Badge className="bg-green-700/90 text-green-200 border-0 px-3 py-1">
+              Ready
             </Badge>
           )}
         </div>
-      </div>
+      )}
 
       {/* Export Controls */}
-      <div className="flex items-center gap-2 w-full lg:w-auto justify-center lg:justify-end">
+      <div className="flex items-center gap-3">
         <Button 
           onClick={onDownloadVideo}
           disabled={recordedChunksLength === 0}
-          variant="outline"
-          className="border-blue-600 text-blue-400 hover:bg-blue-900/30 disabled:opacity-50 bg-gray-900/50 backdrop-blur-sm flex-1 sm:flex-none"
+          size="icon"
+          className="w-12 h-12 rounded-full bg-blue-600/90 hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed text-white shadow-lg border-0"
         >
-          <Download className="w-4 h-4 mr-2" />
-          Download Video
+          <Download className="w-5 h-5" />
         </Button>
         
         <Button 
           onClick={onDownloadGif}
           disabled={recordedChunksLength === 0 || isGeneratingGif}
-          variant="outline"
-          className="border-purple-600 text-purple-400 hover:bg-purple-900/30 disabled:opacity-50 bg-gray-900/50 backdrop-blur-sm flex-1 sm:flex-none"
+          size="icon"
+          className="w-12 h-12 rounded-full bg-purple-600/90 hover:bg-purple-700 disabled:opacity-30 disabled:cursor-not-allowed text-white shadow-lg border-0"
         >
           {isGeneratingGif ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Generating...
-            </>
+            <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
-            <>
-              <Image className="w-4 h-4 mr-2" />
-              Export GIF
-            </>
+            <Image className="w-5 h-5" />
           )}
         </Button>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

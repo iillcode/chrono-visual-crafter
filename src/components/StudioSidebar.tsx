@@ -37,22 +37,22 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
         />
       )}
       
-      {/* Sidebar - Moved to Left */}
+      {/* Sidebar */}
       <div className={`
-        fixed left-0 top-0 h-full w-80 bg-gray-950 border-r border-gray-800 z-50 transform transition-transform duration-300 ease-in-out
+        fixed left-0 top-0 h-full w-80 bg-[#171717] border-r border-white/10 z-50 transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:relative lg:translate-x-0 lg:z-auto
         ${!isOpen && 'lg:w-0 lg:border-r-0'}
       `}>
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-800">
-            <h2 className="text-white font-semibold">Studio Controls</h2>
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <h2 className="text-white font-semibold px-3 py-1 rounded border border-[#2BA6FF]/30">Studio Controls</h2>
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggle}
-              className="text-gray-400 hover:text-white"
+              className="text-gray-400 hover:text-white hover:bg-white/10"
             >
               <X className="w-4 h-4" />
             </Button>
@@ -61,16 +61,25 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
           {/* Tabs */}
           <div className="flex-1 overflow-hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <TabsList className="grid grid-cols-3 m-4 bg-gray-900">
-                <TabsTrigger value="counter" className="flex items-center gap-1 text-xs">
+              <TabsList className="grid grid-cols-3 m-4 bg-[#101010] border border-white/10">
+                <TabsTrigger 
+                  value="counter" 
+                  className="flex items-center gap-1 text-xs border border-[#2BA6FF]/30 data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
+                >
                   <Hash className="w-3 h-3" />
                   Counter
                 </TabsTrigger>
-                <TabsTrigger value="text" className="flex items-center gap-1 text-xs">
+                <TabsTrigger 
+                  value="text" 
+                  className="flex items-center gap-1 text-xs border border-[#2BA6FF]/30 data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
+                >
                   <Type className="w-3 h-3" />
                   Text
                 </TabsTrigger>
-                <TabsTrigger value="design" className="flex items-center gap-1 text-xs">
+                <TabsTrigger 
+                  value="design" 
+                  className="flex items-center gap-1 text-xs border border-[#2BA6FF]/30 data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
+                >
                   <Palette className="w-3 h-3" />
                   Design
                 </TabsTrigger>
@@ -105,11 +114,11 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
         </div>
       </div>
 
-      {/* Toggle Button (when sidebar is closed) - Now on left */}
+      {/* Toggle Button (when sidebar is closed) */}
       {!isOpen && (
         <Button
           onClick={onToggle}
-          className="fixed left-4 top-20 z-30 bg-gray-900 hover:bg-gray-800 border border-gray-700"
+          className="fixed left-4 top-20 z-30 bg-[#171717] hover:bg-[#2BA6FF]/20 border border-[#2BA6FF]/30 text-white"
           size="sm"
         >
           <ChevronRight className="w-4 h-4" />
