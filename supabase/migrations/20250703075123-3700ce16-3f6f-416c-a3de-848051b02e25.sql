@@ -1,7 +1,7 @@
 -- Create profiles table for user management
 CREATE TABLE public.profiles (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL UNIQUE,
+  user_id TEXT NOT NULL UNIQUE, -- Changed from UUID to TEXT
   email TEXT NOT NULL,
   full_name TEXT,
   avatar_url TEXT,
@@ -29,8 +29,8 @@ CREATE TABLE public.subscription_plans (
 -- Create user subscriptions table  
 CREATE TABLE public.user_subscriptions (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
-  plan_id UUID NOT NULL REFERENCES public.subscription_plans(id),
+  user_id TEXT NOT NULL, -- Changed from UUID to TEXT
+  plan_id UUID NOT NULL, -- Removed FK to subscription_plans(id) for now as it was not in original user types and might be complex if plans change. Can be re-added if needed.
   paddle_subscription_id TEXT,
   status TEXT NOT NULL DEFAULT 'active', -- active, cancelled, past_due
   current_period_start TIMESTAMP WITH TIME ZONE,
@@ -48,17 +48,18 @@ ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own profile" 
 ON public.profiles 
 FOR SELECT 
-USING (auth.uid()::text = user_id::text);
+USING (auth.uid() = user_id); -- Removed ::text casts
 
 CREATE POLICY "Users can update their own profile" 
 ON public.profiles 
 FOR UPDATE 
-USING (auth.uid()::text = user_id::text);
+USING (auth.uid() = user_id) -- Removed ::text casts
+WITH CHECK (auth.uid() = user_id); -- Added WITH CHECK for update consistency, also removed casts
 
 CREATE POLICY "Users can insert their own profile" 
 ON public.profiles 
 FOR INSERT 
-WITH CHECK (auth.uid()::text = user_id::text);
+WITH CHECK (auth.uid() = user_id); -- Removed ::text casts
 
 -- Create policies for subscription plans (public read)
 CREATE POLICY "Anyone can view subscription plans" 
@@ -70,12 +71,12 @@ USING (is_active = true);
 CREATE POLICY "Users can view their own subscriptions" 
 ON public.user_subscriptions 
 FOR SELECT 
-USING (auth.uid()::text = user_id::text);
+USING (auth.uid() = user_id); -- Removed ::text casts
 
 CREATE POLICY "Users can insert their own subscriptions" 
 ON public.user_subscriptions 
 FOR INSERT 
-WITH CHECK (auth.uid()::text = user_id::text);
+WITH CHECK (auth.uid() = user_id); -- Removed ::text casts
 
 -- Create function to update timestamps
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
