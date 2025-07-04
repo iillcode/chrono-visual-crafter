@@ -17,6 +17,9 @@ interface CounterPreviewProps {
     speed: number;
     customFont: string;
     transition: string;
+    prefix: string;
+    suffix: string;
+    separator: string;
   };
   textSettings: {
     enabled: boolean;
@@ -29,12 +32,24 @@ interface CounterPreviewProps {
     offsetY: number;
     opacity: number;
   };
+  designSettings: {
+    neonColor: string;
+    neonIntensity: number;
+    glowColor: string;
+    glowIntensity: number;
+    gradientColors: string;
+    fireColors: string;
+    fireGlow: number;
+    rainbowColors: string;
+    chromeColors: string;
+  };
   currentValue: number;
   isRecording: boolean;
+  formatNumber: (value: number) => string;
 }
 
 const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
-  ({ settings, textSettings, currentValue, isRecording }, ref) => {
+  ({ settings, textSettings, designSettings, currentValue, isRecording, formatNumber }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>();
     const lastValueRef = useRef<number>(settings.startValue);

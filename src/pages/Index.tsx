@@ -28,7 +28,10 @@ const Index = () => {
     background: 'black',
     speed: 1,
     customFont: '',
-    transition: 'slideUp'
+    transition: 'slideUp',
+    prefix: '',
+    suffix: '',
+    separator: 'none'
   });
 
   const [textSettings, setTextSettings] = useState({
@@ -48,6 +51,37 @@ const Index = () => {
   const [currentValue, setCurrentValue] = useState(0);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isGeneratingGif, setIsGeneratingGif] = useState(false);
+  const [cancelGifGeneration, setCancelGifGeneration] = useState(false);
+
+  const [designSettings] = useState({
+    neonColor: "#00FFFF",
+    neonIntensity: 10,
+    glowColor: "#FFFFFF",
+    glowIntensity: 15,
+    gradientColors: "linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7)",
+    fireColors: "linear-gradient(45deg, #FF4444, #FF8800, #FFFF00)",
+    fireGlow: 10,
+    rainbowColors: "linear-gradient(45deg, #FF0000, #FF8800, #FFFF00, #00FF00, #0088FF, #8800FF, #FF0088)",
+    chromeColors: "linear-gradient(45deg, #FFFFFF, #CCCCCC, #999999)",
+  });
+
+  const formatNumber = (value: number) => {
+    let formattedValue = Math.floor(value).toString();
+    
+    // Apply separator
+    if (counterSettings.separator && counterSettings.separator !== "none") {
+      const separator = counterSettings.separator === "comma" ? "," :
+                       counterSettings.separator === "dot" ? "." :
+                       counterSettings.separator === "space" ? " " : "";
+      
+      if (separator) {
+        formattedValue = formattedValue.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+      }
+    }
+    
+    // Add prefix and suffix
+    return `${counterSettings.prefix || ""}${formattedValue}${counterSettings.suffix || ""}`;
+  };
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -138,17 +172,27 @@ const Index = () => {
     });
   };
 
+  const handleCancelGif = () => {
+    setCancelGifGeneration(true);
+    toast({
+      title: "GIF Generation Cancelled",
+      description: "The GIF generation process has been stopped.",
+    });
+  };
+
   const handleDownloadGif = async () => {
     if (!canvasRef.current || recordedChunks.current.length === 0) return;
 
     setIsGeneratingGif(true);
+    setCancelGifGeneration(false);
     
     try {
       const gif = new GIF({
         workers: 2,
         quality: 10,
         width: 800,
-        height: 600
+        height: 600,
+        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
       });
 
       const canvas = canvasRef.current;
@@ -159,6 +203,12 @@ const Index = () => {
       const delay = 100;
       
       for (let i = 0; i < frameCount; i++) {
+        if (cancelGifGeneration) {
+          setIsGeneratingGif(false);
+          setCancelGifGeneration(false);
+          return;
+        }
+
         const progress = i / (frameCount - 1);
         const value = counterSettings.startValue + 
           (counterSettings.endValue - counterSettings.startValue) * progress;
@@ -174,32 +224,37 @@ const Index = () => {
         ctx.font = `${counterSettings.fontSize}px ${counterSettings.fontFamily}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(Math.floor(value).toString(), canvas.width / 2, canvas.height / 2);
+        ctx.fillText(formatNumber(value), canvas.width / 2, canvas.height / 2);
 
         gif.addFrame(canvas, { delay });
       }
 
       gif.on('finished', (blob: Blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `counter-animation-${Date.now()}.gif`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        if (!cancelGifGeneration) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `counter-animation-${Date.now()}.gif`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          toast({
+            title: "GIF Downloaded",
+            description: "Your counter animation GIF has been saved.",
+          });
+        }
         
         setIsGeneratingGif(false);
-        toast({
-          title: "GIF Downloaded",
-          description: "Your counter animation GIF has been saved.",
-        });
+        setCancelGifGeneration(false);
       });
 
       gif.render();
     } catch (error) {
       console.error('Failed to generate GIF:', error);
       setIsGeneratingGif(false);
+      setCancelGifGeneration(false);
       toast({
         title: "GIF Generation Failed",
         description: "Could not generate GIF. Please try again.",
@@ -308,8 +363,10 @@ const Index = () => {
                 ref={canvasRef}
                 settings={counterSettings}
                 textSettings={textSettings}
+                designSettings={designSettings}
                 currentValue={currentValue}
                 isRecording={isRecording}
+                formatNumber={formatNumber}
               />
             </div>
           </div>
@@ -327,6 +384,7 @@ const Index = () => {
               onDownloadGif={handleDownloadGif}
               recordedChunksLength={recordedChunks.current.length}
               isGeneratingGif={isGeneratingGif}
+              onCancelGif={handleCancelGif}
             />
           </div>
         </div>

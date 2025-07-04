@@ -16,6 +16,7 @@ interface RecordingControlsProps {
   onDownloadGif: () => void;
   recordedChunksLength: number;
   isGeneratingGif: boolean;
+  onCancelGif: () => void;
 }
 
 const RecordingControls: React.FC<RecordingControlsProps> = ({
@@ -28,7 +29,8 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   onDownloadVideo,
   onDownloadGif,
   recordedChunksLength,
-  isGeneratingGif
+  isGeneratingGif,
+  onCancelGif
 }) => {
   return (
     <motion.div 
