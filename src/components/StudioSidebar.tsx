@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { X, Type, Hash, Palette, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,8 @@ interface StudioSidebarProps {
   onCounterSettingsChange: (settings: any) => void;
   textSettings: any;
   onTextSettingsChange: (settings: any) => void;
+  designSettings?: any;
+  onDesignSettingsChange?: (settings: any) => void;
 }
 
 const StudioSidebar: React.FC<StudioSidebarProps> = ({
@@ -23,6 +26,8 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
   onCounterSettingsChange,
   textSettings,
   onTextSettingsChange,
+  designSettings = {},
+  onDesignSettingsChange = () => {},
 }) => {
   const [activeTab, setActiveTab] = useState("counter");
 
@@ -51,14 +56,6 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
             <h2 className="text-white font-semibold px-3 py-1 rounded border border-gray-700/50">
               Studio Controls
             </h2>
-            {/* <Button
-              variant="ghost"
-              size="sm"
-              onClick={onToggle}
-              className="text-gray-400 hover:text-white hover:bg-white/10"
-            >
-              <X className="w-4 h-4" />
-            </Button> */}
           </div>
 
           {/* Tabs */}
@@ -112,8 +109,10 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
                     <DesignPreview
                       selectedDesign={counterSettings.design}
                       onDesignChange={(design) =>
-                        onCounterSettingsChange((prev) => ({ ...prev, design }))
+                        onCounterSettingsChange({ ...counterSettings, design })
                       }
+                      designSettings={designSettings}
+                      onDesignSettingsChange={onDesignSettingsChange}
                     />
                   </TabsContent>
                 </ScrollArea>

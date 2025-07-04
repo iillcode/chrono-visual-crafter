@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -30,18 +31,33 @@ const Studio = () => {
     speed: 1,
     customFont: "",
     transition: "slideUp",
+    prefix: "",
+    suffix: "",
+    separator: "none",
   });
 
   const [textSettings, setTextSettings] = useState({
     enabled: false,
     text: "Sample Text",
-    position: "bottom",
-    fontSize: 32,
-    fontFamily: "inter",
+    position: "right",
+    fontSize: 120, // Default to same as counter
+    fontFamily: "orbitron", // Default to same as counter
     color: "#ffffff",
-    offsetX: 0,
+    offsetX: 150, // Default to right side
     offsetY: 0,
     opacity: 1,
+  });
+
+  const [designSettings, setDesignSettings] = useState({
+    neonColor: "#00FFFF",
+    neonIntensity: 10,
+    glowColor: "#FFFFFF",
+    glowIntensity: 15,
+    gradientColors: "linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7)",
+    fireColors: "linear-gradient(45deg, #FF4444, #FF8800, #FFFF00)",
+    fireGlow: 10,
+    rainbowColors: "linear-gradient(45deg, #FF0000, #FF8800, #FFFF00, #00FF00, #0088FF, #8800FF, #FF0088)",
+    chromeColors: "linear-gradient(45deg, #FFFFFF, #CCCCCC, #999999)",
   });
 
   const [isRecording, setIsRecording] = useState(false);
@@ -49,10 +65,38 @@ const Studio = () => {
   const [currentValue, setCurrentValue] = useState(0);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isGeneratingGif, setIsGeneratingGif] = useState(false);
+  const [cancelGifGeneration, setCancelGifGeneration] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunks = useRef<Blob[]>([]);
+
+  // Sync text settings with counter settings
+  useEffect(() => {
+    setTextSettings(prev => ({
+      ...prev,
+      fontSize: counterSettings.fontSize,
+      fontFamily: counterSettings.fontFamily,
+    }));
+  }, [counterSettings.fontSize, counterSettings.fontFamily]);
+
+  const formatNumber = (value: number) => {
+    let formattedValue = Math.floor(value).toString();
+    
+    // Apply separator
+    if (counterSettings.separator && counterSettings.separator !== "none") {
+      const separator = counterSettings.separator === "comma" ? "," :
+                       counterSettings.separator === "dot" ? "." :
+                       counterSettings.separator === "space" ? " " : "";
+      
+      if (separator) {
+        formattedValue = formattedValue.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+      }
+    }
+    
+    // Add prefix and suffix
+    return `${counterSettings.prefix || ""}${formattedValue}${counterSettings.suffix || ""}`;
+  };
 
   const handleStartRecording = async () => {
     if (!canvasRef.current) return;
@@ -143,77 +187,110 @@ const Studio = () => {
     if (!canvasRef.current || recordedChunks.current.length === 0) return;
 
     setIsGeneratingGif(true);
+    setCancelGifGeneration(false);
 
     try {
       const gif = new GIF({
-        workers: 2,
-        quality: 10,
+        workers: 4,
+        quality: 15,
         width: 800,
         height: 600,
+        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
       });
 
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      const frameCount = 30;
-      const delay = 100;
+      const frameCount = Math.min(60, counterSettings.duration * 10);
+      const delay = Math.max(50, (counterSettings.duration * 1000) / frameCount);
 
-      for (let i = 0; i < frameCount; i++) {
-        const progress = i / (frameCount - 1);
-        const value =
-          counterSettings.startValue +
-          (counterSettings.endValue - counterSettings.startValue) * progress;
+      let frameIndex = 0;
 
+      const addFrame = () => {
+        if (cancelGifGeneration) {
+          setIsGeneratingGif(false);
+          setCancelGifGeneration(false);
+          return;
+        }
+
+        if (frameIndex >= frameCount) {
+          gif.render();
+          return;
+        }
+
+        const progress = frameIndex / (frameCount - 1);
+        const value = counterSettings.startValue + (counterSettings.endValue - counterSettings.startValue) * progress;
+
+        // Clear canvas
         if (counterSettings.background === "transparent") {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         } else {
-          ctx.fillStyle =
-            counterSettings.background === "white" ? "#FFFFFF" : "#000000";
+          ctx.fillStyle = counterSettings.background === "white" ? "#FFFFFF" : "#000000";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        ctx.fillStyle =
-          counterSettings.background === "white" ? "#000000" : "#FFFFFF";
+        // Draw counter
+        ctx.fillStyle = counterSettings.background === "white" ? "#000000" : "#FFFFFF";
         ctx.font = `${counterSettings.fontSize}px ${counterSettings.fontFamily}`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(
-          Math.floor(value).toString(),
-          canvas.width / 2,
-          canvas.height / 2
-        );
+        ctx.fillText(formatNumber(value), canvas.width / 2, canvas.height / 2);
 
         gif.addFrame(canvas, { delay });
-      }
+        frameIndex++;
 
-      gif.on("finished", (blob: Blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `counter-animation-${Date.now()}.gif`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Add next frame after a small delay to prevent blocking
+        setTimeout(addFrame, 1);
+      };
 
-        setIsGeneratingGif(false);
+      gif.on("progress", (progress: number) => {
         toast({
-          title: "GIF Downloaded",
-          description: "Your counter animation GIF has been saved.",
+          title: "Generating GIF",
+          description: `Progress: ${Math.round(progress * 100)}%`,
         });
       });
 
-      gif.render();
+      gif.on("finished", (blob: Blob) => {
+        if (!cancelGifGeneration) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `counter-animation-${Date.now()}.gif`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          toast({
+            title: "GIF Downloaded",
+            description: "Your counter animation GIF has been saved.",
+          });
+        }
+        
+        setIsGeneratingGif(false);
+        setCancelGifGeneration(false);
+      });
+
+      addFrame();
     } catch (error) {
       console.error("Failed to generate GIF:", error);
       setIsGeneratingGif(false);
+      setCancelGifGeneration(false);
       toast({
         title: "GIF Generation Failed",
         description: "Could not generate GIF. Please try again.",
         variant: "destructive",
       });
     }
+  };
+
+  const handleCancelGif = () => {
+    setCancelGifGeneration(true);
+    toast({
+      title: "GIF Generation Cancelled",
+      description: "The GIF generation process has been stopped.",
+    });
   };
 
   const handleRestartRecording = () => {
@@ -302,6 +379,8 @@ const Studio = () => {
           onCounterSettingsChange={setCounterSettings}
           textSettings={textSettings}
           onTextSettingsChange={setTextSettings}
+          designSettings={designSettings}
+          onDesignSettingsChange={setDesignSettings}
         />
 
         {/* Main Content Area */}
@@ -310,20 +389,23 @@ const Studio = () => {
             sidebarOpen ? "" : ""
           } overflow-hidden h-full`}
         >
-          {/* Preview Area - Smaller and on Left */}
+          {/* Preview Area */}
           <div className="flex flex p-4 justify-center items-center">
-            <div className="w-[600px] h-[350px]   flex items-center justify-center rounded-lg overflow-hidden">
+            <div className="w-[600px] h-[350px] flex items-center justify-center rounded-lg overflow-hidden">
               <CounterPreview
                 ref={canvasRef}
                 settings={counterSettings}
                 textSettings={textSettings}
+                designSettings={designSettings}
                 currentValue={currentValue}
                 isRecording={isRecording}
+                formatNumber={formatNumber}
               />
             </div>
           </div>
-          {/* Recording Controls - Moved to Top */}
-          <div className="flex-shrink-0 pb-4   flex  justify-center">
+          
+          {/* Recording Controls */}
+          <div className="flex-shrink-0 pb-4 flex justify-center">
             <RecordingControls
               isRecording={isRecording}
               isPaused={isPaused}
@@ -335,6 +417,7 @@ const Studio = () => {
               onDownloadGif={handleDownloadGif}
               recordedChunksLength={recordedChunks.current.length}
               isGeneratingGif={isGeneratingGif}
+              onCancelGif={handleCancelGif}
             />
           </div>
         </div>

@@ -1,30 +1,20 @@
-import React from "react";
+
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Save, Trash2 } from "lucide-react";
+import { useClerkAuth } from "@/hooks/useClerkAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import PositionJoystick from "./PositionJoystick";
 
 interface TextControlsProps {
-  settings: {
-    enabled: boolean;
-    text: string;
-    position: string;
-    fontSize: number;
-    fontFamily: string;
-    color: string;
-    offsetX: number;
-    offsetY: number;
-    opacity: number;
-  };
+  settings: any;
   onSettingsChange: (settings: any) => void;
 }
 
@@ -32,329 +22,284 @@ const TextControls: React.FC<TextControlsProps> = ({
   settings,
   onSettingsChange,
 }) => {
-  const updateSetting = (key: string, value: any) => {
-    onSettingsChange((prev) => ({ ...prev, [key]: value }));
+  const { user, profile } = useClerkAuth();
+  const { toast } = useToast();
+  const [savedPresets, setSavedPresets] = useState<any[]>([]);
+  const [presetName, setPresetName] = useState("");
+  const [loadingPresets, setLoadingPresets] = useState(false);
+
+  const isPaidUser = profile?.subscription_status === 'active' && profile?.subscription_plan !== 'free';
+
+  React.useEffect(() => {
+    if (isPaidUser) {
+      loadSavedPresets();
+    }
+  }, [isPaidUser]);
+
+  const loadSavedPresets = async () => {
+    if (!user) return;
+    
+    setLoadingPresets(true);
+    try {
+      const { data, error } = await supabase
+        .from('saved_text_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSavedPresets(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error loading presets",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingPresets(false);
+    }
   };
 
-  const fontOptions = [
-    { value: "inter", label: "Inter" },
-    { value: "mono", label: "Roboto Mono" },
-    { value: "poppins", label: "Poppins" },
-    { value: "orbitron", label: "Orbitron" },
-    { value: "rajdhani", label: "Rajdhani" },
-  ];
+  const savePreset = async () => {
+    if (!user || !presetName.trim()) return;
 
-  const positionOptions = [
-    { value: "top", label: "Top" },
-    { value: "bottom", label: "Bottom" },
-    { value: "left", label: "Left" },
-    { value: "right", label: "Right" },
-    { value: "center", label: "Center" },
-  ];
+    try {
+      const { error } = await supabase
+        .from('saved_text_settings')
+        .insert({
+          user_id: user.id,
+          name: presetName.trim(),
+          settings: settings
+        });
 
-  const colorOptions = [
-    { value: "#ffffff", label: "White", preview: "#ffffff" },
-    { value: "#000000", label: "Black", preview: "#000000" },
-    { value: "#ff0000", label: "Red", preview: "#ff0000" },
-    { value: "#00ff00", label: "Green", preview: "#00ff00" },
-    { value: "#0000ff", label: "Blue", preview: "#0000ff" },
-    { value: "#ffff00", label: "Yellow", preview: "#ffff00" },
-    { value: "#ff00ff", label: "Magenta", preview: "#ff00ff" },
-    { value: "#00ffff", label: "Cyan", preview: "#00ffff" },
-    {
-      value: "gradient-rainbow",
-      label: "Rainbow Gradient",
-      preview:
-        "linear-gradient(45deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff)",
-    },
-    {
-      value: "gradient-fire",
-      label: "Fire Gradient",
-      preview: "linear-gradient(45deg, #ff4444, #ff8800, #ffff00)",
-    },
-    {
-      value: "gradient-ocean",
-      label: "Ocean Gradient",
-      preview: "linear-gradient(45deg, #00aaff, #0066cc, #003388)",
-    },
-    {
-      value: "gradient-sunset",
-      label: "Sunset Gradient",
-      preview: "linear-gradient(45deg, #ff6b6b, #ff8e53, #ff6b9d)",
-    },
-  ];
+      if (error) throw error;
+
+      toast({
+        title: "Preset saved",
+        description: `"${presetName}" has been saved successfully.`
+      });
+      
+      setPresetName("");
+      loadSavedPresets();
+    } catch (error: any) {
+      toast({
+        title: "Error saving preset",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const loadPreset = (preset: any) => {
+    onSettingsChange(preset.settings);
+    toast({
+      title: "Preset loaded",
+      description: `"${preset.name}" has been applied.`
+    });
+  };
+
+  const deletePreset = async (presetId: string, presetName: string) => {
+    try {
+      const { error } = await supabase
+        .from('saved_text_settings')
+        .delete()
+        .eq('id', presetId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Preset deleted",
+        description: `"${presetName}" has been removed.`
+      });
+      
+      loadSavedPresets();
+    } catch (error: any) {
+      toast({
+        title: "Error deleting preset",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handlePositionChange = (x: number, y: number) => {
+    onSettingsChange({
+      ...settings,
+      offsetX: x,
+      offsetY: y
+    });
+  };
 
   return (
     <div className="space-y-4">
-      {/* Enable Text */}
       <Card className="!bg-[#101010] border-gray-700/50">
         <CardHeader className="pb-3">
           <CardTitle className="text-white text-base font-medium flex items-center gap-2">
-            📝 Text Element
+            📝 Text Settings
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
-            <Label className="text-gray-300 text-sm">Enable Text</Label>
+            <Label className="text-white">Enable Text</Label>
             <Switch
               checked={settings.enabled}
-              onCheckedChange={(value) => updateSetting("enabled", value)}
+              onCheckedChange={(enabled) =>
+                onSettingsChange({ ...settings, enabled })
+              }
             />
           </div>
 
           {settings.enabled && (
             <>
               <div className="space-y-2">
-                <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">
-                  Text Content
-                </Label>
-                <Textarea
+                <Label className="text-white">Text Content</Label>
+                <Input
                   value={settings.text}
-                  onChange={(e) => updateSetting("text", e.target.value)}
-                  placeholder="Enter your text..."
-                  className="!bg-[#181818]/80 border-gray-600/50 text-white text-sm resize-none h-20"
+                  onChange={(e) =>
+                    onSettingsChange({ ...settings, text: e.target.value })
+                  }
+                  placeholder="Enter your text"
+                  className="bg-[#181818] border-gray-600 text-white"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">
-                  Position
-                </Label>
+                <Label className="text-white">Font Family</Label>
                 <Select
-                  value={settings.position}
-                  onValueChange={(value) => updateSetting("position", value)}
+                  value={settings.fontFamily}
+                  onValueChange={(fontFamily) =>
+                    onSettingsChange({ ...settings, fontFamily })
+                  }
                 >
-                  <SelectTrigger className="!bg-[#181818]/80 border-gray-600/50 text-white text-sm h-9">
+                  <SelectTrigger className="bg-[#181818] border-gray-600 text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="!bg-[#101010] border-gray-600">
-                    {positionOptions.map((pos) => (
-                      <SelectItem
-                        key={pos.value}
-                        value={pos.value}
-                        className="!bg-[#101010] text-white text-sm data-[state=checked]:!bg-[#101010] data-[state=checked]:text-white"
-                      >
-                        {pos.label}
-                      </SelectItem>
-                    ))}
+                  <SelectContent>
+                    <SelectItem value="inter">Inter</SelectItem>
+                    <SelectItem value="orbitron">Orbitron</SelectItem>
+                    <SelectItem value="roboto">Roboto</SelectItem>
+                    <SelectItem value="montserrat">Montserrat</SelectItem>
+                    <SelectItem value="arial">Arial</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white">Font Size: {settings.fontSize}px</Label>
+                <Slider
+                  value={[settings.fontSize]}
+                  onValueChange={([fontSize]) =>
+                    onSettingsChange({ ...settings, fontSize })
+                  }
+                  min={12}
+                  max={200}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white">Text Color</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    value={settings.color}
+                    onChange={(e) =>
+                      onSettingsChange({ ...settings, color: e.target.value })
+                    }
+                    className="w-12 h-8 bg-[#181818] border-gray-600"
+                  />
+                  <Input
+                    value={settings.color}
+                    onChange={(e) =>
+                      onSettingsChange({ ...settings, color: e.target.value })
+                    }
+                    className="bg-[#181818] border-gray-600 text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white">Position Control</Label>
+                <PositionJoystick
+                  x={settings.offsetX}
+                  y={settings.offsetY}
+                  onChange={handlePositionChange}
+                  className="mx-auto"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white">Opacity: {Math.round(settings.opacity * 100)}%</Label>
+                <Slider
+                  value={[settings.opacity]}
+                  onValueChange={([opacity]) =>
+                    onSettingsChange({ ...settings, opacity })
+                  }
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  className="w-full"
+                />
               </div>
             </>
           )}
         </CardContent>
       </Card>
 
-      {settings.enabled && (
-        <>
-          {/* Typography */}
-          <Card className="!bg-[#101010] border-gray-700/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-white text-base font-medium">
-                Typography
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      {/* Save/Load Presets for Paid Users */}
+      {isPaidUser && (
+        <Card className="!bg-[#101010] border-gray-700/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-white text-base font-medium flex items-center gap-2">
+              💾 Text Presets
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder="Preset name"
+                className="bg-[#181818] border-gray-600 text-white"
+              />
+              <Button
+                onClick={savePreset}
+                disabled={!presetName.trim()}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {savedPresets.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">
-                  Font Family
-                </Label>
-                <Select
-                  value={settings.fontFamily}
-                  onValueChange={(value) => updateSetting("fontFamily", value)}
-                >
-                  <SelectTrigger className="!bg-[#181818]/80 border-gray-600/50 text-white text-sm h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="!bg-[#101010] border-gray-600">
-                    {fontOptions.map((font) => (
-                      <SelectItem
-                        key={font.value}
-                        value={font.value}
-                        className="!bg-[#101010] text-white text-sm data-[state=checked]:!bg-[#101010] data-[state=checked]:text-white"
+                <Label className="text-white">Saved Presets</Label>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {savedPresets.map((preset) => (
+                    <div key={preset.id} className="flex items-center justify-between p-2 bg-[#181818] rounded">
+                      <button
+                        onClick={() => loadPreset(preset)}
+                        className="text-white text-sm hover:text-blue-400 flex-1 text-left"
                       >
-                        {font.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">
-                    Font Size
-                  </Label>
-                  <span className="text-blue-400 text-sm font-medium">
-                    {settings.fontSize}px
-                  </span>
-                </div>
-                <Slider
-                  value={[settings.fontSize]}
-                  onValueChange={(value) => updateSetting("fontSize", value[0])}
-                  min={12}
-                  max={120}
-                  step={2}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">
-                  Text Color & Gradients
-                </Label>
-                <Select
-                  value={settings.color}
-                  onValueChange={(value) => updateSetting("color", value)}
-                >
-                  <SelectTrigger className="!bg-[#181818]/80 border-gray-600/50 text-white text-sm h-12">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="!bg-[#101010] border-gray-600 max-h-60">
-                    {colorOptions.map((color) => (
-                      <SelectItem
-                        key={color.value}
-                        value={color.value}
-                        className="!bg-[#101010] text-white text-sm data-[state=checked]:!bg-[#101010] data-[state=checked]:text-white"
+                        {preset.name}
+                      </button>
+                      <Button
+                        onClick={() => deletePreset(preset.id, preset.name)}
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-400 hover:text-red-300 p-1"
                       >
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-4 h-4 rounded border border-gray-500"
-                            style={{
-                              background: color.preview.startsWith(
-                                "linear-gradient"
-                              )
-                                ? color.preview
-                                : color.preview,
-                            }}
-                          />
-                          {color.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">
-                  Custom Color
-                </Label>
-                <Input
-                  type="color"
-                  value={
-                    settings.color.startsWith("#") ? settings.color : "#ffffff"
-                  }
-                  onChange={(e) => updateSetting("color", e.target.value)}
-                  className="!bg-[#181818]/80 border-gray-600/50 h-9 w-full"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">
-                    Opacity
-                  </Label>
-                  <span className="text-purple-400 text-sm font-medium">
-                    {Math.round(settings.opacity * 100)}%
-                  </span>
-                </div>
-                <Slider
-                  value={[settings.opacity]}
-                  onValueChange={(value) => updateSetting("opacity", value[0])}
-                  min={0}
-                  max={1}
-                  step={0.1}
-                  className="w-full"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Position Fine-tuning */}
-          <Card className="!bg-[#101010] border-gray-700/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-white text-base font-medium">
-                Position Offset
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">
-                    Horizontal Offset
-                  </Label>
-                  <span className="text-green-400 text-sm font-medium">
-                    {settings.offsetX}px
-                  </span>
-                </div>
-                <Slider
-                  value={[settings.offsetX]}
-                  onValueChange={(value) => updateSetting("offsetX", value[0])}
-                  min={-200}
-                  max={200}
-                  step={5}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-gray-300 text-xs font-medium uppercase tracking-wide">
-                    Vertical Offset
-                  </Label>
-                  <span className="text-green-400 text-sm font-medium">
-                    {settings.offsetY}px
-                  </span>
-                </div>
-                <Slider
-                  value={[settings.offsetY]}
-                  onValueChange={(value) => updateSetting("offsetY", value[0])}
-                  min={-200}
-                  max={200}
-                  step={5}
-                  className="w-full"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Preview Demo */}
-          <Card className="!bg-[#101010] border-gray-700/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-white text-base font-medium">
-                Text Preview
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="!bg-[#181818]/60 rounded-lg p-4 min-h-[80px] flex items-center justify-center">
-                <div
-                  className="text-center"
-                  style={{
-                    fontSize: `${Math.min(settings.fontSize, 32)}px`,
-                    fontFamily: settings.fontFamily,
-                    color: settings.color.startsWith("gradient-")
-                      ? "transparent"
-                      : settings.color,
-                    background: settings.color.startsWith("gradient-")
-                      ? colorOptions.find((c) => c.value === settings.color)
-                          ?.preview || "white"
-                      : "transparent",
-                    backgroundClip: settings.color.startsWith("gradient-")
-                      ? "text"
-                      : "unset",
-                    WebkitBackgroundClip: settings.color.startsWith("gradient-")
-                      ? "text"
-                      : "unset",
-                    opacity: settings.opacity,
-                  }}
-                >
-                  {settings.text || "Sample Text"}
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
