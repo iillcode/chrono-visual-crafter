@@ -27,7 +27,39 @@ export type Database = {
         }
         Relationships: []
       }
-      
+      gpt_models: {
+        Row: {
+          accuracy: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string | null
+          parameters: string | null
+          short_description: string | null
+        }
+        Insert: {
+          accuracy?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string | null
+          parameters?: string | null
+          short_description?: string | null
+        }
+        Update: {
+          accuracy?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string | null
+          parameters?: string | null
+          short_description?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
