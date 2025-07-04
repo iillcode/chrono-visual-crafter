@@ -269,8 +269,9 @@ const Studio = () => {
       <header className="border-b border-white/10 bg-[#171717] px-4 sm:px-6 py-3 sticky top-0 z-30 flex-shrink-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
+            <img src="/favicon.ico" alt="Logo" className="w-8 h-8 rounded" />
             <h1 className="text-xl sm:text-2xl font-bold text-white">
-              Counter Studio Pro
+              Countable
             </h1>
           </div>
 
@@ -310,8 +311,8 @@ const Studio = () => {
           } overflow-hidden h-full`}
         >
           {/* Preview Area - Smaller and on Left */}
-          <div className="flex-1 flex p-4 justify-center items-center">
-            <div className="w-[600px] h-[450px] bg-[#171717] border border-white/10 flex items-center justify-center rounded-lg overflow-hidden">
+          <div className="flex flex p-4 justify-center items-center">
+            <div className="w-[600px] h-[350px]   flex items-center justify-center rounded-lg overflow-hidden">
               <CounterPreview
                 ref={canvasRef}
                 settings={counterSettings}
@@ -322,7 +323,7 @@ const Studio = () => {
             </div>
           </div>
           {/* Recording Controls - Moved to Top */}
-          <div className="flex-shrink-0 p-4   flex items-center justify-center">
+          <div className="flex-shrink-0 pb-4   flex  justify-center">
             <RecordingControls
               isRecording={isRecording}
               isPaused={isPaused}

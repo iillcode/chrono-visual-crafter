@@ -47,8 +47,8 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/30">
-            <h2 className="text-white font-semibold px-3 py-1 rounded border border-white/30">
+          <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
+            <h2 className="text-white font-semibold px-3 py-1 rounded border border-gray-700/50">
               Studio Controls
             </h2>
             {/* <Button
@@ -68,24 +68,24 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
               onValueChange={setActiveTab}
               className="h-full flex flex-col"
             >
-              <TabsList className="grid grid-cols-3 gap-x-2 m-4 bg-[#101010] border border-white/30">
+              <TabsList className="grid grid-cols-3 gap-x-2 m-4 bg-[#101010] border border-gray-700/50">
                 <TabsTrigger
                   value="counter"
-                  className="flex items-center gap-1 text-xs border border-white/30 data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
+                  className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
                 >
                   <Hash className="w-3 h-3" />
                   Counter
                 </TabsTrigger>
                 <TabsTrigger
                   value="text"
-                  className="flex items-center gap-1 text-xs border border-white/30 data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
+                  className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
                 >
                   <Type className="w-3 h-3" />
                   Text
                 </TabsTrigger>
                 <TabsTrigger
                   value="design"
-                  className="flex items-center gap-1 text-xs border border-white/30 data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
+                  className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
                 >
                   <Palette className="w-3 h-3" />
                   Design

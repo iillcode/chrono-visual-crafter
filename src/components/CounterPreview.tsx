@@ -1,5 +1,9 @@
-
-import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 
 interface CounterPreviewProps {
   settings: {
@@ -40,15 +44,17 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
 
     const loadGoogleFont = (fontName: string) => {
       if (!fontName) return Promise.resolve();
-      
-      const link = document.createElement('link');
-      link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s+/g, '+').replace(/[^a-zA-Z0-9+]/g, '')}:wght@400;700&display=swap`;
-      link.rel = 'stylesheet';
-      
+
+      const link = document.createElement("link");
+      link.href = `https://fonts.googleapis.com/css2?family=${fontName
+        .replace(/\s+/g, "+")
+        .replace(/[^a-zA-Z0-9+]/g, "")}:wght@400;700&display=swap`;
+      link.rel = "stylesheet";
+
       if (!document.querySelector(`link[href="${link.href}"]`)) {
         document.head.appendChild(link);
       }
-      
+
       return new Promise<void>((resolve) => {
         setTimeout(resolve, 100);
       });
@@ -56,7 +62,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
 
     const getFontFamily = (fontKey: string, customFont: string) => {
       if (customFont) return `"${customFont}", sans-serif`;
-      
+
       const fontMap = {
         inter: '"Inter", sans-serif',
         mono: '"Roboto Mono", monospace',
@@ -69,11 +75,16 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         audiowide: '"Audiowide", monospace',
         michroma: '"Michroma", monospace',
       };
-      
+
       return fontMap[fontKey] || '"Inter", sans-serif';
     };
 
-    const applyTransitionEffect = (ctx: CanvasRenderingContext2D, progress: number, x: number, y: number) => {
+    const applyTransitionEffect = (
+      ctx: CanvasRenderingContext2D,
+      progress: number,
+      x: number,
+      y: number
+    ) => {
       const effects = {
         slideUp: () => {
           const offset = (1 - progress) * 50;
@@ -100,7 +111,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           return { x, y };
         },
         scale: () => {
-          const scale = 0.5 + (progress * 0.5);
+          const scale = 0.5 + progress * 0.5;
           ctx.save();
           ctx.translate(x, y);
           ctx.scale(scale, scale);
@@ -120,7 +131,8 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           return { x, y: y - bounceHeight };
         },
         elastic: () => {
-          const elasticOffset = Math.sin(progress * Math.PI * 4) * (1 - progress) * 20;
+          const elasticOffset =
+            Math.sin(progress * Math.PI * 4) * (1 - progress) * 20;
           return { x, y: y + elasticOffset };
         },
         wave: () => {
@@ -154,181 +166,228 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         typewriter: () => {
           // This effect is handled differently in the text rendering
           return { x, y };
-        }
+        },
       };
 
       const effect = effects[settings.transition] || (() => ({ x, y }));
       return effect();
     };
 
-    const createGradient = (ctx: CanvasRenderingContext2D, x: number, y: number, fontSize: number, type: string) => {
+    const createGradient = (
+      ctx: CanvasRenderingContext2D,
+      x: number,
+      y: number,
+      fontSize: number,
+      type: string
+    ) => {
       let gradient;
-      
+
       switch (type) {
-        case 'rainbow':
-          gradient = ctx.createLinearGradient(x - fontSize, y - fontSize/2, x + fontSize, y + fontSize/2);
-          gradient.addColorStop(0, '#FF0000');
-          gradient.addColorStop(0.17, '#FF8800');
-          gradient.addColorStop(0.33, '#FFFF00');
-          gradient.addColorStop(0.5, '#00FF00');
-          gradient.addColorStop(0.67, '#0088FF');
-          gradient.addColorStop(0.83, '#8800FF');
-          gradient.addColorStop(1, '#FF0088');
+        case "rainbow":
+          gradient = ctx.createLinearGradient(
+            x - fontSize,
+            y - fontSize / 2,
+            x + fontSize,
+            y + fontSize / 2
+          );
+          gradient.addColorStop(0, "#FF0000");
+          gradient.addColorStop(0.17, "#FF8800");
+          gradient.addColorStop(0.33, "#FFFF00");
+          gradient.addColorStop(0.5, "#00FF00");
+          gradient.addColorStop(0.67, "#0088FF");
+          gradient.addColorStop(0.83, "#8800FF");
+          gradient.addColorStop(1, "#FF0088");
           break;
-        case 'fire':
-          gradient = ctx.createLinearGradient(x, y - fontSize/2, x, y + fontSize/2);
-          gradient.addColorStop(0, '#FF4444');
-          gradient.addColorStop(0.5, '#FF8800');
-          gradient.addColorStop(1, '#FFFF00');
+        case "fire":
+          gradient = ctx.createLinearGradient(
+            x,
+            y - fontSize / 2,
+            x,
+            y + fontSize / 2
+          );
+          gradient.addColorStop(0, "#FF4444");
+          gradient.addColorStop(0.5, "#FF8800");
+          gradient.addColorStop(1, "#FFFF00");
           break;
-        case 'ocean':
-          gradient = ctx.createLinearGradient(x, y - fontSize/2, x, y + fontSize/2);
-          gradient.addColorStop(0, '#00AAFF');
-          gradient.addColorStop(0.5, '#0066CC');
-          gradient.addColorStop(1, '#003388');
+        case "ocean":
+          gradient = ctx.createLinearGradient(
+            x,
+            y - fontSize / 2,
+            x,
+            y + fontSize / 2
+          );
+          gradient.addColorStop(0, "#00AAFF");
+          gradient.addColorStop(0.5, "#0066CC");
+          gradient.addColorStop(1, "#003388");
           break;
-        case 'sunset':
-          gradient = ctx.createLinearGradient(x, y - fontSize/2, x, y + fontSize/2);
-          gradient.addColorStop(0, '#FF6B6B');
-          gradient.addColorStop(0.5, '#FF8E53');
-          gradient.addColorStop(1, '#FF6B9D');
+        case "sunset":
+          gradient = ctx.createLinearGradient(
+            x,
+            y - fontSize / 2,
+            x,
+            y + fontSize / 2
+          );
+          gradient.addColorStop(0, "#FF6B6B");
+          gradient.addColorStop(0.5, "#FF8E53");
+          gradient.addColorStop(1, "#FF6B9D");
           break;
         default:
-          gradient = ctx.createLinearGradient(x - fontSize, y - fontSize/2, x + fontSize, y + fontSize/2);
-          gradient.addColorStop(0, '#FF6B6B');
-          gradient.addColorStop(0.25, '#4ECDC4');
-          gradient.addColorStop(0.5, '#45B7D1');
-          gradient.addColorStop(0.75, '#96CEB4');
-          gradient.addColorStop(1, '#FFEAA7');
+          gradient = ctx.createLinearGradient(
+            x - fontSize,
+            y - fontSize / 2,
+            x + fontSize,
+            y + fontSize / 2
+          );
+          gradient.addColorStop(0, "#FF6B6B");
+          gradient.addColorStop(0.25, "#4ECDC4");
+          gradient.addColorStop(0.5, "#45B7D1");
+          gradient.addColorStop(0.75, "#96CEB4");
+          gradient.addColorStop(1, "#FFEAA7");
       }
-      
+
       return gradient;
     };
 
-    const applyDesignEffects = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fontSize: number) => {
+    const applyDesignEffects = (
+      ctx: CanvasRenderingContext2D,
+      text: string,
+      x: number,
+      y: number,
+      fontSize: number
+    ) => {
       const effects = {
         classic: () => {
-          ctx.fillStyle = settings.background === 'white' ? '#000000' : '#FFFFFF';
+          ctx.fillStyle =
+            settings.background === "white" ? "#000000" : "#FFFFFF";
           ctx.fillText(text, x, y);
         },
-        
+
         neon: () => {
           // Outer glow
-          ctx.shadowColor = '#00FFFF';
+          ctx.shadowColor = "#00FFFF";
           ctx.shadowBlur = 30;
-          ctx.strokeStyle = '#00FFFF';
+          ctx.strokeStyle = "#00FFFF";
           ctx.lineWidth = 2;
           ctx.strokeText(text, x, y);
-          
+
           // Inner fill
           ctx.shadowBlur = 10;
-          ctx.fillStyle = '#FFFFFF';
+          ctx.fillStyle = "#FFFFFF";
           ctx.fillText(text, x, y);
-          
+
           ctx.shadowBlur = 0;
         },
-        
+
         glow: () => {
-          const glowColor = settings.background === 'white' ? '#000000' : '#FFFFFF';
-          
+          const glowColor =
+            settings.background === "white" ? "#000000" : "#FFFFFF";
+
           // Multiple glow layers
           for (let i = 0; i < 3; i++) {
             ctx.shadowColor = glowColor;
-            ctx.shadowBlur = 20 + (i * 10);
+            ctx.shadowBlur = 20 + i * 10;
             ctx.fillStyle = glowColor;
             ctx.fillText(text, x, y);
           }
-          
+
           ctx.shadowBlur = 0;
         },
 
         gradient: () => {
-          const gradient = createGradient(ctx, x, y, fontSize, 'default');
+          const gradient = createGradient(ctx, x, y, fontSize, "default");
           ctx.fillStyle = gradient;
           ctx.fillText(text, x, y);
         },
 
         fire: () => {
-          const gradient = createGradient(ctx, x, y, fontSize, 'fire');
+          const gradient = createGradient(ctx, x, y, fontSize, "fire");
           ctx.fillStyle = gradient;
           ctx.fillText(text, x, y);
-          
+
           // Add fire glow effect
-          ctx.shadowColor = '#FF4444';
+          ctx.shadowColor = "#FF4444";
           ctx.shadowBlur = 15;
           ctx.fillText(text, x, y);
           ctx.shadowBlur = 0;
         },
 
         rainbow: () => {
-          const gradient = createGradient(ctx, x, y, fontSize, 'rainbow');
+          const gradient = createGradient(ctx, x, y, fontSize, "rainbow");
           ctx.fillStyle = gradient;
           ctx.fillText(text, x, y);
         },
 
         chrome: () => {
           // Chrome effect with multiple layers
-          ctx.fillStyle = '#E8E8E8';
+          ctx.fillStyle = "#E8E8E8";
           ctx.fillText(text, x, y);
-          
-          const gradient = ctx.createLinearGradient(x, y - fontSize/2, x, y + fontSize/2);
-          gradient.addColorStop(0, '#FFFFFF');
-          gradient.addColorStop(0.5, '#CCCCCC');
-          gradient.addColorStop(1, '#999999');
-          
+
+          const gradient = ctx.createLinearGradient(
+            x,
+            y - fontSize / 2,
+            x,
+            y + fontSize / 2
+          );
+          gradient.addColorStop(0, "#FFFFFF");
+          gradient.addColorStop(0.5, "#CCCCCC");
+          gradient.addColorStop(1, "#999999");
+
           ctx.fillStyle = gradient;
           ctx.fillText(text, x, y);
-        }
+        },
       };
 
       const effect = effects[settings.design] || effects.classic;
       effect();
     };
 
-    const drawText = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
+    const drawText = (
+      ctx: CanvasRenderingContext2D,
+      canvas: HTMLCanvasElement
+    ) => {
       if (!textSettings.enabled || !textSettings.text) return;
 
       const fontSize = textSettings.fontSize;
-      const fontFamily = getFontFamily(textSettings.fontFamily, '');
-      
+      const fontFamily = getFontFamily(textSettings.fontFamily, "");
+
       ctx.font = `${fontSize}px ${fontFamily}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
       let x = canvas.width / 2 + textSettings.offsetX;
       let y = canvas.height / 2 + textSettings.offsetY;
-      
+
       // Position adjustments
       switch (textSettings.position) {
-        case 'top':
+        case "top":
           y = fontSize + 20 + textSettings.offsetY;
           break;
-        case 'bottom':
+        case "bottom":
           y = canvas.height - fontSize - 20 + textSettings.offsetY;
           break;
-        case 'left':
+        case "left":
           x = fontSize + 20 + textSettings.offsetX;
           break;
-        case 'right':
+        case "right":
           x = canvas.width - fontSize - 20 + textSettings.offsetX;
           break;
       }
-      
+
       // Apply opacity
       const previousAlpha = ctx.globalAlpha;
       ctx.globalAlpha = textSettings.opacity;
-      
+
       // Apply color (could be gradient)
-      if (textSettings.color.startsWith('gradient-')) {
-        const gradientType = textSettings.color.replace('gradient-', '');
+      if (textSettings.color.startsWith("gradient-")) {
+        const gradientType = textSettings.color.replace("gradient-", "");
         const gradient = createGradient(ctx, x, y, fontSize, gradientType);
         ctx.fillStyle = gradient;
       } else {
         ctx.fillStyle = textSettings.color;
       }
-      
+
       ctx.fillText(textSettings.text, x, y);
-      
+
       // Restore alpha
       ctx.globalAlpha = previousAlpha;
     };
@@ -337,7 +396,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
       // Set canvas size
@@ -345,10 +404,10 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       canvas.height = 600;
 
       // Clear canvas
-      if (settings.background === 'transparent') {
+      if (settings.background === "transparent") {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       } else {
-        ctx.fillStyle = settings.background === 'white' ? '#FFFFFF' : '#000000';
+        ctx.fillStyle = settings.background === "white" ? "#FFFFFF" : "#000000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
@@ -363,20 +422,26 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         transitionStartTimeRef.current = Date.now();
         lastValueRef.current = Math.floor(currentValue);
       }
-      
-      if (settings.transition !== 'none') {
+
+      if (settings.transition !== "none") {
         const timeSinceTransition = Date.now() - transitionStartTimeRef.current;
         const transitionDuration = 300; // 300ms transition
-        transitionProgress = Math.min(timeSinceTransition / transitionDuration, 1);
+        transitionProgress = Math.min(
+          timeSinceTransition / transitionDuration,
+          1
+        );
       }
 
       // Draw counter
       const fontSize = settings.fontSize;
-      const fontFamily = getFontFamily(settings.fontFamily, settings.customFont);
-      
+      const fontFamily = getFontFamily(
+        settings.fontFamily,
+        settings.customFont
+      );
+
       ctx.font = `${fontSize}px ${fontFamily}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
 
       const counterText = Math.floor(currentValue).toString();
       let x = canvas.width / 2;
@@ -384,16 +449,16 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
 
       // Apply transition effects
       ctx.save();
-      
-      if (settings.transition !== 'none') {
+
+      if (settings.transition !== "none") {
         const newPos = applyTransitionEffect(ctx, transitionProgress, x, y);
         x = newPos.x;
         y = newPos.y;
       }
-      
+
       // Apply design effects to counter
       applyDesignEffects(ctx, counterText, x, y, fontSize);
-      
+
       ctx.restore();
 
       // Draw additional text if enabled
@@ -421,14 +486,19 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       <div className="w-full h-full flex items-center justify-center">
         <canvas
           ref={canvasRef}
-          className="max-w-full max-h-full object-contain rounded-lg"
-          style={{ backgroundColor: settings.background === 'transparent' ? 'transparent' : settings.background }}
+          className="w-full h-full object-contain rounded-lg"
+          style={{
+            backgroundColor:
+              settings.background === "transparent"
+                ? "transparent"
+                : settings.background,
+          }}
         />
       </div>
     );
   }
 );
 
-CounterPreview.displayName = 'CounterPreview';
+CounterPreview.displayName = "CounterPreview";
 
 export default CounterPreview;

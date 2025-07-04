@@ -132,16 +132,16 @@ const DesignPreview: React.FC<DesignPreviewProps> = ({
                 key={design.id}
                 onClick={() => onDesignChange(design.id)}
                 className={`
-                  p-4 rounded-lg border-2 transition-all duration-200 hover:scale-105
+                  p-4 rounded-lg border transition-all duration-200 hover:scale-105
                   ${
                     selectedDesign === design.id
-                      ? "border-blue-500 bg-blue-500/20"
-                      : "border-gray-600 bg-gray-800/50 hover:border-gray-500"
+                      ? "border-gray-600 bg-[#181818]/60"
+                      : " border-gray-700/50 bg-[#101010] hover:border-gray-500"
                   }
                 `}
               >
                 <div className="flex flex-col items-center gap-2">
-                  <div className="!bg-[#181818]/80 rounded p-2 min-h-[50px] flex items-center justify-center w-full">
+                  <div className=" rounded p-2 min-h-[50px] flex items-center justify-center w-full">
                     {design.preview}
                   </div>
                   <span className="text-white text-sm font-medium">
