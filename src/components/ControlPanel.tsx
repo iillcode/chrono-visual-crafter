@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -103,6 +102,37 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               step={5}
               className="w-full"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white">Transition Effect</Label>
+            <Select
+              value={settings.transition}
+              onValueChange={(transition) =>
+                onSettingsChange({ ...settings, transition })
+              }
+            >
+              <SelectTrigger className="bg-[#181818] border-gray-600 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="slideUp">Slide Up</SelectItem>
+                <SelectItem value="slideDown">Slide Down</SelectItem>
+                <SelectItem value="slideLeft">Slide Left</SelectItem>
+                <SelectItem value="slideRight">Slide Right</SelectItem>
+                <SelectItem value="fadeIn">Fade In</SelectItem>
+                <SelectItem value="scale">Scale</SelectItem>
+                <SelectItem value="rotate">Rotate</SelectItem>
+                <SelectItem value="bounce">Bounce</SelectItem>
+                <SelectItem value="elastic">Elastic</SelectItem>
+                <SelectItem value="wave">Wave</SelectItem>
+                <SelectItem value="spiral">Spiral</SelectItem>
+                <SelectItem value="zoom">Zoom</SelectItem>
+                <SelectItem value="flip">Flip</SelectItem>
+                <SelectItem value="typewriter">Typewriter</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

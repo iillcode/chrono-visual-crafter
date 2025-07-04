@@ -101,6 +101,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       y: number
     ) => {
       const effects = {
+        none: () => ({ x, y }),
         slideUp: () => {
           const offset = (1 - progress) * 50;
           ctx.globalAlpha = progress;
@@ -184,7 +185,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         },
       };
 
-      const effect = effects[settings.transition] || (() => ({ x, y }));
+      const effect = effects[settings.transition] || effects.none;
       return effect();
     };
 
@@ -278,15 +279,19 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         },
 
         neon: () => {
+          // Use custom neon color and intensity from designSettings
+          const neonColor = designSettings.neonColor || "#00FFFF";
+          const intensity = designSettings.neonIntensity || 10;
+          
           // Outer glow
-          ctx.shadowColor = "#00FFFF";
-          ctx.shadowBlur = 30;
-          ctx.strokeStyle = "#00FFFF";
+          ctx.shadowColor = neonColor;
+          ctx.shadowBlur = intensity * 3;
+          ctx.strokeStyle = neonColor;
           ctx.lineWidth = 2;
           ctx.strokeText(text, x, y);
 
           // Inner fill
-          ctx.shadowBlur = 10;
+          ctx.shadowBlur = intensity;
           ctx.fillStyle = "#FFFFFF";
           ctx.fillText(text, x, y);
 
@@ -294,13 +299,13 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         },
 
         glow: () => {
-          const glowColor =
-            settings.background === "white" ? "#000000" : "#FFFFFF";
+          const glowColor = designSettings.glowColor || (settings.background === "white" ? "#000000" : "#FFFFFF");
+          const intensity = designSettings.glowIntensity || 15;
 
           // Multiple glow layers
           for (let i = 0; i < 3; i++) {
             ctx.shadowColor = glowColor;
-            ctx.shadowBlur = 20 + i * 10;
+            ctx.shadowBlur = intensity + i * 10;
             ctx.fillStyle = glowColor;
             ctx.fillText(text, x, y);
           }
@@ -309,43 +314,126 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         },
 
         gradient: () => {
-          const gradient = createGradient(ctx, x, y, fontSize, "default");
+          // Use custom gradient colors from designSettings
+          const gradientCSS = designSettings.gradientColors || "linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7)";
+          
+          // Parse CSS gradient to canvas gradient
+          const gradient = ctx.createLinearGradient(
+            x - fontSize,
+            y - fontSize / 2,
+            x + fontSize,
+            y + fontSize / 2
+          );
+          
+          // Extract colors from CSS gradient string
+          const colorMatches = gradientCSS.match(/#[0-9A-Fa-f]{6}/g);
+          if (colorMatches && colorMatches.length > 0) {
+            colorMatches.forEach((color, index) => {
+              gradient.addColorStop(index / (colorMatches.length - 1), color);
+            });
+          } else {
+            // Fallback gradient
+            gradient.addColorStop(0, "#FF6B6B");
+            gradient.addColorStop(0.25, "#4ECDC4");
+            gradient.addColorStop(0.5, "#45B7D1");
+            gradient.addColorStop(0.75, "#96CEB4");
+            gradient.addColorStop(1, "#FFEAA7");
+          }
+          
           ctx.fillStyle = gradient;
           ctx.fillText(text, x, y);
         },
 
         fire: () => {
-          const gradient = createGradient(ctx, x, y, fontSize, "fire");
-          ctx.fillStyle = gradient;
-          ctx.fillText(text, x, y);
-
-          // Add fire glow effect
-          ctx.shadowColor = "#FF4444";
-          ctx.shadowBlur = 15;
-          ctx.fillText(text, x, y);
-          ctx.shadowBlur = 0;
-        },
-
-        rainbow: () => {
-          const gradient = createGradient(ctx, x, y, fontSize, "rainbow");
-          ctx.fillStyle = gradient;
-          ctx.fillText(text, x, y);
-        },
-
-        chrome: () => {
-          // Chrome effect with multiple layers
-          ctx.fillStyle = "#E8E8E8";
-          ctx.fillText(text, x, y);
-
+          // Use custom fire colors from designSettings
+          const fireCSS = designSettings.fireColors || "linear-gradient(45deg, #FF4444, #FF8800, #FFFF00)";
+          const fireGlow = designSettings.fireGlow || 10;
+          
           const gradient = ctx.createLinearGradient(
             x,
             y - fontSize / 2,
             x,
             y + fontSize / 2
           );
-          gradient.addColorStop(0, "#FFFFFF");
-          gradient.addColorStop(0.5, "#CCCCCC");
-          gradient.addColorStop(1, "#999999");
+          
+          // Extract colors from CSS gradient string
+          const colorMatches = fireCSS.match(/#[0-9A-Fa-f]{6}/g);
+          if (colorMatches && colorMatches.length > 0) {
+            colorMatches.forEach((color, index) => {
+              gradient.addColorStop(index / (colorMatches.length - 1), color);
+            });
+          } else {
+            // Fallback fire gradient
+            gradient.addColorStop(0, "#FF4444");
+            gradient.addColorStop(0.5, "#FF8800");
+            gradient.addColorStop(1, "#FFFF00");
+          }
+          
+          ctx.fillStyle = gradient;
+          ctx.fillText(text, x, y);
+
+          // Add fire glow effect
+          ctx.shadowColor = "#FF4444";
+          ctx.shadowBlur = fireGlow;
+          ctx.fillText(text, x, y);
+          ctx.shadowBlur = 0;
+        },
+
+        rainbow: () => {
+          // Use custom rainbow colors from designSettings
+          const rainbowCSS = designSettings.rainbowColors || "linear-gradient(45deg, #FF0000, #FF8800, #FFFF00, #00FF00, #0088FF, #8800FF, #FF0088)";
+          
+          const gradient = ctx.createLinearGradient(
+            x - fontSize,
+            y - fontSize / 2,
+            x + fontSize,
+            y + fontSize / 2
+          );
+          
+          // Extract colors from CSS gradient string
+          const colorMatches = rainbowCSS.match(/#[0-9A-Fa-f]{6}/g);
+          if (colorMatches && colorMatches.length > 0) {
+            colorMatches.forEach((color, index) => {
+              gradient.addColorStop(index / (colorMatches.length - 1), color);
+            });
+          } else {
+            // Fallback rainbow gradient
+            gradient.addColorStop(0, "#FF0000");
+            gradient.addColorStop(0.17, "#FF8800");
+            gradient.addColorStop(0.33, "#FFFF00");
+            gradient.addColorStop(0.5, "#00FF00");
+            gradient.addColorStop(0.67, "#0088FF");
+            gradient.addColorStop(0.83, "#8800FF");
+            gradient.addColorStop(1, "#FF0088");
+          }
+          
+          ctx.fillStyle = gradient;
+          ctx.fillText(text, x, y);
+        },
+
+        chrome: () => {
+          // Use custom chrome colors from designSettings
+          const chromeCSS = designSettings.chromeColors || "linear-gradient(45deg, #FFFFFF, #CCCCCC, #999999)";
+          
+          const gradient = ctx.createLinearGradient(
+            x,
+            y - fontSize / 2,
+            x,
+            y + fontSize / 2
+          );
+          
+          // Extract colors from CSS gradient string
+          const colorMatches = chromeCSS.match(/#[0-9A-Fa-f]{6}/g);
+          if (colorMatches && colorMatches.length > 0) {
+            colorMatches.forEach((color, index) => {
+              gradient.addColorStop(index / (colorMatches.length - 1), color);
+            });
+          } else {
+            // Fallback chrome gradient
+            gradient.addColorStop(0, "#FFFFFF");
+            gradient.addColorStop(0.5, "#CCCCCC");
+            gradient.addColorStop(1, "#999999");
+          }
 
           ctx.fillStyle = gradient;
           ctx.fillText(text, x, y);
@@ -520,7 +608,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           cancelAnimationFrame(animationRef.current);
         }
       };
-    }, [settings, textSettings, currentValue, isRecording, formatNumber]);
+    }, [settings, textSettings, designSettings, currentValue, isRecording, formatNumber]);
 
     return (
       <div className="w-full h-full flex items-center justify-center">

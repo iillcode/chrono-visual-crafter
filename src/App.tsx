@@ -30,7 +30,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <PaddleProvider>  {/* ← Moved inside BrowserRouter */}
+            <PaddleProvider>
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
