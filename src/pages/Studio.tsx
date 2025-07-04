@@ -335,7 +335,7 @@ const Studio = () => {
         {/* Main Content Area */}
         <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-80' : ''} overflow-hidden`}>
           {/* Preview Area */}
-          <div className="flex-1 flex items-center justify-center p-4 lg:p-6 min-h-0">
+          <div className="flex-1 flex items-center justify-center p-4 lg:p-2 min-h-0">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}  
