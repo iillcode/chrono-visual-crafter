@@ -167,11 +167,27 @@ const Studio = () => {
   const handleDownloadVideo = () => {
     if (recordedChunks.current.length === 0) return;
 
-    const blob = new Blob(recordedChunks.current, { type: "video/webm" });
+    // Determine the best WebM codec for alpha channel support
+    let mimeType = "video/webm";
+    let fileExtension = "webm";
+
+    // Check for VP9 support (best for alpha channels)
+    if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9")) {
+      mimeType = "video/webm;codecs=vp9";
+    }
+    // Fallback to VP8 if VP9 not supported
+    else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp8")) {
+      mimeType = "video/webm;codecs=vp8";
+    }
+
+    const blob = new Blob(recordedChunks.current, {
+      type: mimeType,
+    });
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `counter-animation-${Date.now()}.webm`;
+    a.download = `counter-animation-${Date.now()}.${fileExtension}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -179,7 +195,13 @@ const Studio = () => {
 
     toast({
       title: "Video Downloaded",
-      description: "Your counter animation video has been saved.",
+      description: `Your counter animation video has been saved as WebM ${
+        mimeType.includes("vp9")
+          ? "VP9"
+          : mimeType.includes("vp8")
+          ? "VP8"
+          : "format"
+      } with alpha channel support.`,
     });
   };
 
