@@ -42,7 +42,7 @@ const PositionJoystick: React.FC<PositionJoystickProps> = ({
     
     // Constrain to circle
     const distance = Math.sqrt(relativeX * relativeX + relativeY * relativeY);
-    const maxDistance = Math.min(centerX, centerY) - 10;
+    const maxDistance = Math.min(centerX, centerY) - 15; // Increased padding for better edge handling
     
     let constrainedX = relativeX;
     let constrainedY = relativeY;
@@ -52,9 +52,9 @@ const PositionJoystick: React.FC<PositionJoystickProps> = ({
       constrainedY = (relativeY / distance) * maxDistance;
     }
     
-    // Convert to -200 to 200 range
-    const normalizedX = (constrainedX / maxDistance) * 200;
-    const normalizedY = (constrainedY / maxDistance) * 200;
+    // Convert to -300 to 300 range for better positioning range
+    const normalizedX = (constrainedX / maxDistance) * 300;
+    const normalizedY = (constrainedY / maxDistance) * 300;
     
     onChange(Math.round(normalizedX), Math.round(normalizedY));
   };
@@ -82,9 +82,9 @@ const PositionJoystick: React.FC<PositionJoystickProps> = ({
   }, [isDragging]);
 
   // Convert x, y back to position within the joystick
-  const maxDistance = Math.min(containerSize.width, containerSize.height) / 2 - 10;
-  const knobX = (x / 200) * maxDistance;
-  const knobY = (y / 200) * maxDistance;
+  const maxDistance = Math.min(containerSize.width, containerSize.height) / 2 - 15;
+  const knobX = (x / 300) * maxDistance;
+  const knobY = (y / 300) * maxDistance;
 
   return (
     <div className={`relative ${className}`}>

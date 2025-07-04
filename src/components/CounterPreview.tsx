@@ -392,16 +392,20 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       const previousAlpha = ctx.globalAlpha;
       ctx.globalAlpha = textSettings.opacity;
 
-      // Apply color (could be gradient)
-      if (textSettings.color.startsWith("gradient-")) {
-        const gradientType = textSettings.color.replace("gradient-", "");
-        const gradient = createGradient(ctx, x, y, fontSize, gradientType);
-        ctx.fillStyle = gradient;
+      // Apply same design effects as counter for consistency
+      if (settings.design !== "classic") {
+        applyDesignEffects(ctx, textSettings.text, x, y, fontSize);
       } else {
-        ctx.fillStyle = textSettings.color;
+        // Apply color (could be gradient)
+        if (textSettings.color.startsWith("gradient-")) {
+          const gradientType = textSettings.color.replace("gradient-", "");
+          const gradient = createGradient(ctx, x, y, fontSize, gradientType);
+          ctx.fillStyle = gradient;
+        } else {
+          ctx.fillStyle = textSettings.color;
+        }
+        ctx.fillText(textSettings.text, x, y);
       }
-
-      ctx.fillText(textSettings.text, x, y);
 
       // Restore alpha
       ctx.globalAlpha = previousAlpha;
@@ -458,9 +462,27 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      const counterText = Math.floor(currentValue).toString();
+      const counterText = formatNumber(currentValue);
       let x = canvas.width / 2;
       let y = canvas.height / 2;
+
+      // Adjust counter position if text is enabled to prevent overlap
+      if (textSettings.enabled && textSettings.text) {
+        switch (textSettings.position) {
+          case "right":
+            x = canvas.width / 2 - 100; // Move counter left
+            break;
+          case "left":
+            x = canvas.width / 2 + 100; // Move counter right
+            break;
+          case "bottom":
+            y = canvas.height / 2 - 60; // Move counter up
+            break;
+          case "top":
+            y = canvas.height / 2 + 60; // Move counter down
+            break;
+        }
+      }
 
       // Apply transition effects
       ctx.save();
@@ -471,7 +493,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         y = newPos.y;
       }
 
-      // Apply design effects to counter
+      // Apply design effects to counter with formatted text
       applyDesignEffects(ctx, counterText, x, y, fontSize);
 
       ctx.restore();
@@ -485,6 +507,9 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         drawFrame();
         if (isRecording) {
           animationRef.current = requestAnimationFrame(animate);
+        } else {
+          // Draw frame once when not recording
+          drawFrame();
         }
       };
 
@@ -495,7 +520,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           cancelAnimationFrame(animationRef.current);
         }
       };
-    }, [settings, textSettings, currentValue, isRecording]);
+    }, [settings, textSettings, currentValue, isRecording, formatNumber]);
 
     return (
       <div className="w-full h-full flex items-center justify-center">
