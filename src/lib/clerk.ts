@@ -1,4 +1,5 @@
-import { Clerk } from '@clerk/clerk-react';
+
+import { useClerk } from '@clerk/clerk-react';
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -7,4 +8,10 @@ if (!clerkPubKey) {
   console.log('Available env vars:', Object.keys(import.meta.env));
 }
 
-export const clerk = clerkPubKey ? new Clerk(clerkPubKey) : null;
+// Export the publishable key for use in ClerkProvider
+export const clerkPublishableKey = clerkPubKey;
+
+// Export a hook to get the clerk instance
+export const useClerkInstance = () => {
+  return useClerk();
+};
