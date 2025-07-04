@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useClerkAuth } from '@/hooks/useClerkAuth';
@@ -243,20 +242,12 @@ const Studio = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#101010] flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="inline-block mb-4"
-          >
+        <div className="text-center">
+          <div className="inline-block mb-4 animate-spin">
             <Loader2 className="w-8 h-8 text-[#2BA6FF]" />
-          </motion.div>
+          </div>
           <p className="text-white">Loading Studio...</p>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -264,39 +255,22 @@ const Studio = () => {
   return (
     <div className="h-screen bg-[#101010] text-white flex flex-col overflow-hidden">
       {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="border-b border-white/10 bg-[#171717] px-4 sm:px-6 py-3 sticky top-0 z-30 flex-shrink-0"
-      >
+      <header className="border-b border-white/10 bg-[#171717] px-4 sm:px-6 py-3 sticky top-0 z-30 flex-shrink-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <motion.h1
-              whileHover={{ scale: 1.05 }}
-              className="text-xl sm:text-2xl font-bold text-white"
-            >
+            <h1 className="text-xl sm:text-2xl font-bold text-white">
               Counter Studio Pro
-            </motion.h1>
+            </h1>
           </div>
           
           <div className="flex items-center gap-4">
-            <AnimatePresence>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-3 text-sm text-gray-400 px-3 py-1 rounded border border-[#2BA6FF]/30"
-              >
+              <div className="flex items-center gap-3 text-sm text-gray-400 px-3 py-1 rounded border border-[#2BA6FF]/30">
                 <span className="hidden sm:inline">Recording Time:</span>
                 <span className="font-mono text-[#2BA6FF]">{(recordingTime / 1000).toFixed(1)}s</span>
                 {isRecording && (
-                  <motion.div
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                    className="w-2 h-2 bg-red-500 rounded-full"
-                  />
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                 )}
-              </motion.div>
-            </AnimatePresence>
+              </div>
             
             <div className="flex items-center gap-2">
               {user && (
@@ -305,7 +279,7 @@ const Studio = () => {
             </div>
           </div>
         </div>
-      </motion.header>
+      </header>
 
       <div className="flex-1 flex overflow-hidden">
         {/* Studio Sidebar */}
@@ -322,12 +296,7 @@ const Studio = () => {
         <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-80' : ''} overflow-hidden h-full`}>
           {/* Preview Area - Full Container */}
           <div className="flex-1 p-0 relative">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}  
-              transition={{ duration: 0.5 }}
-              className="w-full h-full"
-            >
+            <div className="w-full h-full">
               <div className="w-full h-full bg-[#171717] border border-white/10">
                 <CounterPreview 
                   ref={canvasRef}
@@ -337,15 +306,10 @@ const Studio = () => {
                   isRecording={isRecording}
                 />
               </div>
-            </motion.div>
+            </div>
             
             {/* Floating Recording Controls */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.5 }}
-              className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10"
-            >
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-10">
               <RecordingControls
                 isRecording={isRecording}
                 isPaused={isPaused}
@@ -358,7 +322,7 @@ const Studio = () => {
                 recordedChunksLength={recordedChunks.current.length}
                 isGeneratingGif={isGeneratingGif}
               />
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
