@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/hooks/useAuth";
-import { useClerkAuth } from "@/hooks/useClerkAuth";
+import { usePaddle } from "@/components/payments/PaddleProvider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -50,7 +50,7 @@ interface UserManagementProps {
 
 const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { refreshProfile } = useClerkAuth();
+  const { refreshSubscriptionStatus } = usePaddle();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("profile");
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -155,11 +155,18 @@ const UserManagement: React.FC<UserManagementProps> = ({ onClose }) => {
   const handleRefreshSubscription = async () => {
     try {
       setLoading(true);
-      await refreshProfile();
-      toast({
-        title: "Subscription refreshed",
-        description: "Your subscription status has been updated.",
-      });
+      const updatedSubscription = await refreshSubscriptionStatus();
+      if (updatedSubscription) {
+        toast({
+          title: "Subscription refreshed",
+          description: `Your subscription status has been updated to: ${updatedSubscription.plan} (${updatedSubscription.status})`,
+        });
+      } else {
+        toast({
+          title: "No changes detected",
+          description: "Your subscription status is already up to date.",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error refreshing subscription",

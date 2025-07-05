@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "react-router-dom";
+import { logger } from "@/lib/logger";
 
 export const useClerkAuth = () => {
   const { user, isLoaded: userLoaded } = useUser();
@@ -17,6 +18,8 @@ export const useClerkAuth = () => {
     if (!user || !isSignedIn) return;
 
     try {
+      logger.info("Refreshing profile data", { userId: user.id });
+
       const { data: refreshedProfile, error } = await supabase
         .from("profiles")
         .select("*")
@@ -24,16 +27,19 @@ export const useClerkAuth = () => {
         .single();
 
       if (error) {
-        console.error("Error refreshing profile:", error);
+        logger.error("Error refreshing profile", { error, userId: user.id });
         return;
       }
 
       if (refreshedProfile) {
-        console.log("Profile refreshed:", refreshedProfile);
+        logger.info("Profile refreshed successfully", {
+          profile: refreshedProfile,
+          userId: user.id,
+        });
         setProfile(refreshedProfile);
       }
     } catch (error) {
-      console.error("Error refreshing profile:", error);
+      logger.error("Error refreshing profile", { error, userId: user.id });
     }
   }, [user, isSignedIn]);
 

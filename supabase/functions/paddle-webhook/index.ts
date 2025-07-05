@@ -1,9 +1,75 @@
+// @ts-ignore -- Deno environment
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore -- Deno environment
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-ignore -- Deno environment
 import {
   createHmac,
   decodeHex,
 } from "https://deno.land/std@0.168.0/node/crypto.ts";
+
+// @ts-ignore -- Deno environment
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
+
+// Simple logger for Deno environment
+class WebhookLogger {
+  private logs: any[] = [];
+  private maxLogs = 50;
+
+  private addLog(level: string, message: string, data?: any) {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      data,
+    };
+
+    this.logs.push(logEntry);
+
+    // Keep only the last maxLogs entries
+    if (this.logs.length > this.maxLogs) {
+      this.logs.splice(0, this.logs.length - this.maxLogs);
+    }
+
+    // Log to console for immediate visibility
+    const consoleMethod =
+      level === "error" ? "error" : level === "warn" ? "warn" : "log";
+    console[consoleMethod](
+      `[WEBHOOK ${level.toUpperCase()}] ${message}`,
+      data || ""
+    );
+  }
+
+  info(message: string, data?: any) {
+    this.addLog("info", message, data);
+  }
+
+  warn(message: string, data?: any) {
+    this.addLog("warn", message, data);
+  }
+
+  error(message: string, data?: any) {
+    this.addLog("error", message, data);
+  }
+
+  debug(message: string, data?: any) {
+    this.addLog("debug", message, data);
+  }
+
+  getLogs() {
+    return this.logs;
+  }
+
+  exportLogs() {
+    return JSON.stringify(this.logs, null, 2);
+  }
+}
+
+const logger = new WebhookLogger();
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +88,7 @@ async function verifyPaddleSignature(
   rawBody: string
 ): Promise<boolean> {
   if (APP_ENVIRONMENT !== "production") {
-    console.warn(
+    logger.warn(
       `SECURITY_BYPASS: Paddle signature verification is BYPASSED in ${APP_ENVIRONMENT} environment. THIS SHOULD NOT HAPPEN IN PRODUCTION.`
     );
     return true; // Bypass verification for non-production environments
@@ -30,7 +96,7 @@ async function verifyPaddleSignature(
 
   // Production environment: proceed with signature verification
   if (!PADDLE_WEBHOOK_SIGNING_SECRET) {
-    console.error(
+    logger.error(
       "CRITICAL_CONFIG_ERROR: Paddle webhook signing secret is NOT CONFIGURED for PRODUCTION environment."
     );
     return false; // Verification fails if secret is missing in production
@@ -38,7 +104,7 @@ async function verifyPaddleSignature(
 
   const signatureHeader = req.headers.get("Paddle-Signature");
   if (!signatureHeader) {
-    console.warn("Missing Paddle-Signature header.");
+    logger.warn("Missing Paddle-Signature header.");
     return false;
   }
 
@@ -49,13 +115,13 @@ async function verifyPaddleSignature(
   const h1Hash = parts.find((part) => part.startsWith("h1="))?.split("=")[1];
 
   if (!timestampStr || !h1Hash) {
-    console.warn("Invalid Paddle-Signature header format.");
+    logger.warn("Invalid Paddle-Signature header format.");
     return false;
   }
 
   const timestamp = parseInt(timestampStr, 10);
   if (isNaN(timestamp)) {
-    console.warn("Invalid timestamp in Paddle-Signature header.");
+    logger.warn("Invalid timestamp in Paddle-Signature header.");
     return false;
   }
 
@@ -63,7 +129,7 @@ async function verifyPaddleSignature(
   if (
     Math.abs(currentTimestamp - timestamp) > WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS
   ) {
-    console.warn(
+    logger.warn(
       `Timestamp validation failed. Header ts: ${timestamp}, Current ts: ${currentTimestamp}, Tolerance: ${WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS}s`
     );
     return false; // Timestamp too old or too far in the future
@@ -88,7 +154,7 @@ serve(async (req) => {
   try {
     const isVerified = await verifyPaddleSignature(req, rawBody);
     if (!isVerified) {
-      console.error("Paddle webhook signature verification failed.");
+      logger.error("Paddle webhook signature verification failed.");
       return new Response(
         JSON.stringify({ error: "Signature verification failed" }),
         {
@@ -107,7 +173,9 @@ serve(async (req) => {
     const payload = JSON.parse(rawBody);
 
     // It's good practice to log after verification, to avoid logging unverified payloads
-    console.log("Paddle webhook received and verified:", payload.event_type);
+    logger.info("Paddle webhook received and verified", {
+      eventType: payload.event_type,
+    });
 
     let result: HandlerResult = {
       success: false,
@@ -126,7 +194,7 @@ serve(async (req) => {
         result = await handleSubscriptionCanceled(supabaseClient, payload);
         break;
       default:
-        console.warn(`Received unhandled event_type: ${payload.event_type}`);
+        logger.warn(`Received unhandled event_type: ${payload.event_type}`);
         // Acknowledge receipt to Paddle, but log that it wasn't specifically handled.
         result = {
           success: true,
@@ -148,11 +216,10 @@ serve(async (req) => {
     );
   } catch (error) {
     // This catch block is for truly unexpected errors or those explicitly thrown by handlers for 500-level issues.
-    console.error(
-      "Unhandled Webhook processing error:",
-      error.message,
-      error.stack
-    );
+    logger.error("Unhandled Webhook processing error", {
+      message: error.message,
+      stack: error.stack,
+    });
     return new Response(
       JSON.stringify({
         error: "An unexpected error occurred processing the webhook.",
@@ -180,17 +247,14 @@ async function handleSubscriptionEvent(
   const customData = subscription.custom_data || {};
   const userId = customData.userId;
 
-  console.log("=== SUBSCRIPTION EVENT DEBUG START ===");
-  console.log("Event ID:", eventId);
-  console.log("User ID from custom_data:", userId);
-  // console.log("Full subscription data:", JSON.stringify(subscription, null, 2)); // Can be very verbose
-  console.log("Subscription custom_data:", JSON.stringify(customData, null, 2));
-  console.log("Subscription items from payload:", JSON.stringify(subscription.items, null, 2));
-
+  logger.info("=== SUBSCRIPTION EVENT DEBUG START ===");
+  logger.info("Processing subscription event", { eventId, userId });
+  logger.debug("Subscription custom_data", customData);
+  logger.debug("Subscription items from payload", subscription.items);
 
   if (!userId) {
     const errorMessage = `EVENT_PROCESSING_FAILURE: No userId found in custom_data for subscription event. Event ID: ${eventId}.`;
-    console.error(errorMessage, "Payload data:", JSON.stringify(payload.data));
+    logger.error(errorMessage, { payloadData: payload.data });
     return {
       success: false,
       message:
@@ -207,19 +271,11 @@ async function handleSubscriptionEvent(
     productId = subscription.product_id;
   }
 
-  console.log("Chosen Product ID for lookup:", productId);
-  // console.log( // Already logged above
-  //   "Subscription items:",
-  //   JSON.stringify(subscription.items, null, 2)
-  // );
+  logger.info("Chosen Product ID for lookup", { productId });
 
   if (!productId) {
     const errorMessage = `EVENT_PROCESSING_FAILURE: No product_id found in subscription items for event ID: ${eventId}. User: ${userId}.`;
-    console.error(
-      errorMessage,
-      "Payload items:",
-      JSON.stringify(subscription.items)
-    );
+    logger.error(errorMessage, { payloadItems: subscription.items });
     return {
       success: false,
       message:
@@ -228,7 +284,9 @@ async function handleSubscriptionEvent(
   }
 
   // Get the plan details
-  console.log(`Querying 'subscription_plans' table for paddle_product_id: '${productId}'`);
+  logger.info(
+    `Querying 'subscription_plans' table for paddle_product_id: '${productId}'`
+  );
   const { data: plan, error: planError } = await supabaseClient
     .from("subscription_plans")
     .select("*")
@@ -236,7 +294,7 @@ async function handleSubscriptionEvent(
     .single();
 
   if (planError) {
-    console.error(
+    logger.error(
       `DB_ERROR: Error fetching plan for product ${productId}. User: ${userId}. Event ID: ${eventId}. Error:`,
       planError
     );
@@ -247,59 +305,65 @@ async function handleSubscriptionEvent(
 
   if (!plan) {
     const errorMessage = `EVENT_PROCESSING_FAILURE: Plan not found in 'subscription_plans' for paddle_product_id: '${productId}'. Subscription for user ${userId} (Event ID: ${eventId}) cannot be processed. Please verify this ID exists in your 'subscription_plans' table and matches Paddle's product/price ID exactly.`;
-    console.error(errorMessage);
+    logger.error(errorMessage);
     return {
       success: false,
       message: `Plan not found for product ID: '${productId}'.`,
     }; // 200 OK to Paddle
   }
 
-  console.log("Plan found:", JSON.stringify(plan, null, 2));
-  console.log("=== SUBSCRIPTION EVENT DEBUG END ===");
-
+  logger.info("Plan found:", JSON.stringify(plan, null, 2));
+  logger.info("=== SUBSCRIPTION EVENT DEBUG END ===");
 
   // Check if profile exists, create if it doesn't
-  console.log("Checking if profile exists for user:", userId);
-  const { data: existingProfile, error: profileFetchError } = await supabaseClient
-    .from("profiles")
-    .select("*")
-    .eq("user_id", userId)
-    .single();
+  logger.info("Checking if profile exists for user:", userId);
+  const { data: existingProfile, error: profileFetchError } =
+    await supabaseClient
+      .from("profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
 
-  if (profileFetchError && profileFetchError.code === 'PGRST116') {
+  if (profileFetchError && profileFetchError.code === "PGRST116") {
     // Profile doesn't exist, create it
-    console.log("Profile doesn't exist, creating new profile for user:", userId);
+    logger.info(
+      "Profile doesn't exist, creating new profile for user:",
+      userId
+    );
     const { data: newProfile, error: profileCreateError } = await supabaseClient
       .from("profiles")
       .insert({
         user_id: userId,
-        email: customData.email || 'unknown@example.com',
-        full_name: customData.full_name || 'Unknown User',
-        subscription_status: 'free',
-        subscription_plan: 'free',
+        email: customData.email || "unknown@example.com",
+        full_name: customData.full_name || "Unknown User",
+        subscription_status: "free",
+        subscription_plan: "free",
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (profileCreateError) {
-      console.error(
+      logger.error(
         `DB_ERROR: Error creating profile for user ${userId}. Event ID: ${eventId}. Error:`,
         profileCreateError
       );
       throw new Error(`Database error creating profile for user ${userId}.`);
     }
 
-    console.log("Profile created successfully:", JSON.stringify(newProfile, null, 2));
+    logger.info(
+      "Profile created successfully:",
+      JSON.stringify(newProfile, null, 2)
+    );
   } else if (profileFetchError) {
-    console.error(
+    logger.error(
       `DB_ERROR: Error fetching profile for user ${userId}. Event ID: ${eventId}. Error:`,
       profileFetchError
     );
     throw new Error(`Database error fetching profile for user ${userId}.`);
   } else {
-    console.log("Profile exists:", JSON.stringify(existingProfile, null, 2));
+    logger.info("Profile exists:", JSON.stringify(existingProfile, null, 2));
   }
 
   // Update user profile
@@ -310,11 +374,11 @@ async function handleSubscriptionEvent(
     updated_at: new Date().toISOString(),
   };
 
-  console.log(
+  logger.info(
     "Updating profile with data:",
     JSON.stringify(profileUpdateData, null, 2)
   );
-  console.log("For user ID:", userId);
+  logger.info("For user ID:", userId);
 
   const { data: updatedProfile, error: profileUpdateError } =
     await supabaseClient
@@ -325,14 +389,14 @@ async function handleSubscriptionEvent(
       .single();
 
   if (profileUpdateError) {
-    console.error(
+    logger.error(
       `DB_ERROR: Error updating profile for user ${userId}. Event ID: ${eventId}. Error:`,
       profileUpdateError
     );
     throw new Error(`Database error updating profile for user ${userId}.`); // Caught by main try-catch, results in 500
   }
 
-  console.log(
+  logger.info(
     "Profile updated successfully:",
     JSON.stringify(updatedProfile, null, 2)
   );
@@ -348,7 +412,7 @@ async function handleSubscriptionEvent(
     updated_at: new Date().toISOString(),
   };
 
-  console.log(
+  logger.info(
     "Upserting subscription with data:",
     JSON.stringify(subscriptionData, null, 2)
   );
@@ -361,7 +425,7 @@ async function handleSubscriptionEvent(
       .single();
 
   if (subscriptionUpsertError) {
-    console.error(
+    logger.error(
       `DB_ERROR: Error upserting subscription for user ${userId}. Event ID: ${eventId}. Error:`,
       subscriptionUpsertError
     );
@@ -370,12 +434,12 @@ async function handleSubscriptionEvent(
     ); // Caught by main try-catch, results in 500
   }
 
-  console.log(
+  logger.info(
     "Subscription upserted successfully:",
     JSON.stringify(upsertedSubscription, null, 2)
   );
 
-  console.log(
+  logger.info(
     `EVENT_PROCESSED: Subscription event for user: ${userId}, plan: ${plan.name}, status: ${subscription.status}. Event ID: ${eventId}`
   );
   return {
@@ -393,17 +457,19 @@ async function handleTransactionCompleted(
   const customData = transaction.custom_data || {};
   const userId = customData.userId;
 
-  console.log("=== TRANSACTION COMPLETED DEBUG START ===");
-  console.log("Event ID:", eventId);
-  console.log("User ID from custom_data:", userId);
-  // console.log("Full transaction data:", JSON.stringify(transaction, null, 2)); // Can be very verbose
-  console.log("Transaction custom_data:", JSON.stringify(customData, null, 2));
-  console.log("Transaction items from payload:", JSON.stringify(transaction.items, null, 2));
-
+  logger.info("=== TRANSACTION COMPLETED DEBUG START ===");
+  logger.info("Event ID:", eventId);
+  logger.info("User ID from custom_data:", userId);
+  // logger.info("Full transaction data:", JSON.stringify(transaction, null, 2)); // Can be very verbose
+  logger.info("Transaction custom_data:", JSON.stringify(customData, null, 2));
+  logger.info(
+    "Transaction items from payload:",
+    JSON.stringify(transaction.items, null, 2)
+  );
 
   if (!userId) {
     const errorMessage = `EVENT_PROCESSING_FAILURE: No userId found in transaction custom_data. Event ID: ${eventId}.`;
-    console.error(errorMessage, "Payload data:", JSON.stringify(payload.data));
+    logger.error(errorMessage, { payloadData: payload.data });
     return {
       success: false,
       message: "User ID missing in transaction custom_data. Cannot process.",
@@ -411,47 +477,54 @@ async function handleTransactionCompleted(
   }
 
   // Check if profile exists, create if it doesn't
-  console.log("Checking if profile exists for user:", userId);
-  const { data: existingProfile, error: profileFetchError } = await supabaseClient
-    .from("profiles")
-    .select("*")
-    .eq("user_id", userId)
-    .single();
+  logger.info("Checking if profile exists for user:", userId);
+  const { data: existingProfile, error: profileFetchError } =
+    await supabaseClient
+      .from("profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
 
-  if (profileFetchError && profileFetchError.code === 'PGRST116') {
+  if (profileFetchError && profileFetchError.code === "PGRST116") {
     // Profile doesn't exist, create it
-    console.log("Profile doesn't exist, creating new profile for user:", userId);
+    logger.info(
+      "Profile doesn't exist, creating new profile for user:",
+      userId
+    );
     const { data: newProfile, error: profileCreateError } = await supabaseClient
       .from("profiles")
       .insert({
         user_id: userId,
-        email: customData.email || 'unknown@example.com',
-        full_name: customData.full_name || 'Unknown User',
-        subscription_status: 'free',
-        subscription_plan: 'free',
+        email: customData.email || "unknown@example.com",
+        full_name: customData.full_name || "Unknown User",
+        subscription_status: "free",
+        subscription_plan: "free",
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (profileCreateError) {
-      console.error(
+      logger.error(
         `DB_ERROR: Error creating profile for user ${userId}. Event ID: ${eventId}. Error:`,
         profileCreateError
       );
       throw new Error(`Database error creating profile for user ${userId}.`);
     }
 
-    console.log("Profile created successfully:", JSON.stringify(newProfile, null, 2));
+    logger.info(
+      "Profile created successfully:",
+      JSON.stringify(newProfile, null, 2)
+    );
   } else if (profileFetchError) {
-    console.error(
+    logger.error(
       `DB_ERROR: Error fetching profile for user ${userId}. Event ID: ${eventId}. Error:`,
       profileFetchError
     );
     throw new Error(`Database error fetching profile for user ${userId}.`);
   } else {
-    console.log("Profile exists:", JSON.stringify(existingProfile, null, 2));
+    logger.info("Profile exists:", JSON.stringify(existingProfile, null, 2));
   }
 
   // If this is a one-time payment, update the user's profile
@@ -466,18 +539,23 @@ async function handleTransactionCompleted(
       productId = item.price_id;
     }
 
-    console.log("Chosen Product ID for lookup from transaction item:", productId);
+    logger.info(
+      "Chosen Product ID for lookup from transaction item:",
+      productId
+    );
 
     if (!productId) {
       const errorMessage = `EVENT_PROCESSING_FAILURE: No product_id in transaction item. Event ID: ${eventId}. User: ${userId}.`;
-      console.error(errorMessage, "Transaction item:", JSON.stringify(item));
+      logger.error(errorMessage, { transactionItem: item });
       return {
         success: false,
         message:
           "Product ID missing in transaction item. Cannot process profile update for this item.",
       };
     }
-    console.log(`Querying 'subscription_plans' table for paddle_product_id: '${productId}' (from transaction)`);
+    logger.info(
+      `Querying 'subscription_plans' table for paddle_product_id: '${productId}' (from transaction)`
+    );
     const { data: plan, error: planError } = await supabaseClient
       .from("subscription_plans")
       .select("*")
@@ -485,7 +563,7 @@ async function handleTransactionCompleted(
       .single();
 
     if (planError) {
-      console.error(
+      logger.error(
         `DB_ERROR: Error fetching plan for product ${productId} in transaction. User: ${userId}. Event ID: ${eventId}. Error:`,
         planError
       );
@@ -495,7 +573,10 @@ async function handleTransactionCompleted(
     }
 
     if (plan) {
-      console.log("Plan found for transaction item:", JSON.stringify(plan, null, 2));
+      logger.info(
+        "Plan found for transaction item:",
+        JSON.stringify(plan, null, 2)
+      );
       const { error: profileUpdateError } = await supabaseClient
         .from("profiles")
         .update({
@@ -507,7 +588,7 @@ async function handleTransactionCompleted(
         .eq("user_id", userId);
 
       if (profileUpdateError) {
-        console.error(
+        logger.error(
           `DB_ERROR: Error updating profile for user ${userId} after one-time transaction. Event ID: ${eventId}. Error:`,
           profileUpdateError
         );
@@ -515,20 +596,20 @@ async function handleTransactionCompleted(
           `Database error updating profile for transaction for user ${userId}.`
         ); // Caught, results in 500
       }
-      console.log(
+      logger.info(
         `EVENT_PROCESSED: Profile updated for user ${userId} from one-time transaction, plan: ${plan.name}. Event ID: ${eventId}`
       );
     } else {
-      console.warn(
-         `EVENT_PROCESSING_FAILURE: Plan not found in 'subscription_plans' for paddle_product_id: '${productId}' (from transaction item). User: ${userId}, Event ID: ${eventId}. Profile not updated for this item. Please verify this ID exists in your 'subscription_plans' table and matches Paddle's product/price ID exactly.`
+      logger.warn(
+        `EVENT_PROCESSING_FAILURE: Plan not found in 'subscription_plans' for paddle_product_id: '${productId}' (from transaction item). User: ${userId}, Event ID: ${eventId}. Profile not updated for this item. Please verify this ID exists in your 'subscription_plans' table and matches Paddle's product/price ID exactly.`
       );
     }
   } else {
-    console.log(
+    logger.info(
       `EVENT_PROCESSING_INFO: Transaction for user ${userId} (Event ID: ${eventId}) is related to a subscription or has no items to process for profile update.`
     );
   }
-   console.log("=== TRANSACTION COMPLETED DEBUG END ===");
+  logger.info("=== TRANSACTION COMPLETED DEBUG END ===");
   return { success: true, message: "Transaction completed event processed." };
 }
 
@@ -543,7 +624,7 @@ async function handleSubscriptionCanceled(
 
   if (!userId) {
     const errorMessage = `EVENT_PROCESSING_FAILURE: No userId found in custom_data for subscription cancellation. Event ID: ${eventId}.`;
-    console.error(errorMessage, "Payload data:", JSON.stringify(payload.data));
+    logger.error(errorMessage, { payloadData: payload.data });
     return {
       success: false,
       message: "User ID missing. Cannot process cancellation.",
@@ -563,7 +644,7 @@ async function handleSubscriptionCanceled(
     .eq("user_id", userId);
 
   if (profileUpdateError) {
-    console.error(
+    logger.error(
       `DB_ERROR: Error updating profile to 'free' for user ${userId} on cancellation. Event ID: ${eventId}. Error:`,
       profileUpdateError
     );
@@ -588,7 +669,7 @@ async function handleSubscriptionCanceled(
     // If the profile update succeeded but this failed, it's a partial success.
     // Depending on business logic, this might still throw to retry, or log and return success.
     // For consistency, we'll throw, assuming subscription record accuracy is critical.
-    console.error(
+    logger.error(
       `DB_ERROR: Error updating subscription record to '${
         subscription.status || "canceled"
       }' for user ${userId}. Event ID: ${eventId}. Error:`,
@@ -599,7 +680,7 @@ async function handleSubscriptionCanceled(
     ); // Caught, results in 500
   }
 
-  console.log(
+  logger.info(
     `EVENT_PROCESSED: Subscription cancellation for user: ${userId}, status: ${
       subscription.status || "canceled"
     }. Event ID: ${eventId}`

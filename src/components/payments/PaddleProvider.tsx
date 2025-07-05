@@ -3,6 +3,7 @@ import { useUser } from "@clerk/clerk-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 declare global {
   interface Window {
@@ -14,7 +15,8 @@ interface PaddleContextType {
   isLoaded: boolean;
   openCheckout: (priceId: string, customData?: any) => void;
   getSubscriptionStatus: () => Promise<any>;
-  refreshSubscriptionStatus: () => Promise<void>;
+  refreshSubscriptionStatus: () => Promise<any>;
+  onSubscriptionUpdate?: (subscriptionData: any) => void;
 }
 
 const PaddleContext = createContext<PaddleContextType | undefined>(undefined);
@@ -29,9 +31,13 @@ export const usePaddle = () => {
 
 interface PaddleProviderProps {
   children: React.ReactNode;
+  onSubscriptionUpdate?: (subscriptionData: any) => void;
 }
 
-const PaddleProvider: React.FC<PaddleProviderProps> = ({ children }) => {
+const PaddleProvider: React.FC<PaddleProviderProps> = ({
+  children,
+  onSubscriptionUpdate,
+}) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const { user } = useUser();
   const { toast } = useToast();
@@ -74,9 +80,13 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({ children }) => {
   }, [toast]);
 
   const refreshSubscriptionStatus = async () => {
-    if (!user) return;
+    if (!user) return null;
 
     try {
+      logger.info("Refreshing subscription status for user", {
+        userId: user.id,
+      });
+
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("subscription_status, subscription_plan, paddle_customer_id")
@@ -84,14 +94,36 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({ children }) => {
         .single();
 
       if (error) {
-        console.error("Error refreshing subscription status:", error);
-        return;
+        logger.error("Error refreshing subscription status", {
+          error,
+          userId: user.id,
+        });
+        return null;
       }
 
-      console.log("Subscription status refreshed:", profile);
-      return profile;
+      const subscriptionData = {
+        status: profile.subscription_status || "free",
+        plan: profile.subscription_plan || "free",
+        customerId: profile.paddle_customer_id,
+      };
+
+      logger.info("Subscription status refreshed", {
+        subscriptionData,
+        userId: user.id,
+      });
+
+      // Notify the app of the subscription update
+      if (onSubscriptionUpdate) {
+        onSubscriptionUpdate(subscriptionData);
+      }
+
+      return subscriptionData;
     } catch (error) {
-      console.error("Error refreshing subscription status:", error);
+      logger.error("Error refreshing subscription status", {
+        error,
+        userId: user.id,
+      });
+      return null;
     }
   };
 
@@ -121,6 +153,8 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({ children }) => {
       },
       customData: {
         userId: user.id,
+        email: user.primaryEmailAddress?.emailAddress,
+        full_name: user.fullName,
         ...customData,
       },
       settings: {
@@ -129,10 +163,12 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({ children }) => {
         locale: "en",
         successUrl: `${window.location.origin}/studio?payment=success`,
       },
+
       eventCallback: (data: any) => {
-        console.log("Paddle event:", data);
+        logger.info("Paddle event received", { eventName: data.name, data });
 
         if (data.name === "checkout.completed") {
+          logger.info("Payment completed, processing subscription update");
           toast({
             title: "Payment Successful!",
             description:
@@ -141,16 +177,22 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({ children }) => {
 
           // Wait a moment for webhook processing, then refresh and navigate
           setTimeout(async () => {
-            await refreshSubscriptionStatus();
+            const updatedSubscription = await refreshSubscriptionStatus();
+            if (updatedSubscription) {
+              logger.info("Subscription updated after payment", {
+                updatedSubscription,
+              });
+            }
             navigate("/studio?payment=success");
           }, 2000);
         }
 
         if (data.name === "checkout.closed") {
-          console.log("Checkout was closed");
+          logger.info("Checkout was closed");
         }
 
         if (data.name === "checkout.error") {
+          logger.error("Checkout error occurred", { data });
           toast({
             title: "Payment Error",
             description:
@@ -190,6 +232,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({ children }) => {
     openCheckout,
     getSubscriptionStatus,
     refreshSubscriptionStatus,
+    onSubscriptionUpdate,
   };
 
   return (

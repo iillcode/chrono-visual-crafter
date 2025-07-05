@@ -1,11 +1,11 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { useClerkAuth } from '@/hooks/useClerkAuth';
-import GlassCard from '@/components/ui/glass-card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Crown, Settings, LogOut } from 'lucide-react';
+import React from "react";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useClerkAuth } from "@/hooks/useClerkAuth";
+import GlassCard from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, User, Crown, Settings, LogOut } from "lucide-react";
 
 const UserProfile = () => {
   const navigate = useNavigate();
@@ -13,7 +13,7 @@ const UserProfile = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/');
+    navigate("/");
   };
 
   if (!user) {
@@ -40,7 +40,7 @@ const UserProfile = () => {
         >
           <Button
             variant="ghost"
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="text-white hover:text-gray-300 p-2"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -57,37 +57,36 @@ const UserProfile = () => {
           {/* Profile Header */}
           <GlassCard className="p-8 rounded-2xl">
             <div className="flex flex-col md:flex-row items-center gap-6">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="relative"
-              >
+              <motion.div whileHover={{ scale: 1.05 }} className="relative">
                 <img
                   src={user.imageUrl}
-                  alt={user.fullName || 'User'}
+                  alt={user.fullName || "User"}
                   className="w-24 h-24 rounded-full border-4 border-white/20"
                 />
                 <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-white/20 flex items-center justify-center">
                   <div className="w-3 h-3 bg-white rounded-full" />
                 </div>
               </motion.div>
-              
+
               <div className="text-center md:text-left flex-1">
                 <h1 className="text-3xl font-bold text-white mb-2">
-                  {user.fullName || 'User'}
+                  {user.fullName || "User"}
                 </h1>
-                <p className="text-gray-300 mb-4">{user.primaryEmailAddress?.emailAddress}</p>
-                
+                <p className="text-gray-300 mb-4">
+                  {user.primaryEmailAddress?.emailAddress}
+                </p>
+
                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                   <Badge className="bg-blue-500/20 text-blue-300 border border-blue-500/30">
                     <Crown className="w-3 h-3 mr-1" />
-                    {profile?.subscription_plan || 'Free'} Plan
+                    {profile?.subscription_plan || "Free"} Plan
                   </Badge>
                   <Badge className="bg-green-500/20 text-green-300 border border-green-500/30">
                     Active Member
                   </Badge>
                 </div>
               </div>
-              
+
               <div className="flex flex-col gap-2">
                 <Button
                   variant="outline"
@@ -118,11 +117,15 @@ const UserProfile = () => {
               <div className="space-y-3">
                 <div>
                   <label className="text-gray-400 text-sm">Full Name</label>
-                  <p className="text-white">{user.fullName || 'Not provided'}</p>
+                  <p className="text-white">
+                    {user.fullName || "Not provided"}
+                  </p>
                 </div>
                 <div>
                   <label className="text-gray-400 text-sm">Email</label>
-                  <p className="text-white">{user.primaryEmailAddress?.emailAddress}</p>
+                  <p className="text-white">
+                    {user.primaryEmailAddress?.emailAddress}
+                  </p>
                 </div>
                 <div>
                   <label className="text-gray-400 text-sm">Member Since</label>
@@ -142,17 +145,17 @@ const UserProfile = () => {
                 <div>
                   <label className="text-gray-400 text-sm">Current Plan</label>
                   <p className="text-white font-medium">
-                    {profile?.subscription_plan || 'Free'} Plan
+                    {profile?.subscription_plan || "Free"} Plan
                   </p>
                 </div>
                 <div>
                   <label className="text-gray-400 text-sm">Status</label>
                   <p className="text-green-400">
-                    {profile?.subscription_status || 'Active'}
+                    {profile?.subscription_status || "Active"}
                   </p>
                 </div>
                 <Button
-                  onClick={() => navigate('/pricing')}
+                  onClick={() => navigate("/pricing")}
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
                 >
                   Upgrade Plan
@@ -163,7 +166,9 @@ const UserProfile = () => {
 
           {/* Usage Statistics */}
           <GlassCard className="p-6 rounded-xl">
-            <h2 className="text-xl font-semibold text-white mb-4">Usage Statistics</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Usage Statistics
+            </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-400">12</div>
