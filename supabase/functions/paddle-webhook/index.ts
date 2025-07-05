@@ -180,11 +180,13 @@ async function handleSubscriptionEvent(
   const customData = subscription.custom_data || {};
   const userId = customData.userId;
 
-  console.log("=== SUBSCRIPTION EVENT DEBUG ===");
+  console.log("=== SUBSCRIPTION EVENT DEBUG START ===");
   console.log("Event ID:", eventId);
-  console.log("User ID:", userId);
-  console.log("Subscription data:", JSON.stringify(subscription, null, 2));
-  console.log("Custom data:", JSON.stringify(customData, null, 2));
+  console.log("User ID from custom_data:", userId);
+  // console.log("Full subscription data:", JSON.stringify(subscription, null, 2)); // Can be very verbose
+  console.log("Subscription custom_data:", JSON.stringify(customData, null, 2));
+  console.log("Subscription items from payload:", JSON.stringify(subscription.items, null, 2));
+
 
   if (!userId) {
     const errorMessage = `EVENT_PROCESSING_FAILURE: No userId found in custom_data for subscription event. Event ID: ${eventId}.`;
@@ -205,11 +207,11 @@ async function handleSubscriptionEvent(
     productId = subscription.product_id;
   }
 
-  console.log("Product ID found:", productId);
-  console.log(
-    "Subscription items:",
-    JSON.stringify(subscription.items, null, 2)
-  );
+  console.log("Chosen Product ID for lookup:", productId);
+  // console.log( // Already logged above
+  //   "Subscription items:",
+  //   JSON.stringify(subscription.items, null, 2)
+  // );
 
   if (!productId) {
     const errorMessage = `EVENT_PROCESSING_FAILURE: No product_id found in subscription items for event ID: ${eventId}. User: ${userId}.`;
@@ -226,7 +228,7 @@ async function handleSubscriptionEvent(
   }
 
   // Get the plan details
-  console.log("Looking for plan with paddle_product_id:", productId);
+  console.log(`Querying 'subscription_plans' table for paddle_product_id: '${productId}'`);
   const { data: plan, error: planError } = await supabaseClient
     .from("subscription_plans")
     .select("*")
@@ -244,15 +246,17 @@ async function handleSubscriptionEvent(
   }
 
   if (!plan) {
-    const errorMessage = `EVENT_PROCESSING_FAILURE: Plan not found for product ID: ${productId}. Subscription for user ${userId} (Event ID: ${eventId}) cannot be processed.`;
+    const errorMessage = `EVENT_PROCESSING_FAILURE: Plan not found in 'subscription_plans' for paddle_product_id: '${productId}'. Subscription for user ${userId} (Event ID: ${eventId}) cannot be processed. Please verify this ID exists in your 'subscription_plans' table and matches Paddle's product/price ID exactly.`;
     console.error(errorMessage);
     return {
       success: false,
-      message: `Plan not found for product ID: ${productId}.`,
+      message: `Plan not found for product ID: '${productId}'.`,
     }; // 200 OK to Paddle
   }
 
   console.log("Plan found:", JSON.stringify(plan, null, 2));
+  console.log("=== SUBSCRIPTION EVENT DEBUG END ===");
+
 
   // Check if profile exists, create if it doesn't
   console.log("Checking if profile exists for user:", userId);
@@ -389,10 +393,13 @@ async function handleTransactionCompleted(
   const customData = transaction.custom_data || {};
   const userId = customData.userId;
 
-  console.log("=== TRANSACTION COMPLETED DEBUG ===");
+  console.log("=== TRANSACTION COMPLETED DEBUG START ===");
   console.log("Event ID:", eventId);
-  console.log("User ID:", userId);
-  console.log("Transaction data:", JSON.stringify(transaction, null, 2));
+  console.log("User ID from custom_data:", userId);
+  // console.log("Full transaction data:", JSON.stringify(transaction, null, 2)); // Can be very verbose
+  console.log("Transaction custom_data:", JSON.stringify(customData, null, 2));
+  console.log("Transaction items from payload:", JSON.stringify(transaction.items, null, 2));
+
 
   if (!userId) {
     const errorMessage = `EVENT_PROCESSING_FAILURE: No userId found in transaction custom_data. Event ID: ${eventId}.`;
@@ -459,7 +466,7 @@ async function handleTransactionCompleted(
       productId = item.price_id;
     }
 
-    console.log("Product ID from transaction:", productId);
+    console.log("Chosen Product ID for lookup from transaction item:", productId);
 
     if (!productId) {
       const errorMessage = `EVENT_PROCESSING_FAILURE: No product_id in transaction item. Event ID: ${eventId}. User: ${userId}.`;
@@ -470,7 +477,7 @@ async function handleTransactionCompleted(
           "Product ID missing in transaction item. Cannot process profile update for this item.",
       };
     }
-
+    console.log(`Querying 'subscription_plans' table for paddle_product_id: '${productId}' (from transaction)`);
     const { data: plan, error: planError } = await supabaseClient
       .from("subscription_plans")
       .select("*")
@@ -488,7 +495,7 @@ async function handleTransactionCompleted(
     }
 
     if (plan) {
-      console.log("Plan found for transaction:", JSON.stringify(plan, null, 2));
+      console.log("Plan found for transaction item:", JSON.stringify(plan, null, 2));
       const { error: profileUpdateError } = await supabaseClient
         .from("profiles")
         .update({
@@ -513,7 +520,7 @@ async function handleTransactionCompleted(
       );
     } else {
       console.warn(
-        `EVENT_PROCESSING_INFO: Plan not found for product ${productId} in one-time transaction for user ${userId}. Event ID: ${eventId}. Profile not updated for this item.`
+         `EVENT_PROCESSING_FAILURE: Plan not found in 'subscription_plans' for paddle_product_id: '${productId}' (from transaction item). User: ${userId}, Event ID: ${eventId}. Profile not updated for this item. Please verify this ID exists in your 'subscription_plans' table and matches Paddle's product/price ID exactly.`
       );
     }
   } else {
@@ -521,6 +528,7 @@ async function handleTransactionCompleted(
       `EVENT_PROCESSING_INFO: Transaction for user ${userId} (Event ID: ${eventId}) is related to a subscription or has no items to process for profile update.`
     );
   }
+   console.log("=== TRANSACTION COMPLETED DEBUG END ===");
   return { success: true, message: "Transaction completed event processed." };
 }
 
