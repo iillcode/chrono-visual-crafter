@@ -9,54 +9,18 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      Admin: {
+      profile: {
         Row: {
           created_at: string
           id: number
-          name: string | null
         }
         Insert: {
           created_at?: string
           id?: number
-          name?: string | null
         }
         Update: {
           created_at?: string
           id?: number
-          name?: string | null
-        }
-        Relationships: []
-      }
-      gpt_models: {
-        Row: {
-          accuracy: string | null
-          created_at: string
-          description: string | null
-          id: string
-          image_url: string | null
-          name: string | null
-          parameters: string | null
-          short_description: string | null
-        }
-        Insert: {
-          accuracy?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          name?: string | null
-          parameters?: string | null
-          short_description?: string | null
-        }
-        Update: {
-          accuracy?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          name?: string | null
-          parameters?: string | null
-          short_description?: string | null
         }
         Relationships: []
       }
@@ -64,7 +28,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
-          email: string
+          email: string | null
           full_name: string | null
           id: string
           paddle_customer_id: string | null
@@ -76,7 +40,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
-          email: string
+          email?: string | null
           full_name?: string | null
           id?: string
           paddle_customer_id?: string | null
@@ -88,7 +52,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
-          email?: string
+          email?: string | null
           full_name?: string | null
           id?: string
           paddle_customer_id?: string | null
@@ -129,39 +93,42 @@ export type Database = {
       subscription_plans: {
         Row: {
           created_at: string
-          currency: string | null
+          currency: string
           description: string | null
-          features: Json | null
+          features: Json
           id: string
           interval_type: string
-          is_active: boolean | null
+          is_active: boolean
           name: string
           paddle_product_id: string | null
           price: number
+          updated_at: string
         }
         Insert: {
           created_at?: string
-          currency?: string | null
+          currency?: string
           description?: string | null
-          features?: Json | null
+          features?: Json
           id?: string
           interval_type?: string
-          is_active?: boolean | null
+          is_active?: boolean
           name: string
           paddle_product_id?: string | null
-          price: number
+          price?: number
+          updated_at?: string
         }
         Update: {
           created_at?: string
-          currency?: string | null
+          currency?: string
           description?: string | null
-          features?: Json | null
+          features?: Json
           id?: string
           interval_type?: string
-          is_active?: boolean | null
+          is_active?: boolean
           name?: string
           paddle_product_id?: string | null
           price?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -171,9 +138,9 @@ export type Database = {
           current_period_end: string | null
           current_period_start: string | null
           id: string
-          paddle_subscription_id: string | null
-          plan_id: string
+          plan_id: string | null
           status: string
+          subscription_id: string
           updated_at: string
           user_id: string
         }
@@ -182,9 +149,9 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
-          paddle_subscription_id?: string | null
-          plan_id: string
+          plan_id?: string | null
           status?: string
+          subscription_id: string
           updated_at?: string
           user_id: string
         }
@@ -193,9 +160,9 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
-          paddle_subscription_id?: string | null
-          plan_id?: string
+          plan_id?: string | null
           status?: string
+          subscription_id?: string
           updated_at?: string
           user_id?: string
         }
@@ -208,24 +175,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      users: {
-        Row: {
-          created_at: string
-          id: number
-          name: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-          name?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: number
-          name?: string | null
-        }
-        Relationships: []
       }
     }
     Views: {
