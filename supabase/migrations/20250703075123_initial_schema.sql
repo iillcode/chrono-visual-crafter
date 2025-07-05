@@ -1,5 +1,5 @@
 -- Create profiles table for user management
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id TEXT NOT NULL UNIQUE,
   email TEXT NOT NULL,
@@ -13,9 +13,9 @@ CREATE TABLE public.profiles (
 );
 
 -- Create subscription plans table
-CREATE TABLE public.subscription_plans (
+CREATE TABLE IF NOT EXISTS public.subscription_plans (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
+  name TEXT NOT NULL UNIQUE,
   description TEXT,
   price DECIMAL(10,2) NOT NULL,
   currency TEXT DEFAULT 'USD',
@@ -27,7 +27,7 @@ CREATE TABLE public.subscription_plans (
 );
 
 -- Create user subscriptions table  
-CREATE TABLE public.user_subscriptions (
+CREATE TABLE IF NOT EXISTS public.user_subscriptions (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id TEXT NOT NULL,
   plan_id UUID NOT NULL,
@@ -63,10 +63,19 @@ ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
 -- WITH CHECK (auth.uid() = user_id);
 
 -- Create policies for subscription plans (public read)
-CREATE POLICY "Anyone can view subscription plans" 
-ON public.subscription_plans 
-FOR SELECT 
-USING (is_active = true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'subscription_plans' 
+    AND policyname = 'Anyone can view subscription plans'
+  ) THEN
+    CREATE POLICY "Anyone can view subscription plans" 
+    ON public.subscription_plans 
+    FOR SELECT 
+    USING (is_active = true);
+  END IF;
+END $$;
 
 -- Create policies for user subscriptions (disabled for now)
 -- CREATE POLICY "Users can view their own subscriptions" 
@@ -89,11 +98,13 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create triggers for automatic timestamp updates
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_user_subscriptions_updated_at ON public.user_subscriptions;
 CREATE TRIGGER update_user_subscriptions_updated_at
   BEFORE UPDATE ON public.user_subscriptions
   FOR EACH ROW
@@ -106,4 +117,5 @@ CREATE TRIGGER update_user_subscriptions_updated_at
 INSERT INTO public.subscription_plans (name, description, price, interval_type, features) VALUES
 ('Free', 'Basic timer functionality', 0.00, 'month', '["Basic timer", "3 custom designs", "Local storage"]'),
 ('Pro', 'Advanced features and customization', 9.99, 'month', '["Unlimited timers", "All designs", "Cloud sync", "Advanced analytics", "Priority support"]'),
-('Premium', 'Everything + team features', 19.99, 'month', '["Everything in Pro", "Team collaboration", "Advanced reporting", "Custom branding", "API access"]');
+('Premium', 'Everything + team features', 19.99, 'month', '["Everything in Pro", "Team collaboration", "Advanced reporting", "Custom branding", "API access"]')
+ON CONFLICT (name) DO NOTHING;

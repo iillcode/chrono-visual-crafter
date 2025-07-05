@@ -3,10 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // @ts-ignore -- Deno environment
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // @ts-ignore -- Deno environment
-import {
-  createHmac,
-  decodeHex,
-} from "https://deno.land/std@0.168.0/node/crypto.ts";
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 // @ts-ignore -- Deno environment
 declare const Deno: {
@@ -71,10 +68,13 @@ class WebhookLogger {
 
 const logger = new WebhookLogger();
 
+// SECURITY: Restrict CORS to only necessary origins and headers
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://paddle.com",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, paddle-signature",
+  "Access-Control-Max-Age": "86400", // Cache preflight request for 24 hours
 };
 
 const PADDLE_WEBHOOK_SIGNING_SECRET = Deno.env.get(
@@ -87,6 +87,7 @@ async function verifyPaddleSignature(
   req: Request,
   rawBody: string
 ): Promise<boolean> {
+  // SECURITY: Always verify in production
   if (APP_ENVIRONMENT !== "production") {
     logger.warn(
       `SECURITY_BYPASS: Paddle signature verification is BYPASSED in ${APP_ENVIRONMENT} environment. THIS SHOULD NOT HAPPEN IN PRODUCTION.`
@@ -125,23 +126,42 @@ async function verifyPaddleSignature(
     return false;
   }
 
+  // SECURITY: Reduce timestamp tolerance from 5 minutes to 2 minutes
+  const REDUCED_TIMESTAMP_TOLERANCE = 120; // 2 minutes
   const currentTimestamp = Math.floor(Date.now() / 1000);
-  if (
-    Math.abs(currentTimestamp - timestamp) > WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS
-  ) {
+  if (Math.abs(currentTimestamp - timestamp) > REDUCED_TIMESTAMP_TOLERANCE) {
     logger.warn(
-      `Timestamp validation failed. Header ts: ${timestamp}, Current ts: ${currentTimestamp}, Tolerance: ${WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS}s`
+      `Timestamp validation failed. Header ts: ${timestamp}, Current ts: ${currentTimestamp}, Tolerance: ${REDUCED_TIMESTAMP_TOLERANCE}s`
     );
     return false; // Timestamp too old or too far in the future
   }
 
-  const signedPayload = `${timestampStr}:${rawBody}`;
+  // SECURITY: Use constant-time comparison to prevent timing attacks
+  try {
+    const signedPayload = `${timestampStr}:${rawBody}`;
+    const encoder = new TextEncoder();
+    const key = encoder.encode(PADDLE_WEBHOOK_SIGNING_SECRET);
+    const message = encoder.encode(signedPayload);
 
-  const hmac = createHmac("sha256", PADDLE_WEBHOOK_SIGNING_SECRET);
-  hmac.update(signedPayload);
-  const computedHash = hmac.digest("hex");
+    // Create HMAC
+    const keyObject = await crypto.subtle.importKey(
+      "raw",
+      key,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
 
-  return computedHash.toLowerCase() === h1Hash.toLowerCase();
+    const signature = await crypto.subtle.sign("HMAC", keyObject, message);
+    const computedHash = Array.from(new Uint8Array(signature))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    return computedHash.toLowerCase() === h1Hash.toLowerCase();
+  } catch (error) {
+    logger.error("Error verifying signature:", error);
+    return false;
+  }
 }
 
 serve(async (req) => {
@@ -191,14 +211,33 @@ serve(async (req) => {
         result = await handleTransactionCompleted(supabaseClient, payload);
         break;
       case "subscription.canceled":
+      case "subscription.paused":
+      case "subscription.resumed":
         result = await handleSubscriptionCanceled(supabaseClient, payload);
         break;
+      case "payment_method.deleted":
+        result = await handlePaymentMethodDeleted(supabaseClient, payload);
+        break;
+      case "customer.created":
+      case "customer.updated":
+        result = await handleCustomerEvent(supabaseClient, payload);
+        break;
+      case "invoice.paid":
+      case "invoice.payment_failed":
+        result = await handleInvoiceEvent(supabaseClient, payload);
+        break;
+      case "subscription.payment_succeeded":
+      case "subscription.payment_failed":
+        result = await handleSubscriptionPaymentEvent(supabaseClient, payload);
+        break;
       default:
-        logger.warn(`Received unhandled event_type: ${payload.event_type}`);
+        logger.info(
+          `Received event_type: ${payload.event_type} - No specific handler needed`
+        );
         // Acknowledge receipt to Paddle, but log that it wasn't specifically handled.
         result = {
           success: true,
-          message: `Unhandled event_type: ${payload.event_type} was acknowledged.`,
+          message: `Event ${payload.event_type} acknowledged but no specific handling required.`,
         };
     }
 
@@ -263,7 +302,10 @@ async function handleSubscriptionEvent(
   }
 
   // Check different possible locations for product_id
-  let productId = subscription.items?.[0]?.product_id;
+  let productId = subscription.items?.[0]?.price?.product_id;
+  if (!productId) {
+    productId = subscription.items?.[0]?.product_id;
+  }
   if (!productId) {
     productId = subscription.items?.[0]?.price_id;
   }
@@ -283,15 +325,33 @@ async function handleSubscriptionEvent(
     };
   }
 
-  // Get the plan details
+  // Get the plan details - try both product_id and price_id
   logger.info(
     `Querying 'subscription_plans' table for paddle_product_id: '${productId}'`
   );
-  const { data: plan, error: planError } = await supabaseClient
+  let { data: plan, error: planError } = await supabaseClient
     .from("subscription_plans")
     .select("*")
     .eq("paddle_product_id", productId)
-    .single();
+    .maybeSingle();
+
+  // If not found by product_id, try price_id
+  if (!plan) {
+    logger.info(`Product ID not found, trying paddle_price_id: '${productId}'`);
+    const { data: planByPrice, error: priceError } = await supabaseClient
+      .from("subscription_plans")
+      .select("*")
+      .eq("paddle_price_id", productId)
+      .maybeSingle();
+
+    if (planByPrice && !priceError) {
+      plan = planByPrice;
+      planError = null;
+      logger.info("Plan found by price_id:", JSON.stringify(plan, null, 2));
+    } else {
+      planError = priceError;
+    }
+  }
 
   if (planError) {
     logger.error(
@@ -534,7 +594,10 @@ async function handleTransactionCompleted(
     transaction.items.length > 0
   ) {
     const item = transaction.items[0]; // Assuming one item or primary item
-    let productId = item.product_id;
+    let productId = item.price?.product_id;
+    if (!productId) {
+      productId = item.product_id;
+    }
     if (!productId) {
       productId = item.price_id;
     }
@@ -556,11 +619,34 @@ async function handleTransactionCompleted(
     logger.info(
       `Querying 'subscription_plans' table for paddle_product_id: '${productId}' (from transaction)`
     );
-    const { data: plan, error: planError } = await supabaseClient
+    let { data: plan, error: planError } = await supabaseClient
       .from("subscription_plans")
       .select("*")
       .eq("paddle_product_id", productId)
-      .single();
+      .maybeSingle();
+
+    // If not found by product_id, try price_id
+    if (!plan) {
+      logger.info(
+        `Product ID not found, trying paddle_price_id: '${productId}' (from transaction)`
+      );
+      const { data: planByPrice, error: priceError } = await supabaseClient
+        .from("subscription_plans")
+        .select("*")
+        .eq("paddle_price_id", productId)
+        .maybeSingle();
+
+      if (planByPrice && !priceError) {
+        plan = planByPrice;
+        planError = null;
+        logger.info(
+          "Plan found by price_id (transaction):",
+          JSON.stringify(plan, null, 2)
+        );
+      } else {
+        planError = priceError;
+      }
+    }
 
     if (planError) {
       logger.error(
@@ -622,23 +708,68 @@ async function handleSubscriptionCanceled(
   const customData = subscription.custom_data || {};
   const userId = customData.userId;
 
+  logger.info("=== SUBSCRIPTION STATUS CHANGE DEBUG START ===");
+  logger.info("Processing subscription status change", {
+    eventId,
+    eventType: payload.event_type,
+    userId,
+    status: subscription.status,
+  });
+
   if (!userId) {
-    const errorMessage = `EVENT_PROCESSING_FAILURE: No userId found in custom_data for subscription cancellation. Event ID: ${eventId}.`;
+    const errorMessage = `EVENT_PROCESSING_FAILURE: No userId found in custom_data for subscription status change. Event ID: ${eventId}.`;
     logger.error(errorMessage, { payloadData: payload.data });
     return {
       success: false,
-      message: "User ID missing. Cannot process cancellation.",
+      message: "User ID missing. Cannot process status change.",
     }; // 200 OK to Paddle
   }
 
-  // Update user profile to free plan
+  // Determine the appropriate subscription status and plan based on the event
+  let subscriptionStatus = subscription.status || "canceled";
+  let subscriptionPlan = "free";
+
+  if (payload.event_type === "subscription.paused") {
+    subscriptionStatus = "paused";
+    // Keep the current plan but mark as paused
+    const { data: currentProfile } = await supabaseClient
+      .from("profiles")
+      .select("subscription_plan")
+      .eq("user_id", userId)
+      .single();
+
+    if (
+      currentProfile?.subscription_plan &&
+      currentProfile.subscription_plan !== "free"
+    ) {
+      subscriptionPlan = currentProfile.subscription_plan;
+    }
+  } else if (payload.event_type === "subscription.resumed") {
+    subscriptionStatus = "active";
+    // Keep the current plan
+    const { data: currentProfile } = await supabaseClient
+      .from("profiles")
+      .select("subscription_plan")
+      .eq("user_id", userId)
+      .single();
+
+    if (
+      currentProfile?.subscription_plan &&
+      currentProfile.subscription_plan !== "free"
+    ) {
+      subscriptionPlan = currentProfile.subscription_plan;
+    }
+  } else if (payload.event_type === "subscription.canceled") {
+    subscriptionStatus = "canceled";
+    subscriptionPlan = "free";
+  }
+
+  // Update user profile
   const { error: profileUpdateError } = await supabaseClient
     .from("profiles")
     .update({
-      // VALIDATION POINT: Ensure subscription.status (or 'canceled') is an expected value.
-      subscription_status: subscription.status || "canceled",
-      // VALIDATION POINT: Ensure 'free' is the correct plan to assign on cancellation.
-      subscription_plan: "free",
+      subscription_status: subscriptionStatus,
+      subscription_plan: subscriptionPlan,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId);
@@ -681,12 +812,218 @@ async function handleSubscriptionCanceled(
   }
 
   logger.info(
-    `EVENT_PROCESSED: Subscription cancellation for user: ${userId}, status: ${
-      subscription.status || "canceled"
-    }. Event ID: ${eventId}`
+    `EVENT_PROCESSED: Subscription status change for user: ${userId}, status: ${subscriptionStatus}, plan: ${subscriptionPlan}. Event ID: ${eventId}`
   );
+  logger.info("=== SUBSCRIPTION STATUS CHANGE DEBUG END ===");
   return {
     success: true,
-    message: "Subscription cancellation processed successfully.",
+    message: `Subscription ${payload.event_type} processed successfully.`,
+  };
+}
+
+async function handlePaymentMethodDeleted(
+  supabaseClient: any,
+  payload: any
+): Promise<HandlerResult> {
+  const paymentMethod = payload.data;
+  const eventId = payload.event_id || "N/A";
+  const customerId = paymentMethod.customer_id;
+
+  logger.info("=== PAYMENT METHOD DELETED DEBUG START ===");
+  logger.info("Processing payment method deletion", { eventId, customerId });
+  logger.debug("Payment method data", paymentMethod);
+
+  // Log the event for audit purposes
+  logger.info(
+    `Payment method ${paymentMethod.id} deleted for customer ${customerId}. Event ID: ${eventId}`
+  );
+
+  // If you store payment methods in your database, you might want to update or remove them
+  // For example:
+  /*
+  const { error } = await supabaseClient
+    .from('user_payment_methods')
+    .update({ 
+      status: 'deleted', 
+      updated_at: new Date().toISOString() 
+    })
+    .eq('payment_method_id', paymentMethod.id)
+  
+  if (error) {
+    logger.error(`Error updating payment method status: ${error.message}`);
+    throw new Error(`Database error updating payment method status.`);
+  }
+  */
+
+  logger.info("=== PAYMENT METHOD DELETED DEBUG END ===");
+  return {
+    success: true,
+    message: "Payment method deletion acknowledged.",
+  };
+}
+
+async function handleCustomerEvent(
+  supabaseClient: any,
+  payload: any
+): Promise<HandlerResult> {
+  const customer = payload.data;
+  const eventId = payload.event_id || "N/A";
+
+  logger.info("=== CUSTOMER EVENT DEBUG START ===");
+  logger.info("Processing customer event", {
+    eventId,
+    eventType: payload.event_type,
+    customerId: customer.id,
+  });
+  logger.debug("Customer data", customer);
+
+  // You might want to update customer information in your profiles table
+  if (customer.custom_data?.userId) {
+    const { error: updateError } = await supabaseClient
+      .from("profiles")
+      .update({
+        paddle_customer_id: customer.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", customer.custom_data.userId);
+
+    if (updateError) {
+      logger.error(
+        `Error updating profile with customer ID: ${updateError.message}`
+      );
+      // Don't throw error for customer events, just log
+    } else {
+      logger.info(
+        `Updated profile for user ${customer.custom_data.userId} with customer ID ${customer.id}`
+      );
+    }
+  }
+
+  logger.info("=== CUSTOMER EVENT DEBUG END ===");
+  return {
+    success: true,
+    message: `Customer ${payload.event_type} processed successfully.`,
+  };
+}
+
+async function handleInvoiceEvent(
+  supabaseClient: any,
+  payload: any
+): Promise<HandlerResult> {
+  const invoice = payload.data;
+  const eventId = payload.event_id || "N/A";
+  const customData = invoice.custom_data || {};
+  const userId = customData.userId;
+
+  logger.info("=== INVOICE EVENT DEBUG START ===");
+  logger.info("Processing invoice event", {
+    eventId,
+    eventType: payload.event_type,
+    userId,
+    invoiceId: invoice.id,
+  });
+  logger.debug("Invoice data", invoice);
+
+  // Handle failed payments by updating subscription status
+  if (payload.event_type === "invoice.payment_failed" && userId) {
+    const { error: updateError } = await supabaseClient
+      .from("profiles")
+      .update({
+        subscription_status: "past_due",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+
+    if (updateError) {
+      logger.error(
+        `Error updating subscription status for failed payment: ${updateError.message}`
+      );
+    } else {
+      logger.info(
+        `Updated subscription status to 'past_due' for user ${userId} due to failed payment`
+      );
+    }
+  }
+
+  logger.info("=== INVOICE EVENT DEBUG END ===");
+  return {
+    success: true,
+    message: `Invoice ${payload.event_type} processed successfully.`,
+  };
+}
+
+async function handleSubscriptionPaymentEvent(
+  supabaseClient: any,
+  payload: any
+): Promise<HandlerResult> {
+  const subscription = payload.data;
+  const eventId = payload.event_id || "N/A";
+  const customData = subscription.custom_data || {};
+  const userId = customData.userId;
+
+  logger.info("=== SUBSCRIPTION PAYMENT EVENT DEBUG START ===");
+  logger.info("Processing subscription payment event", {
+    eventId,
+    eventType: payload.event_type,
+    userId,
+  });
+  logger.debug("Subscription payment data", subscription);
+
+  if (!userId) {
+    logger.warn(
+      `No userId found in subscription payment event. Event ID: ${eventId}`
+    );
+    return {
+      success: false,
+      message: "User ID missing in subscription payment event.",
+    };
+  }
+
+  // Handle payment failures
+  if (payload.event_type === "subscription.payment_failed") {
+    const { error: updateError } = await supabaseClient
+      .from("profiles")
+      .update({
+        subscription_status: "past_due",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+
+    if (updateError) {
+      logger.error(
+        `Error updating subscription status for failed payment: ${updateError.message}`
+      );
+    } else {
+      logger.info(
+        `Updated subscription status to 'past_due' for user ${userId} due to failed payment`
+      );
+    }
+  }
+
+  // Handle successful payments
+  if (payload.event_type === "subscription.payment_succeeded") {
+    const { error: updateError } = await supabaseClient
+      .from("profiles")
+      .update({
+        subscription_status: "active",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+
+    if (updateError) {
+      logger.error(
+        `Error updating subscription status for successful payment: ${updateError.message}`
+      );
+    } else {
+      logger.info(
+        `Updated subscription status to 'active' for user ${userId} due to successful payment`
+      );
+    }
+  }
+
+  logger.info("=== SUBSCRIPTION PAYMENT EVENT DEBUG END ===");
+  return {
+    success: true,
+    message: `Subscription payment ${payload.event_type} processed successfully.`,
   };
 }

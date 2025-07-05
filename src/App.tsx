@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Pricing from "./pages/Pricing";
 import Studio from "./pages/Studio";
 import UserProfile from "./pages/UserProfile";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -55,6 +56,14 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <UserProfile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/account"
+                  element={
+                    <ProtectedRoute>
+                      <UserManagement />
                     </ProtectedRoute>
                   }
                 />

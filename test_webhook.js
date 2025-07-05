@@ -1,7 +1,12 @@
 // Test script to simulate Paddle webhook
-const fetch = require("node-fetch");
+const fetch = (...args) =>
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
+const dotenv = require("dotenv");
+dotenv.config();
 
+// SECURITY: Use environment variables instead of hardcoded values
 const webhookUrl =
+  process.env.WEBHOOK_URL ||
   "https://ummxlnjjrnwqvuxpkdfc.supabase.co/functions/v1/paddle-webhook";
 
 const testPayload = {
@@ -13,7 +18,8 @@ const testPayload = {
     status: "active",
     items: [
       {
-        product_id: "pri_01jzd18ccw9bacpda72n20z7c8", // Premium plan
+        product_id:
+          process.env.TEST_PRODUCT_ID || "pri_01jzd18ccw9bacpda72n20z7c8", // Premium plan
       },
     ],
     current_billing_period: {
@@ -21,7 +27,7 @@ const testPayload = {
       ends_at: "2025-08-05T10:00:00Z",
     },
     custom_data: {
-      userId: "user_test_789", // Replace with actual user ID
+      userId: process.env.TEST_USER_ID || "user_test_789", // Replace with actual user ID from env
     },
   },
 };
