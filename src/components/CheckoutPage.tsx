@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, CreditCard, Shield, ArrowLeft } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useUser } from '@clerk/clerk-react'; // Changed from useAuth
+import { usePaddle } from '@/components/payments/PaddleProvider'; // To potentially call openCheckout
 import { useToast } from '@/hooks/use-toast';
 
 interface Plan {
@@ -25,47 +26,55 @@ interface CheckoutPageProps {
 
 const CheckoutPage: React.FC<CheckoutPageProps> = ({ plan, onBack, onClose }) => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const { user, profile } = useAuth();
+  const { user, isSignedIn } = useUser(); // Clerk user object and isSignedIn status
+  const { openCheckout: actualPaddleOpenCheckout, isLoaded: isPaddleLoaded } = usePaddle();
   const { toast } = useToast();
 
+  // Note: The 'profile' object previously came from useAuth().
+  // If 'profile.full_name' is essential here and not on Clerk's user object,
+  // it would need to be fetched via useClerkAuth().profile or similar.
+  // For now, focusing on Clerk's user.primaryEmailAddress and user.fullName (if available)
+
   const handleCheckout = async () => {
-    if (!user) {
+    if (!isSignedIn || !user) {
       toast({
-        title: "Authentication required",
+        title: "Authentication Required",
         description: "Please sign in to complete your purchase.",
+        variant: "destructive"
+      });
+      // Optionally, redirect to login: navigate('/auth');
+      return;
+    }
+
+    if (!plan.paddle_product_id) {
+      toast({
+        title: "Plan Not Purchasable",
+        description: "This plan does not have a configured payment ID.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!isPaddleLoaded) {
+      toast({
+        title: "Payment System Not Ready",
+        description: "Please wait a moment for the payment system to load and try again.",
         variant: "destructive"
       });
       return;
     }
 
     setIsProcessing(true);
-
-    try {
-      // This would typically integrate with Paddle's checkout
-      // For demo purposes, we'll simulate the process
-      toast({
-        title: "Checkout initiated",
-        description: "Redirecting to Paddle checkout...",
-      });
-
-      // Simulate checkout process
-      setTimeout(() => {
-        toast({
-          title: "Subscription activated!",
-          description: `Welcome to ${plan.name}! Your subscription is now active.`,
-        });
-        onClose();
-      }, 2000);
-
-    } catch (error: any) {
-      toast({
-        title: "Checkout failed",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    // Call the actual Paddle checkout from PaddleProvider
+    // PaddleProvider's openCheckout already includes userId: user.id
+    actualPaddleOpenCheckout(plan.paddle_product_id, {
+      planId: plan.id, // Supabase plan ID from the plan prop
+      planName: plan.name,
+    });
+    // Typically, Paddle's overlay handles the processing state.
+    // The setIsProcessing(false) might need to be tied to Paddle's eventCallback if further local state management is needed.
+    // For now, we assume Paddle takes over. If user closes overlay, eventCallback in PaddleProvider handles it.
+    // setIsProcessing(false); // Might not be needed if Paddle overlay takes over
   };
 
   const tax = plan.price * 0.1; // 10% tax simulation
@@ -166,12 +175,12 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ plan, onBack, onClose }) =>
             </CardHeader>
             
             <CardContent className="space-y-6">
-              {user && (
+              {isSignedIn && user && (
                 <div className="bg-white/5 rounded-lg p-4 space-y-2">
                   <h4 className="font-medium text-white">Account Details</h4>
-                  <p className="text-gray-300 text-sm">Email: {user.email}</p>
-                  {profile?.full_name && (
-                    <p className="text-gray-300 text-sm">Name: {profile.full_name}</p>
+                  <p className="text-gray-300 text-sm">Email: {user.primaryEmailAddress?.emailAddress}</p>
+                  {user.fullName && (
+                    <p className="text-gray-300 text-sm">Name: {user.fullName}</p>
                   )}
                 </div>
               )}
