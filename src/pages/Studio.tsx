@@ -208,7 +208,7 @@ const Studio = () => {
     URL.revokeObjectURL(url);
 
     const hasTransparency = counterSettings.background === "transparent";
-    
+
     toast({
       title: "Video Downloaded",
       description: `Your counter animation video has been saved as ${codecDescription} ${

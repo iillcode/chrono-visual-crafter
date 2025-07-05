@@ -1,5 +1,5 @@
 import React from "react";
-import UserManagementDashboard from "@/components/user/UserManagementDashboard";
+import { UserManagementDashboard } from "@/components/user/UserManagementDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
