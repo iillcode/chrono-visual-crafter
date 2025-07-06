@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import GIF from "gif.js";
 
 const StudioContent = () => {
-  const { user, profile } = useClerkAuth();
+  const { user, profile, updateProfile, refreshProfile } = useClerkAuth();
   const { toast } = useToast();
   const { isRecording, setIsRecording } = useRecording();
   const [isPaused, setIsPaused] = useState(false);
@@ -69,6 +69,10 @@ const StudioContent = () => {
   const [isGeneratingGif, setIsGeneratingGif] = useState(false);
   const [cancelGifGeneration, setCancelGifGeneration] = useState(false);
 
+  // State for automatic video processing after recording stops
+  const [isProcessingVideo, setIsProcessingVideo] = useState(false);
+  const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const recordedChunks = useRef<Blob[]>([]);
@@ -115,6 +119,7 @@ const StudioContent = () => {
     console.log("Starting recording...");
     setRecordingTime(0);
     recordedChunks.current = [];
+    setVideoBlob(null);
     setIsPaused(false);
     setIsRecording(true);
 
@@ -127,6 +132,11 @@ const StudioContent = () => {
       if (event.data.size > 0) {
         recordedChunks.current.push(event.data);
       }
+    };
+
+    // When recording fully stops, automatically process the video so it is ready for download.
+    mediaRecorder.current.onstop = () => {
+      finalizeVideoProcessing();
     };
 
     mediaRecorder.current.start();
@@ -154,30 +164,72 @@ const StudioContent = () => {
     }
   };
 
-  const handleDownloadVideo = () => {
-    if (recordedChunks.current.length === 0) return;
+  /**
+   * Converts recorded chunks into a Blob and stores it so it can be downloaded later.
+   * Shows a loader on the export button while processing.
+   */
+  const finalizeVideoProcessing = (): Blob | null => {
+    if (recordedChunks.current.length === 0) return null;
+
+    setIsProcessingVideo(true);
 
     // Determine the best WebM codec for alpha channel support
     let mimeType = "video/webm";
-    let fileExtension = "webm";
-    let codecDescription = "WebM";
 
-    // Check for VP9 support (best for alpha channels)
     if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9")) {
       mimeType = "video/webm;codecs=vp9";
-      codecDescription = "VP9";
-    }
-    // Fallback to VP8 if VP9 not supported
-    else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp8")) {
+    } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp8")) {
       mimeType = "video/webm;codecs=vp8";
-      codecDescription = "VP8";
     }
 
-    const blob = new Blob(recordedChunks.current, {
-      type: mimeType,
-    });
+    try {
+      const blob = new Blob(recordedChunks.current, {
+        type: mimeType,
+      });
 
-    const url = URL.createObjectURL(blob);
+      setVideoBlob(blob);
+      return blob;
+    } catch (error) {
+      console.error("Failed to process video blob", error);
+      toast({
+        title: "Video Export Failed",
+        description: "An error occurred while processing the video.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingVideo(false);
+    }
+
+    return null;
+  };
+
+  const handleDownloadVideo = () => {
+    // Credit gating for Free users
+    if (
+      profile?.subscription_plan === "free" &&
+      typeof profile?.credits === "number" &&
+      profile.credits <= 0
+    ) {
+      toast({
+        title: "Out of Credits",
+        description:
+          "You have reached your monthly export limit. Upgrade to Pro for unlimited exports.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let blobToDownload: Blob | null = videoBlob;
+
+    if (!blobToDownload) {
+      blobToDownload = finalizeVideoProcessing();
+    }
+
+    if (!blobToDownload) return;
+
+    const fileExtension = "webm";
+
+    const url = URL.createObjectURL(blobToDownload);
     const a = document.createElement("a");
     a.href = url;
     a.download = `counter-animation-${Date.now()}.${fileExtension}`;
@@ -190,10 +242,22 @@ const StudioContent = () => {
 
     toast({
       title: "Video Downloaded",
-      description: `Your counter animation video has been saved as ${codecDescription} ${
-        hasTransparency ? "with transparency support" : ""
+      description: `Your counter animation video has been saved${
+        hasTransparency ? " with transparency support" : ""
       }.`,
     });
+    console.log(profile, "------------t");
+
+    // Decrement credits for free users
+    if (
+      profile?.subscription_plan === "free" &&
+      typeof profile?.credits === "number" &&
+      profile.credits > 0
+    ) {
+      updateProfile({ credits: profile.credits - 1 });
+      // Optionally refresh after update
+      refreshProfile();
+    }
   };
 
   const handleDownloadGif = async () => {
@@ -330,6 +394,11 @@ const StudioContent = () => {
     setTimeout(() => {
       setCurrentValue(counterSettings.startValue);
       setRecordingTime(0);
+
+      // Clear any recorded chunks and processed blobs so we start fresh
+      recordedChunks.current = [];
+      setVideoBlob(null);
+      setIsProcessingVideo(false);
     }, 100);
   };
 
@@ -363,7 +432,7 @@ const StudioContent = () => {
     <div className="h-screen bg-[#101010] text-white flex flex-col overflow-hidden">
       {/* Header */}
       <header className="border-b border-white/10 bg-[#171717] px-4 sm:px-6 py-3 sticky top-0 z-30 flex-shrink-0">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-row flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <img src="/favicon.ico" alt="Logo" className="w-8 h-8 rounded" />
             <h1 className="text-xl sm:text-2xl font-bold text-white">
@@ -424,7 +493,7 @@ const StudioContent = () => {
           </div>
 
           {/* Recording Controls */}
-          <div className="flex-shrink-0 py-4 flex justify-center bg-[#171717] border-t border-white/5">
+          <div className="flex-shrink-0 py-4 px-4 flex justify-center border-t border-white/5">
             <RecordingControls
               isPaused={isPaused}
               onStart={handleStartRecording}
@@ -436,6 +505,12 @@ const StudioContent = () => {
               recordedChunksLength={recordedChunks.current.length}
               isGeneratingGif={isGeneratingGif}
               onCancelGif={handleCancelGif}
+              isProcessingVideo={isProcessingVideo}
+              hasCredits={
+                profile?.subscription_plan === "pro" ||
+                profile?.credits === null ||
+                (typeof profile?.credits === "number" && profile.credits > 0)
+              }
             />
           </div>
         </div>

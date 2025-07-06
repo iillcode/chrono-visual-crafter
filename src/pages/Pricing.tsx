@@ -37,7 +37,11 @@ const Pricing = () => {
 
       console.log("Raw plans data from database:", data);
 
-      const formattedPlans = data.map((plan, index) => {
+      const filtered = data.filter((plan) =>
+        ["Free", "Pro"].includes(plan.name)
+      );
+
+      const formattedPlans = filtered.map((plan, index) => {
         const features = Array.isArray(plan.features)
           ? plan.features
           : JSON.parse((plan.features as string) || "[]");

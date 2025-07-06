@@ -220,29 +220,9 @@ export function UserMenu({ className }: UserMenuProps) {
             <div className="py-1 relative">
               {/* Subtle divider lines between items */}
               <MenuButton
-                icon={<Home size={16} />}
-                label="Dashboard"
-                onClick={() => handleNavigate("/studio")}
-              />
-              <MenuButton
                 icon={<User size={16} />}
                 label="My Profile"
                 onClick={() => handleNavigate("/profile")}
-              />
-              <MenuButton
-                icon={<Settings size={16} />}
-                label="Account Settings"
-                onClick={() => handleNavigate("/account")}
-              />
-              <MenuButton
-                icon={<CreditCard size={16} />}
-                label="Subscription"
-                onClick={() => handleNavigate("/pricing")}
-              />
-              <MenuButton
-                icon={<HelpCircle size={16} />}
-                label="Help & Support"
-                onClick={() => window.open("mailto:support@timerstudio.com")}
               />
             </div>
 

@@ -16,6 +16,7 @@ import {
   Activity,
   ChevronRight,
   CreditCard,
+  MinusCircle,
   Clock,
   Video,
   Image,
@@ -71,6 +72,19 @@ const UserProfile = () => {
     gradientStyle = "from-amber-500/20 to-orange-600/20";
     accentColor = "amber";
   }
+
+  // Credits calculations (free plan only)
+  const INITIAL_CREDITS = 50;
+  const remainingCredits =
+    profile?.subscription_plan === "pro"
+      ? null
+      : typeof profile?.credits === "number"
+      ? profile.credits
+      : 0;
+  const usedCredits =
+    profile?.subscription_plan === "pro"
+      ? null
+      : INITIAL_CREDITS - remainingCredits;
 
   return (
     <div className="min-h-screen relative bg-black overflow-hidden">
@@ -161,20 +175,20 @@ const UserProfile = () => {
                     <Badge
                       className={cn(
                         "py-1.5 px-3",
-                        "bg-gradient-to-r",
+                        "border-2",
                         isPro
-                          ? "from-indigo-500 to-blue-600"
+                          ? "border-indigo-500/70 text-indigo-400"
                           : isTeam
-                          ? "from-amber-500 to-orange-600"
-                          : "from-gray-500 to-gray-600",
-                        "border-none text-white"
+                          ? "border-amber-500/70 text-amber-400"
+                          : "border-gray-500/70 text-gray-400",
+                        "bg-transparent hover:bg-white/5"
                       )}
                     >
                       <Crown className="w-3 h-3 mr-1.5" />
                       {profile?.subscription_plan || "Free"} Plan
                     </Badge>
 
-                    <Badge className="py-1.5 px-3 bg-gradient-to-r from-emerald-500 to-emerald-600 border-none text-white">
+                    <Badge className="py-1.5 px-3 border-2 border-emerald-500/70 text-emerald-400 bg-transparent hover:bg-emerald-500/10">
                       <Check className="w-3 h-3 mr-1.5" />
                       Active Member
                     </Badge>
@@ -283,7 +297,7 @@ const UserProfile = () => {
                       Current Plan
                     </label>
                     <p className="font-medium text-white mt-1">
-                      {profile?.subscription_plan || "Free"} Plan
+                      {(profile?.subscription_plan || "Free").charAt(0).toUpperCase() + (profile?.subscription_plan || "Free").slice(1)} Plan
                     </p>
                   </div>
 
@@ -342,30 +356,26 @@ const UserProfile = () => {
             </CardHeader>
 
             <CardContent className="relative z-10 pt-0">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <StatItem
-                  icon={<Video className="w-5 h-5" />}
-                  value="12"
-                  label="Counters Created"
-                  color="indigo"
+                  icon={<CreditCard className="w-5 h-5" />}
+                  value={
+                    profile?.subscription_plan === "pro"
+                      ? "Unlimited"
+                      : profile?.credits?.toString() ?? "0"
+                  }
+                  label="Credits Remaining"
+                  color="emerald"
                 />
                 <StatItem
-                  icon={<Image className="w-5 h-5" />}
-                  value="8"
-                  label="Videos Exported"
-                  color="blue"
-                />
-                <StatItem
-                  icon={<Clock className="w-5 h-5" />}
-                  value="24"
-                  label="Hours Recorded"
-                  color="violet"
-                />
-                <StatItem
-                  icon={<Image className="w-5 h-5" />}
-                  value="5"
-                  label="GIFs Generated"
-                  color="rose"
+                  icon={<MinusCircle className="w-5 h-5" />}
+                  value={
+                    profile?.subscription_plan === "pro"
+                      ? "N/A"
+                      : usedCredits.toString()
+                  }
+                  label="Credits Used"
+                  color="amber"
                 />
               </div>
             </CardContent>
