@@ -15,6 +15,39 @@ import { cn } from "@/lib/utils";
 // @ts-ignore
 import GIF from "gif.js";
 
+// Easing functions for transitions
+const easingFunctions = {
+  // Linear easing - constant speed
+  linear: (progress: number): number => {
+    return progress;
+  },
+
+  // Ease-out - starts fast, slows down at the end
+  easeOut: (progress: number): number => {
+    return 1 - Math.pow(1 - progress, 2);
+  },
+
+  // Ease-in - starts slow, speeds up
+  easeIn: (progress: number): number => {
+    return progress * progress;
+  },
+
+  // Bounce - overshoots and bounces back
+  bounce: (progress: number): number => {
+    // Bounce effect: overshoot and then bounce back
+    if (progress < 0.5) {
+      // First half: accelerating upward
+      return 4 * progress * progress;
+    } else if (progress < 0.8) {
+      // Overshoot
+      return 1 + (progress - 0.8) * 5;
+    } else {
+      // Final bounce back
+      return 1 - 0.5 * Math.pow((progress - 1) * 2.5, 2);
+    }
+  },
+};
+
 const StudioContent = () => {
   const { user, profile, updateProfile, refreshProfile } = useClerkAuth();
   const { toast } = useToast();
@@ -33,10 +66,12 @@ const StudioContent = () => {
     background: "black",
     speed: 1,
     customFont: "",
-    transition: "slideUp",
+    transition: "none",
+    easing: "linear",
     prefix: "",
     suffix: "",
     separator: "none",
+    backgroundGradient: "linear-gradient(45deg, #2193b0, #6dd5ed)",
   });
 
   const [textSettings, setTextSettings] = useState({
@@ -124,8 +159,36 @@ const StudioContent = () => {
     setIsRecording(true);
 
     const stream = (canvasRef.current as any).captureStream(60);
+
+    // Configure MediaRecorder with proper settings for transparency
+    const hasTransparency = counterSettings.background === "transparent";
+    const hasSpecialEffects = ["neon", "glow"].includes(counterSettings.design);
+
+    let mimeType = "video/webm";
+    let recorderOptions = {};
+
+    // Determine the best codec and settings for the recording
+    if (hasTransparency) {
+      if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9")) {
+        mimeType = "video/webm;codecs=vp9";
+        // Special effects with transparency need higher quality
+        if (hasSpecialEffects) {
+          recorderOptions = {
+            videoBitsPerSecond: 8000000, // Higher bitrate for effects
+          };
+        }
+      } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp8")) {
+        mimeType = "video/webm;codecs=vp8";
+      }
+    } else {
+      if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9")) {
+        mimeType = "video/webm;codecs=vp9";
+      }
+    }
+
     mediaRecorder.current = new MediaRecorder(stream, {
-      mimeType: "video/webm;codecs=vp9",
+      mimeType: mimeType,
+      ...recorderOptions,
     });
 
     mediaRecorder.current.ondataavailable = (event) => {
@@ -175,16 +238,36 @@ const StudioContent = () => {
 
     // Determine the best WebM codec for alpha channel support
     let mimeType = "video/webm";
+    let codecOptions = {};
 
-    if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9")) {
-      mimeType = "video/webm;codecs=vp9";
-    } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp8")) {
-      mimeType = "video/webm;codecs=vp8";
+    const hasTransparency = counterSettings.background === "transparent";
+    const hasSpecialEffects = ["neon", "glow"].includes(counterSettings.design);
+
+    if (hasTransparency) {
+      // VP9 is best for alpha channel support
+      if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9")) {
+        mimeType = "video/webm;codecs=vp9";
+        // For transparency with special effects, ensure higher quality encoding
+        if (hasSpecialEffects) {
+          codecOptions = {
+            alphaBitDepth: 8,
+            bitrate: 8000000, // Higher bitrate for better quality with effects
+          };
+        }
+      } else if (MediaRecorder.isTypeSupported("video/webm;codecs=vp8")) {
+        mimeType = "video/webm;codecs=vp8";
+      }
+    } else {
+      // For non-transparent backgrounds, just use vp9 for better compression
+      if (MediaRecorder.isTypeSupported("video/webm;codecs=vp9")) {
+        mimeType = "video/webm;codecs=vp9";
+      }
     }
 
     try {
       const blob = new Blob(recordedChunks.current, {
         type: mimeType,
+        ...codecOptions,
       });
 
       setVideoBlob(blob);
@@ -316,15 +399,38 @@ const StudioContent = () => {
         // Clear canvas with proper transparency handling
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (counterSettings.background !== "transparent") {
+        // Draw background (solid or gradient)
+        if (counterSettings.background === "transparent") {
+          // nothing
+        } else if (counterSettings.background === "gradient") {
+          const extractColors = (gradientStr: string) =>
+            gradientStr.match(/#[0-9a-fA-F]{3,6}/g) || ["#000000", "#ffffff"];
+
+          const colors = extractColors(
+            (counterSettings as any).backgroundGradient || ""
+          );
+          const grad = ctx.createLinearGradient(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
+          const step = colors.length > 1 ? 1 / (colors.length - 1) : 1;
+          colors.forEach((c, i) => grad.addColorStop(i * step, c));
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } else {
           ctx.fillStyle =
             counterSettings.background === "white" ? "#FFFFFF" : "#000000";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Draw counter with proper color based on background
-        ctx.fillStyle =
+        // Determine text color based on background for readability
+        const textColor =
           counterSettings.background === "white" ? "#000000" : "#FFFFFF";
+
+        // Draw counter with proper color based on background
+        ctx.fillStyle = textColor;
         ctx.font = `${counterSettings.fontSize}px ${counterSettings.fontFamily}`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -406,23 +512,33 @@ const StudioContent = () => {
   useEffect(() => {
     if (!isRecording || isPaused) return;
 
+    const startTime = Date.now();
+
     const interval = setInterval(() => {
-      setCurrentValue((prev) => {
-        const progress =
-          (prev - counterSettings.startValue) /
-          (counterSettings.endValue - counterSettings.startValue);
-        if (progress >= 1) {
-          handleStopRecording();
-          return counterSettings.endValue;
-        }
+      const elapsed = (Date.now() - startTime) * counterSettings.speed; // speed factor
+      const durationMs = counterSettings.duration * 1000;
+      const rawProgress = Math.min(elapsed / durationMs, 1); // Clamp between 0 and 1
 
-        const step =
-          (counterSettings.endValue - counterSettings.startValue) /
-          ((counterSettings.duration * 60) / counterSettings.speed);
-        return Math.min(prev + step, counterSettings.endValue);
-      });
+      // Apply easing function
+      const easedProgress =
+        counterSettings.easing && counterSettings.easing in easingFunctions
+          ? easingFunctions[
+              counterSettings.easing as keyof typeof easingFunctions
+            ](rawProgress)
+          : rawProgress;
 
-      setRecordingTime((prev) => prev + 1000 / 60);
+      // Compute current value
+      const newValue =
+        counterSettings.startValue +
+        easedProgress * (counterSettings.endValue - counterSettings.startValue);
+
+      setCurrentValue(newValue);
+      setRecordingTime(elapsed);
+
+      // Stop when progress reaches 1
+      if (rawProgress >= 1) {
+        handleStopRecording();
+      }
     }, 1000 / 60);
 
     return () => clearInterval(interval);

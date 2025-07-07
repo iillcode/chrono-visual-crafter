@@ -17,9 +17,12 @@ interface CounterPreviewProps {
     speed: number;
     customFont: string;
     transition: string;
+    easing: string;
     prefix: string;
     suffix: string;
     separator: string;
+    backgroundGradient?: string;
+    customBackgroundColor?: string;
   };
   textSettings: {
     enabled: boolean;
@@ -389,19 +392,54 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           const neonColor = designSettings.neonColor || "#00FFFF";
           const intensity = designSettings.neonIntensity || 10;
 
-          // Outer glow
-          ctx.shadowColor = neonColor;
-          ctx.shadowBlur = intensity * 3;
-          ctx.strokeStyle = neonColor;
-          ctx.lineWidth = 2;
-          ctx.strokeText(text, x, y);
+          // Save current context state
+          ctx.save();
 
-          // Inner fill
-          ctx.shadowBlur = intensity;
-          ctx.fillStyle = "#FFFFFF";
-          ctx.fillText(text, x, y);
-
+          // Clear existing shadows
           ctx.shadowBlur = 0;
+          ctx.shadowColor = "rgba(0,0,0,0)";
+
+          // For transparent backgrounds, apply a layered approach with compositing
+          if (settings.background === "transparent") {
+            // Layer 1: Base white text for visibility (less alpha)
+            ctx.globalAlpha = 0.7;
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText(text, x, y);
+
+            // Layer 2: Outer glow with reduced blur for better definition
+            ctx.globalAlpha = 0.9;
+            ctx.shadowColor = neonColor;
+            ctx.shadowBlur = Math.max(5, intensity * 1.5);
+            ctx.strokeStyle = neonColor;
+            ctx.lineWidth = 2;
+            ctx.strokeText(text, x, y);
+
+            // Layer 3: Inner colored text
+            ctx.shadowBlur = Math.max(3, intensity * 0.8);
+            ctx.fillStyle = neonColor;
+            ctx.fillText(text, x, y);
+
+            // Layer 4: Final sharp white core
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText(text, x, y);
+          } else {
+            // Original implementation for non-transparent backgrounds
+            ctx.shadowColor = neonColor;
+            ctx.shadowBlur = intensity * 3;
+            ctx.strokeStyle = neonColor;
+            ctx.lineWidth = 2;
+            ctx.strokeText(text, x, y);
+
+            // Inner fill
+            ctx.shadowBlur = intensity;
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText(text, x, y);
+          }
+
+          // Restore context state
+          ctx.restore();
         },
 
         glow: () => {
@@ -410,15 +448,49 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
             (settings.background === "white" ? "#000000" : "#FFFFFF");
           const intensity = designSettings.glowIntensity || 15;
 
-          // Multiple glow layers
-          for (let i = 0; i < 3; i++) {
+          // Save current context state
+          ctx.save();
+
+          if (settings.background === "transparent") {
+            // For transparent backgrounds, use a multi-pass approach
+
+            // Layer 1: Larger outer glow with reduced opacity
+            ctx.globalAlpha = 0.4;
             ctx.shadowColor = glowColor;
-            ctx.shadowBlur = intensity + i * 10;
+            ctx.shadowBlur = intensity * 2;
             ctx.fillStyle = glowColor;
             ctx.fillText(text, x, y);
+
+            // Layer 2: Medium glow
+            ctx.globalAlpha = 0.6;
+            ctx.shadowBlur = intensity * 1.3;
+            ctx.fillText(text, x, y);
+
+            // Layer 3: Inner glow with higher opacity
+            ctx.globalAlpha = 0.8;
+            ctx.shadowBlur = intensity * 0.8;
+            ctx.fillText(text, x, y);
+
+            // Layer 4: Core text at full opacity with minimal blur
+            ctx.globalAlpha = 1.0;
+            ctx.shadowBlur = intensity * 0.4;
+            ctx.fillText(text, x, y);
+
+            // Layer 5: Sharp text for definition
+            ctx.shadowBlur = 0;
+            ctx.fillText(text, x, y);
+          } else {
+            // Original multiple glow layers
+            for (let i = 0; i < 3; i++) {
+              ctx.shadowColor = glowColor;
+              ctx.shadowBlur = intensity + i * 10;
+              ctx.fillStyle = glowColor;
+              ctx.fillText(text, x, y);
+            }
           }
 
-          ctx.shadowBlur = 0;
+          // Restore context state
+          ctx.restore();
         },
 
         gradient: () => {
@@ -614,11 +686,41 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       canvas.width = 800;
       canvas.height = 600;
 
-      // Clear canvas
-      if (settings.background === "transparent") {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Utility to extract color stops from a CSS linear-gradient string (simple hex detection)
+      const extractColors = (gradientStr: string): string[] => {
+        if (!gradientStr) return ["#000000", "#ffffff"];
+        const matches = gradientStr.match(/#[0-9a-fA-F]{3,6}/g);
+        return matches && matches.length >= 2
+          ? matches
+          : ["#000000", "#ffffff"];
+      };
+
+      // Clear / fill canvas based on background setting
+      if (settings.background === "gradient") {
+        const gradientColors =
+          settings.backgroundGradient || designSettings.gradientColors;
+
+        const colors = extractColors(gradientColors);
+        const grad = ctx.createLinearGradient(
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+        const step = colors.length > 1 ? 1 / (colors.length - 1) : 1;
+        colors.forEach((c, i) => grad.addColorStop(i * step, c));
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else if (settings.background === "custom") {
+        const fill = settings.customBackgroundColor || "#000000";
+        ctx.fillStyle = fill;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       } else {
-        ctx.fillStyle = settings.background === "white" ? "#FFFFFF" : "#000000";
+        // Assume plain color keywords or hex strings
+        let fill = settings.background;
+        if (settings.background === "white") fill = "#FFFFFF";
+        if (settings.background === "black") fill = "#000000";
+        ctx.fillStyle = fill;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
@@ -728,9 +830,11 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           ref={canvasRef}
           className="w-full h-full object-contain rounded-lg"
           style={{
-            backgroundColor:
-              settings.background === "transparent"
-                ? "transparent"
+            background:
+              settings.background === "gradient"
+                ? settings.backgroundGradient || designSettings.gradientColors
+                : settings.background === "custom"
+                ? settings.customBackgroundColor || "#000000"
                 : settings.background,
           }}
         />

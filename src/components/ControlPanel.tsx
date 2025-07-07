@@ -191,6 +191,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               onSelectTransition={(transition) =>
                 onSettingsChange({ ...settings, transition })
               }
+              selectedEasing={settings.easing || "linear"}
+              onSelectEasing={(easing) =>
+                onSettingsChange({ ...settings, easing })
+              }
             />
           </Card>
 
@@ -256,10 +260,101 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               <SelectContent>
                 <SelectItem value="black">Black</SelectItem>
                 <SelectItem value="white">White</SelectItem>
-                <SelectItem value="transparent">Transparent</SelectItem>
+                <SelectItem value="gradient">Gradient</SelectItem>
+                <SelectItem value="custom">Custom Color</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {settings.background === "gradient" && (
+            <div className="space-y-4">
+              <Label className="text-white">Gradient Customization</Label>
+
+              {/* Angle Selector */}
+              <div className="space-y-2">
+                <Label className="text-xs text-gray-400">Angle (deg)</Label>
+                <Slider
+                  value={[settings.gradientAngle ?? 45]}
+                  onValueChange={([angle]) => {
+                    const updated = {
+                      ...settings,
+                      gradientAngle: angle,
+                      backgroundGradient: `linear-gradient(${angle}deg, ${
+                        settings.gradientColor1 || "#2193b0"
+                      }, ${settings.gradientColor2 || "#6dd5ed"})`,
+                    };
+                    onSettingsChange(updated);
+                  }}
+                  min={0}
+                  max={360}
+                  step={1}
+                />
+              </div>
+
+              {/* Color Pickers */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-400">Color 1</Label>
+                  <Input
+                    type="color"
+                    value={settings.gradientColor1 || "#2193b0"}
+                    onChange={(e) => {
+                      const color1 = e.target.value;
+                      const updated = {
+                        ...settings,
+                        gradientColor1: color1,
+                        backgroundGradient: `linear-gradient(${
+                          settings.gradientAngle ?? 45
+                        }deg, ${color1}, ${
+                          settings.gradientColor2 || "#6dd5ed"
+                        })`,
+                      };
+                      onSettingsChange(updated);
+                    }}
+                    className="bg-[#181818] border-gray-600 text-white p-0 h-10 w-full"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-400">Color 2</Label>
+                  <Input
+                    type="color"
+                    value={settings.gradientColor2 || "#6dd5ed"}
+                    onChange={(e) => {
+                      const color2 = e.target.value;
+                      const updated = {
+                        ...settings,
+                        gradientColor2: color2,
+                        backgroundGradient: `linear-gradient(${
+                          settings.gradientAngle ?? 45
+                        }deg, ${
+                          settings.gradientColor1 || "#2193b0"
+                        }, ${color2})`,
+                      };
+                      onSettingsChange(updated);
+                    }}
+                    className="bg-[#181818] border-gray-600 text-white p-0 h-10 w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {settings.background === "custom" && (
+            <div className="space-y-2">
+              <Label className="text-white">Select Background Color</Label>
+              <Input
+                type="color"
+                value={settings.customBackgroundColor || "#000000"}
+                onChange={(e) =>
+                  onSettingsChange({
+                    ...settings,
+                    customBackgroundColor: e.target.value,
+                  })
+                }
+                className="bg-[#181818] border-gray-600 text-white p-0 h-10 w-full"
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

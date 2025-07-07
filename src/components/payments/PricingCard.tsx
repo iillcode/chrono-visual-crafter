@@ -1,13 +1,20 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Check, Star } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { usePaddle } from './PaddleProvider';
-import { useUser } from '@clerk/clerk-react';
-import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Check, Star } from "lucide-react";
+import { motion } from "framer-motion";
+import { usePaddle } from "./PaddleProvider";
+import { useUser } from "@clerk/clerk-react";
+import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 interface PricingCardProps {
   plan: {
@@ -24,7 +31,7 @@ interface PricingCardProps {
   className?: string;
 }
 
-const PricingCard: React.FC<PricingCardProps> = ({ plan, className = '' }) => {
+const PricingCard: React.FC<PricingCardProps> = ({ plan, className = "" }) => {
   const { openCheckout } = usePaddle();
   const { isSignedIn } = useUser();
   const { toast } = useToast();
@@ -35,18 +42,19 @@ const PricingCard: React.FC<PricingCardProps> = ({ plan, className = '' }) => {
       toast({
         title: "Authentication Required",
         description: "Please sign in to subscribe to a plan.",
-        variant: "destructive"
+        variant: "destructive",
       });
-      navigate('/auth');
+      navigate("/auth");
       return;
     }
 
     if (plan.price === 0) {
       toast({
         title: "Free Plan Active",
-        description: "You're already on the free plan! Redirecting to studio...",
+        description:
+          "You're already on the free plan! Redirecting to studio...",
       });
-      navigate('/studio');
+      navigate("/studio");
       return;
     }
 
@@ -60,7 +68,7 @@ const PricingCard: React.FC<PricingCardProps> = ({ plan, className = '' }) => {
 
     openCheckout(plan.paddlePriceId, {
       planId: plan.id,
-      planName: plan.name
+      planName: plan.name,
     });
   };
 
@@ -72,9 +80,23 @@ const PricingCard: React.FC<PricingCardProps> = ({ plan, className = '' }) => {
       whileHover={{ y: -5 }}
       className={className}
     >
-      <Card className={`relative h-full backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl transition-all duration-300 hover:shadow-3xl hover:bg-white/15 ${
-        plan.popular ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
-      }`}>
+      <Card
+        className={cn(
+          "relative h-full backdrop-blur-xl border shadow-2xl transition-all duration-300",
+          "bg-white/5 border-white/10 hover:bg-white/10",
+          "overflow-hidden",
+          plan.popular ? "ring-2 ring-cyan-400 ring-opacity-50" : ""
+        )}
+      >
+        {/* Subtle gradient background */}
+        <div className="absolute inset-0 -z-10">
+          {plan.popular ? (
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10 opacity-60" />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-cyan-500/5 opacity-40" />
+          )}
+        </div>
+
         {plan.popular && (
           <motion.div
             initial={{ scale: 0 }}
@@ -82,13 +104,13 @@ const PricingCard: React.FC<PricingCardProps> = ({ plan, className = '' }) => {
             transition={{ delay: 0.2 }}
             className="absolute -top-3 left-1/2 transform -translate-x-1/2"
           >
-            <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 py-1 shadow-lg">
+            <Badge className="bg-gradient-to-r from-cyan-400 to-blue-500 text-white px-3 py-1 shadow-lg">
               <Star className="w-3 h-3 mr-1" />
               Most Popular
             </Badge>
           </motion.div>
         )}
-        
+
         <CardHeader className="text-center space-y-4 pb-6">
           <CardTitle className="text-2xl font-bold text-white">
             {plan.name}
@@ -96,7 +118,7 @@ const PricingCard: React.FC<PricingCardProps> = ({ plan, className = '' }) => {
           <CardDescription className="text-gray-300">
             {plan.description}
           </CardDescription>
-          
+
           <div className="space-y-2">
             <div className="text-4xl font-bold text-white">
               ${plan.price}
@@ -111,26 +133,24 @@ const PricingCard: React.FC<PricingCardProps> = ({ plan, className = '' }) => {
             )}
           </div>
         </CardHeader>
-        
-        <CardContent className="space-y-6">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
+
+        <CardContent className="space-y-6 relative z-10">
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button
               onClick={handleSubscribe}
-              className={`w-full font-medium py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 ${
+              className={cn(
+                "w-full font-medium py-3 px-4 rounded-full transition-all duration-200 transform hover:scale-105",
                 plan.price === 0
-                  ? 'bg-white/20 hover:bg-white/30 text-white border border-white/30'
+                  ? "bg-white/10 hover:bg-white/20 text-white border border-white/20"
                   : plan.popular
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg'
-                  : 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white shadow-lg'
-              }`}
+                  ? "bg-white text-black hover:bg-white/90"
+                  : "bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600 text-white"
+              )}
             >
-              {plan.price === 0 ? 'Get Started' : 'Subscribe Now'}
+              {plan.price === 0 ? "Get Started" : "Subscribe Now"}
             </Button>
           </motion.div>
-          
+
           <div className="space-y-3">
             <h4 className="font-semibold text-white">Features included:</h4>
             <ul className="space-y-2">
@@ -142,7 +162,7 @@ const PricingCard: React.FC<PricingCardProps> = ({ plan, className = '' }) => {
                   transition={{ delay: index * 0.1 }}
                   className="flex items-center text-gray-300"
                 >
-                  <Check className="w-4 h-4 text-green-400 mr-3 flex-shrink-0" />
+                  <Check className="w-4 h-4 text-cyan-400 mr-3 flex-shrink-0" />
                   <span className="text-sm">{feature}</span>
                 </motion.li>
               ))}
