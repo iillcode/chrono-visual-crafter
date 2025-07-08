@@ -26,6 +26,7 @@ interface CounterPreviewProps {
     backgroundGradient?: string;
     customBackgroundColor?: string;
     textColor?: string;
+    countDirection?: string;
   };
   textSettings: {
     enabled: boolean;

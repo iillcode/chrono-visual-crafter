@@ -11,7 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import TransitionLibrary from "./TransitionLibrary";
-import { FastForward, Play, Rewind } from "lucide-react";
+import { FastForward, Rewind, RotateCcw, Hash } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface ControlPanelProps {
   settings: any;
@@ -30,13 +31,34 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     return "Very Fast";
   };
 
+  const resetAnimation = () => {
+    onSettingsChange({
+      ...settings,
+      speed: 1, // Reset to normal speed
+      transition: "none", // Reset transition to none
+      easing: "linear", // Reset easing to linear
+    });
+  };
+
+  // Step function depends on whether we're using floats or not
+  const getStep = () => {
+    return settings.useFloatValues ? 0.01 : 1;
+  };
+
   return (
     <div className="space-y-4">
       {/* Animation Speed Control - Moved to top for better accessibility */}
       <Card className="!bg-[#101010] border-gray-700/50">
         <CardHeader className="pb-2">
-          <CardTitle className="text-white text-base font-medium flex items-center gap-2">
-            ⏱️ Animation Speed
+          <CardTitle className="text-white text-base font-medium flex items-center justify-between">
+            <div className="flex items-center gap-2">⏱️ Animation Speed</div>
+            <button
+              onClick={resetAnimation}
+              className="rounded-md p-1 hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
+              title="Reset animation to normal speed"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -90,39 +112,77 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       {/* Main Counter Settings */}
       <Card className="!bg-[#101010] border-gray-700/50">
         <CardHeader className="pb-3">
-          <CardTitle className="text-white text-base font-medium">
-            🧮 Counter Settings
+          <CardTitle className="text-white text-base font-medium flex justify-between items-center">
+            <span>🧮 Counter Settings</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">Float</span>
+              <Switch
+                checked={settings.useFloatValues || false}
+                onCheckedChange={(checked) =>
+                  onSettingsChange({
+                    ...settings,
+                    useFloatValues: checked,
+                  })
+                }
+              />
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-white">Start Value</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-white">Start Value</Label>
+                {settings.useFloatValues && (
+                  <Hash className="w-3 h-3 text-blue-400" />
+                )}
+              </div>
               <Input
                 type="number"
+                step={getStep()}
                 value={settings.startValue}
                 onChange={(e) =>
                   onSettingsChange({
                     ...settings,
-                    startValue: parseInt(e.target.value) || 0,
+                    startValue: settings.useFloatValues
+                      ? parseFloat(e.target.value) || 0
+                      : parseInt(e.target.value) || 0,
                   })
                 }
-                className="bg-[#181818] border-gray-600 text-white"
+                className="bg-[#181818] border-gray-600 text-white scrollbar-hide"
+                style={{
+                  WebkitAppearance: "none",
+                  MozAppearance: "textfield",
+                  margin: 0,
+                }}
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white">End Value</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-white">End Value</Label>
+                {settings.useFloatValues && (
+                  <Hash className="w-3 h-3 text-blue-400" />
+                )}
+              </div>
               <Input
                 type="number"
+                step={getStep()}
                 value={settings.endValue}
                 onChange={(e) =>
                   onSettingsChange({
                     ...settings,
-                    endValue: parseInt(e.target.value) || 100,
+                    endValue: settings.useFloatValues
+                      ? parseFloat(e.target.value) || 100
+                      : parseInt(e.target.value) || 100,
                   })
                 }
                 className="bg-[#181818] border-gray-600 text-white"
+                style={{
+                  WebkitAppearance: "none",
+                  MozAppearance: "textfield",
+                  margin: 0,
+                }}
               />
             </div>
           </div>

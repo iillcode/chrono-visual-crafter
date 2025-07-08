@@ -77,6 +77,7 @@ const StudioContent = () => {
     separator: "none",
     backgroundGradient: "linear-gradient(45deg, #2193b0, #6dd5ed)",
     textColor: "#FFFFFF",
+    useFloatValues: false, // Use float values toggle
   });
 
   const [textSettings, setTextSettings] = useState({
@@ -136,7 +137,22 @@ const StudioContent = () => {
   }, [counterSettings.startValue, isRecording]);
 
   const formatNumber = (value: number) => {
-    let formattedValue = Math.floor(value).toString();
+    // Check if we should use float values and if the value has decimal places
+    const hasDecimal = value % 1 !== 0;
+
+    // Format the number with or without decimal places
+    let formattedValue;
+    if (counterSettings.useFloatValues) {
+      // For float values, show up to 2 decimal places and remove trailing zeros
+      formattedValue = value.toFixed(2).replace(/\.?0+$/, "");
+      // Ensure we keep .0 if it's exactly a .0 decimal
+      if (formattedValue.indexOf(".") === -1 && hasDecimal) {
+        formattedValue = value.toFixed(1);
+      }
+    } else {
+      // For integer values, round to the nearest integer
+      formattedValue = Math.round(value).toString();
+    }
 
     // Apply separator
     if (counterSettings.separator && counterSettings.separator !== "none") {
@@ -150,10 +166,17 @@ const StudioContent = () => {
           : "";
 
       if (separator) {
-        formattedValue = formattedValue.replace(
-          /\B(?=(\d{3})+(?!\d))/g,
-          separator
-        );
+        // For numbers with decimals, only apply separator to the integer part
+        if (formattedValue.includes(".")) {
+          const parts = formattedValue.split(".");
+          parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+          formattedValue = parts.join(".");
+        } else {
+          formattedValue = formattedValue.replace(
+            /\B(?=(\d{3})+(?!\d))/g,
+            separator
+          );
+        }
       }
     }
 
@@ -217,6 +240,7 @@ const StudioContent = () => {
     };
 
     mediaRecorder.current.start();
+    // Set the initial value based on direction
     setCurrentValue(counterSettings.startValue);
   };
 

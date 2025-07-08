@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useClerkAuth } from "@/hooks/useClerkAuth";
@@ -28,15 +28,25 @@ import {
   LineChart,
   CreditCard as BillingIcon,
   ShieldAlert,
-  HelpCircle,
+  X,
 } from "lucide-react";
 import { StudioBackground } from "@/components/ui/studio-background";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UserProfileProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+// Interface for subscription details
+interface SubscriptionDetails {
+  current_period_end?: string;
+  next_invoice_date?: string;
+  cancel_at_period_end?: boolean;
+  status?: string;
+  plan?: string;
 }
 
 const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
@@ -45,6 +55,39 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [activeTab, setActiveTab] = useState("overview");
+  const [subscriptionDetails, setSubscriptionDetails] =
+    useState<SubscriptionDetails | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch subscription details from Supabase
+  useEffect(() => {
+    const fetchSubscriptionDetails = async () => {
+      if (!user) return;
+
+      setIsLoading(true);
+      try {
+        // "subscription_details" is not a typed table in your Supabase types, so use "user_subscriptions" instead
+        const { data, error } = await supabase
+          .from("user_subscriptions")
+          .select(
+            "current_period_end"
+          )
+          .eq("user_id", user.id)
+          .single();
+        console.log(data, "data");
+        if (error) throw error;
+        setSubscriptionDetails(data as SubscriptionDetails);
+      } catch (error) {
+        console.error("Error fetching subscription details:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (open && user) {
+      fetchSubscriptionDetails();
+    }
+  }, [user, open]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -86,9 +129,9 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
   const usedCredits =
     profile?.subscription_plan === "pro"
       ? null
-      : INITIAL_CREDITS - remainingCredits;
+      : INITIAL_CREDITS - (remainingCredits ?? 0);
 
-  // Navigation items
+  // Navigation items (removed help tab)
   const navItems = [
     { id: "overview", label: "Overview", icon: <Home className="w-4 h-4" /> },
     { id: "usage", label: "Usage", icon: <LineChart className="w-4 h-4" /> },
@@ -102,44 +145,20 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
       label: "Security",
       icon: <ShieldAlert className="w-4 h-4" />,
     },
-    {
-      id: "help",
-      label: "Help & Support",
-      icon: <HelpCircle className="w-4 h-4" />,
-    },
   ];
 
-  // Mock payment history data (would be fetched from backend in real implementation)
-  const paymentHistory = [
-    {
-      id: "INV-001",
-      date: "2023-10-01",
-      amount: "$19.99",
-      status: "Paid",
-      plan: "Pro Plan (Monthly)",
-    },
-    {
-      id: "INV-002",
-      date: "2023-09-01",
-      amount: "$19.99",
-      status: "Paid",
-      plan: "Pro Plan (Monthly)",
-    },
-    {
-      id: "INV-003",
-      date: "2023-08-01",
-      amount: "$19.99",
-      status: "Paid",
-      plan: "Pro Plan (Monthly)",
-    },
-  ];
+  // Format date
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl p-0 h-[85vh] max-h-[700px] overflow-hidden bg-black">
+      <DialogContent className="max-w-6xl p-0 h-[85vh] max-h-[700px] overflow-hidden bg-[#101010]">
         <div className="flex h-full">
           {/* Sidebar */}
-          <div className="w-64 border-r border-white/[0.08] flex flex-col bg-black/50 backdrop-blur-sm">
+          <div className="w-64 border-r border-white/[0.08] flex flex-col bg-[#101010] backdrop-blur-sm">
             {/* User info */}
             <div className="p-6 border-b border-white/[0.08]">
               <div className="flex items-center gap-3">
@@ -196,9 +215,12 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
             </div>
           </div>
 
-          {/* Content Area */}
-          <div className="flex-1 overflow-y-auto relative bg-black">
-            <StudioBackground intensity="low" />
+          {/* Content Area - Fixed scrolling issue */}
+          <div className="flex-1 overflow-y-auto relative bg-[#101010] custom-scrollbar">
+            {/* Close button */}
+            <DialogClose className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all">
+              {/* <X className="w-4 h-4" /> */}
+            </DialogClose>
 
             <div className="p-6 relative z-10">
               {/* Overview Tab */}
@@ -209,19 +231,17 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                   </h2>
 
                   {/* Account Information */}
-                  <Card className="bg-white/[0.03] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-40" />
-
+                  <Card className="bg-[#151515] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
                     <CardHeader className="pb-3 relative z-10">
                       <CardTitle className="text-xl font-semibold flex items-center text-white">
-                        <User className="w-5 h-5 mr-2 text-indigo-400" />
+                        <User className="w-5 h-5 mr-2 text-gray-400" />
                         Account Details
                       </CardTitle>
                     </CardHeader>
 
                     <CardContent className="relative z-10 pt-0">
                       <div className="space-y-4">
-                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                        <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
                           <label className="text-xs text-white/40">
                             Full Name
                           </label>
@@ -230,14 +250,14 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                           </p>
                         </div>
 
-                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                        <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
                           <label className="text-xs text-white/40">Email</label>
                           <p className="text-white mt-1">
                             {user.primaryEmailAddress?.emailAddress}
                           </p>
                         </div>
 
-                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                        <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
                           <label className="text-xs text-white/40">
                             Member Since
                           </label>
@@ -247,7 +267,7 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                           </p>
                         </div>
 
-                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                        <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
                           <label className="text-xs text-white/40">
                             Last Login
                           </label>
@@ -261,14 +281,7 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                   </Card>
 
                   {/* Subscription Info */}
-                  <Card className="bg-white/[0.03] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
-                    <div
-                      className={cn(
-                        "absolute inset-0 bg-gradient-to-br opacity-40",
-                        `from-${accentColor}-500/10 to-transparent`
-                      )}
-                    />
-
+                  <Card className="bg-[#151515] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
                     <CardHeader className="pb-3 relative z-10">
                       <CardTitle className="text-xl font-semibold flex items-center text-white">
                         <Crown
@@ -286,7 +299,7 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                     </CardHeader>
 
                     <CardContent className="relative z-10 pt-0">
-                      <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
                         <div>
                           <h3 className="font-medium text-white">
                             {(profile?.subscription_plan || "Free")
@@ -305,15 +318,7 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                         </div>
                         <Button
                           onClick={() => navigate("/pricing")}
-                          className={cn(
-                            "text-white shadow-lg",
-                            "bg-gradient-to-r",
-                            isPro
-                              ? "from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 shadow-indigo-500/25"
-                              : isTeam
-                              ? "from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-500/25"
-                              : "from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700"
-                          )}
+                          className="bg-[#2c2c2c] hover:bg-[#3a3a3a] text-white border-none"
                         >
                           {profile?.subscription_plan === "Free"
                             ? "Upgrade Plan"
@@ -332,12 +337,10 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                     Usage Statistics
                   </h2>
 
-                  <Card className="bg-white/[0.03] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-40" />
-
+                  <Card className="bg-[#151515] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
                     <CardHeader className="pb-3 relative z-10">
                       <CardTitle className="text-xl font-semibold flex items-center text-white">
-                        <Activity className="w-5 h-5 mr-2 text-violet-400" />
+                        <Activity className="w-5 h-5 mr-2 text-gray-400" />
                         Credits Usage
                       </CardTitle>
                     </CardHeader>
@@ -368,12 +371,13 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
 
                       {profile?.subscription_plan !== "pro" && (
                         <div className="mt-4">
-                          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                          <div className="h-2 bg-[#202020] rounded-full overflow-hidden">
                             <div
                               className="h-full bg-emerald-500 rounded-full"
                               style={{
                                 width: `${
-                                  (remainingCredits / INITIAL_CREDITS) * 100
+                                  ((remainingCredits ?? 0) / INITIAL_CREDITS) *
+                                  100
                                 }%`,
                               }}
                             />
@@ -388,7 +392,7 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                       <div className="mt-6">
                         <Button
                           onClick={() => setActiveTab("billing")}
-                          className="w-full bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white"
+                          className="w-full bg-[#2c2c2c] hover:bg-[#3a3a3a] text-white"
                         >
                           {profile?.subscription_plan === "Free"
                             ? "Get More Credits"
@@ -397,8 +401,6 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                       </div>
                     </CardContent>
                   </Card>
-
-                  {/* Additional usage stats could go here */}
                 </div>
               )}
 
@@ -409,22 +411,20 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                     Billing & Payments
                   </h2>
 
-                  <Card className="bg-white/[0.03] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-40" />
-
+                  <Card className="bg-[#151515] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
                     <CardHeader className="pb-3 relative z-10">
                       <CardTitle className="text-xl font-semibold flex items-center text-white">
-                        <BillingIcon className="w-5 h-5 mr-2 text-blue-400" />
+                        <BillingIcon className="w-5 h-5 mr-2 text-gray-400" />
                         Payment Method
                       </CardTitle>
                     </CardHeader>
 
                     <CardContent className="relative z-10 pt-0">
                       {profile?.subscription_plan !== "Free" ? (
-                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                        <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-md bg-white/10 flex items-center justify-center">
+                              <div className="w-10 h-10 rounded-md bg-[#202020] flex items-center justify-center">
                                 <CreditCard className="w-5 h-5 text-white" />
                               </div>
                               <div>
@@ -446,11 +446,11 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                           </div>
                         </div>
                       ) : (
-                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                        <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
                           <p className="text-white/60">
                             No payment method on file
                           </p>
-                          <Button className="mt-3 bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white">
+                          <Button className="mt-3 bg-[#2c2c2c] hover:bg-[#3a3a3a] text-white">
                             Add Payment Method
                           </Button>
                         </div>
@@ -458,12 +458,114 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-white/[0.03] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-40" />
-
+                  {/* Subscription Details from Supabase */}
+                  <Card className="bg-[#151515] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
                     <CardHeader className="pb-3 relative z-10">
                       <CardTitle className="text-xl font-semibold flex items-center text-white">
-                        <Activity className="w-5 h-5 mr-2 text-blue-400" />
+                        <Crown className="w-5 h-5 mr-2 text-gray-400" />
+                        Subscription Details
+                      </CardTitle>
+                    </CardHeader>
+
+                    <CardContent className="relative z-10 pt-0">
+                      {isLoading ? (
+                        <div className="p-6 text-center">
+                          <p className="text-white/60">
+                            Loading subscription details...
+                          </p>
+                        </div>
+                      ) : profile?.subscription_plan !== "Free" ? (
+                        <div className="space-y-4">
+                          <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08] flex justify-between">
+                            <div>
+                              <label className="text-xs text-white/40">
+                                Current Period Ends
+                              </label>
+                              <p className="text-white mt-1">
+                                {formatDate(
+                                  subscriptionDetails?.current_period_end
+                                )}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <label className="text-xs text-white/40">
+                                Status
+                              </label>
+                              <p className="text-white mt-1">
+                                {subscriptionDetails?.status || "Active"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08] flex justify-between">
+                            <div>
+                              <label className="text-xs text-white/40">
+                                Next Invoice Date
+                              </label>
+                              <p className="text-white mt-1">
+                                {formatDate(
+                                  subscriptionDetails?.next_invoice_date
+                                )}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <label className="text-xs text-white/40">
+                                Auto-Renewal
+                              </label>
+                              <p className="text-white mt-1">
+                                {subscriptionDetails?.cancel_at_period_end
+                                  ? "Off"
+                                  : "On"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
+                            <label className="text-xs text-white/40">
+                              Plan
+                            </label>
+                            <p className="text-white mt-1">
+                              {subscriptionDetails?.plan ||
+                                profile?.subscription_plan ||
+                                "Pro Plan"}
+                            </p>
+                          </div>
+
+                          <div className="flex justify-end mt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-white/20 bg-white/5 hover:bg-white/10 text-white mr-2"
+                            >
+                              {subscriptionDetails?.cancel_at_period_end
+                                ? "Resume Subscription"
+                                : "Cancel Subscription"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-[#2c2c2c] hover:bg-[#3a3a3a] text-white"
+                            >
+                              Change Plan
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-6 text-center">
+                          <p className="text-white/60 mb-4">
+                            No subscription details found
+                          </p>
+                          <Button className="bg-[#2c2c2c] hover:bg-[#3a3a3a] text-white">
+                            Upgrade to Pro
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-[#151515] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
+                    <CardHeader className="pb-3 relative z-10">
+                      <CardTitle className="text-xl font-semibold flex items-center text-white">
+                        <Activity className="w-5 h-5 mr-2 text-gray-400" />
                         Payment History
                       </CardTitle>
                     </CardHeader>
@@ -493,41 +595,28 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {paymentHistory.map((payment) => (
-                                  <tr
-                                    key={payment.id}
-                                    className="border-b border-white/5"
-                                  >
-                                    <td className="py-3 text-sm text-white/80">
-                                      {payment.id}
-                                    </td>
-                                    <td className="py-3 text-sm text-white/80">
-                                      {payment.date}
-                                    </td>
-                                    <td className="py-3 text-sm text-white/80">
-                                      {payment.plan}
-                                    </td>
-                                    <td className="py-3 text-sm text-white/80">
-                                      {payment.amount}
-                                    </td>
-                                    <td className="py-3">
-                                      <span className="text-xs bg-emerald-500/20 text-emerald-400 py-1 px-2 rounded-full">
-                                        {payment.status}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                ))}
+                                {/* This would be populated from Supabase */}
+                                <tr className="border-b border-white/5">
+                                  <td className="py-3 text-sm text-white/80">
+                                    INV-001
+                                  </td>
+                                  <td className="py-3 text-sm text-white/80">
+                                    {new Date().toLocaleDateString()}
+                                  </td>
+                                  <td className="py-3 text-sm text-white/80">
+                                    {profile?.subscription_plan} Plan
+                                  </td>
+                                  <td className="py-3 text-sm text-white/80">
+                                    $19.99
+                                  </td>
+                                  <td className="py-3">
+                                    <span className="text-xs bg-emerald-500/20 text-emerald-400 py-1 px-2 rounded-full">
+                                      Paid
+                                    </span>
+                                  </td>
+                                </tr>
                               </tbody>
                             </table>
-                          </div>
-
-                          <div className="pt-3 border-t border-white/10">
-                            <p className="text-sm text-white/70">
-                              Your subscription will automatically renew on{" "}
-                              {new Date(
-                                Date.now() + 30 * 24 * 60 * 60 * 1000
-                              ).toLocaleDateString()}
-                            </p>
                           </div>
                         </div>
                       ) : (
@@ -535,7 +624,7 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                           <p className="text-white/60 mb-4">
                             No payment history found
                           </p>
-                          <Button className="bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white">
+                          <Button className="bg-[#2c2c2c] hover:bg-[#3a3a3a] text-white">
                             Upgrade to Pro
                           </Button>
                         </div>
@@ -552,22 +641,20 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                     Security Settings
                   </h2>
 
-                  <Card className="bg-white/[0.03] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent opacity-40" />
-
+                  <Card className="bg-[#151515] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
                     <CardHeader className="pb-3 relative z-10">
                       <CardTitle className="text-xl font-semibold flex items-center text-white">
-                        <ShieldCheck className="w-5 h-5 mr-2 text-rose-400" />
+                        <ShieldCheck className="w-5 h-5 mr-2 text-gray-400" />
                         Account Security
                       </CardTitle>
                     </CardHeader>
 
                     <CardContent className="relative z-10 pt-0">
                       <div className="space-y-4">
-                        <div className="flex justify-between items-center p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                        <div className="flex justify-between items-center p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center">
-                              <Lock className="w-5 h-5 text-rose-400" />
+                            <div className="w-10 h-10 rounded-full bg-[#202020] flex items-center justify-center">
+                              <Lock className="w-5 h-5 text-white" />
                             </div>
                             <div>
                               <h3 className="text-sm font-medium text-white">
@@ -587,10 +674,10 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                           </Button>
                         </div>
 
-                        <div className="flex justify-between items-center p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                        <div className="flex justify-between items-center p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center">
-                              <Bell className="w-5 h-5 text-rose-400" />
+                            <div className="w-10 h-10 rounded-full bg-[#202020] flex items-center justify-center">
+                              <Bell className="w-5 h-5 text-white" />
                             </div>
                             <div>
                               <h3 className="text-sm font-medium text-white">
@@ -610,10 +697,10 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                           </Button>
                         </div>
 
-                        <div className="flex justify-between items-center p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                        <div className="flex justify-between items-center p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center">
-                              <Mail className="w-5 h-5 text-rose-400" />
+                            <div className="w-10 h-10 rounded-full bg-[#202020] flex items-center justify-center">
+                              <Mail className="w-5 h-5 text-white" />
                             </div>
                             <div>
                               <h3 className="text-sm font-medium text-white">
@@ -630,76 +717,6 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                             className="border-white/20 bg-white/5 hover:bg-white/10 text-white"
                           >
                             Add
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Help Tab */}
-              {activeTab === "help" && (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-semibold text-white">
-                    Help & Support
-                  </h2>
-
-                  <Card className="bg-white/[0.03] border border-white/[0.08] shadow-lg backdrop-blur-sm overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-40" />
-
-                    <CardHeader className="pb-3 relative z-10">
-                      <CardTitle className="text-xl font-semibold flex items-center text-white">
-                        <HelpCircle className="w-5 h-5 mr-2 text-purple-400" />
-                        Support Options
-                      </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="relative z-10 pt-0">
-                      <div className="space-y-4">
-                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
-                          <h3 className="font-medium text-white mb-1">
-                            Documentation
-                          </h3>
-                          <p className="text-sm text-white/60 mb-3">
-                            Browse our documentation for guides and API
-                            references
-                          </p>
-                          <Button
-                            variant="outline"
-                            className="border-white/20 bg-white/5 hover:bg-white/10 text-white"
-                          >
-                            View Docs
-                          </Button>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
-                          <h3 className="font-medium text-white mb-1">
-                            Contact Support
-                          </h3>
-                          <p className="text-sm text-white/60 mb-3">
-                            Get help from our support team
-                          </p>
-                          <Button
-                            variant="outline"
-                            className="border-white/20 bg-white/5 hover:bg-white/10 text-white"
-                          >
-                            Contact Us
-                          </Button>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
-                          <h3 className="font-medium text-white mb-1">
-                            Frequently Asked Questions
-                          </h3>
-                          <p className="text-sm text-white/60 mb-3">
-                            Find answers to common questions
-                          </p>
-                          <Button
-                            variant="outline"
-                            className="border-white/20 bg-white/5 hover:bg-white/10 text-white"
-                          >
-                            View FAQs
                           </Button>
                         </div>
                       </div>
@@ -724,16 +741,12 @@ interface StatItemProps {
 
 const StatItem = ({ icon, value, label, color }: StatItemProps) => {
   const colorMap = {
-    indigo:
-      "from-indigo-500/20 to-indigo-600/10 border-indigo-500/30 text-indigo-400",
-    blue: "from-blue-500/20 to-blue-600/10 border-blue-500/30 text-blue-400",
-    violet:
-      "from-violet-500/20 to-violet-600/10 border-violet-500/30 text-violet-400",
-    rose: "from-rose-500/20 to-rose-600/10 border-rose-500/30 text-rose-400",
-    amber:
-      "from-amber-500/20 to-amber-600/10 border-amber-500/30 text-amber-400",
-    emerald:
-      "from-emerald-500/20 to-emerald-600/10 border-emerald-500/30 text-emerald-400",
+    indigo: "from-[#202020] to-[#181818] border-white/10 text-white",
+    blue: "from-[#202020] to-[#181818] border-white/10 text-white",
+    violet: "from-[#202020] to-[#181818] border-white/10 text-white",
+    rose: "from-[#202020] to-[#181818] border-white/10 text-white",
+    amber: "from-[#202020] to-[#181818] border-white/10 text-white",
+    emerald: "from-[#202020] to-[#181818] border-white/10 text-white",
   };
 
   return (
@@ -746,12 +759,27 @@ const StatItem = ({ icon, value, label, color }: StatItemProps) => {
     >
       <div className="absolute -bottom-4 -right-4 w-16 h-16 rounded-full bg-white/5" />
       <div className="flex flex-col items-center md:items-start">
-        <div className="mb-2">{icon}</div>
+        <div className="mb-2 text-gray-400">{icon}</div>
         <span className="text-2xl font-bold text-white">{value}</span>
         <span className="text-xs text-white/50 mt-1">{label}</span>
       </div>
     </div>
   );
 };
+
+// Add custom scrollbar styles to index.css:
+// .custom-scrollbar::-webkit-scrollbar {
+//   width: 8px;
+// }
+// .custom-scrollbar::-webkit-scrollbar-track {
+//   background: #101010;
+// }
+// .custom-scrollbar::-webkit-scrollbar-thumb {
+//   background: #333;
+//   border-radius: 4px;
+// }
+// .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+//   background: #444;
+// }
 
 export default UserProfile;
