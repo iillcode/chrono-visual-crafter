@@ -6,11 +6,13 @@ import { useNavigate } from "react-router-dom";
 import CounterPreview from "@/components/CounterPreview";
 import RecordingControls from "@/components/RecordingControls";
 import StudioSidebar from "@/components/StudioSidebar";
+import StudioRightPanel from "@/components/StudioRightPanel";
 import GlassCard from "@/components/ui/glass-card";
 import AuthButton from "@/components/auth/AuthButton";
 import { Loader2 } from "lucide-react";
 import { RecordingProvider, useRecording } from "@/contexts/RecordingContext";
 import { cn } from "@/lib/utils";
+import { Square } from "lucide-react";
 
 // @ts-ignore
 import GIF from "gif.js";
@@ -62,6 +64,8 @@ const StudioContent = () => {
     duration: 5,
     fontFamily: "orbitron",
     fontSize: 120,
+    fontWeight: 400,
+    letterSpacing: 0,
     design: "classic",
     background: "black",
     speed: 1,
@@ -72,6 +76,7 @@ const StudioContent = () => {
     suffix: "",
     separator: "none",
     backgroundGradient: "linear-gradient(45deg, #2193b0, #6dd5ed)",
+    textColor: "#FFFFFF",
   });
 
   const [textSettings, setTextSettings] = useState({
@@ -107,6 +112,8 @@ const StudioContent = () => {
   // State for automatic video processing after recording stops
   const [isProcessingVideo, setIsProcessingVideo] = useState(false);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
+  const [isPreviewingVideo, setIsPreviewingVideo] = useState(false);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -120,6 +127,13 @@ const StudioContent = () => {
       fontFamily: counterSettings.fontFamily,
     }));
   }, [counterSettings.fontSize, counterSettings.fontFamily]);
+
+  useEffect(() => {
+    // When the user tweaks the start value while not recording we immediately reflect it in the preview.
+    if (!isRecording) {
+      setCurrentValue(counterSettings.startValue);
+    }
+  }, [counterSettings.startValue, isRecording]);
 
   const formatNumber = (value: number) => {
     let formattedValue = Math.floor(value).toString();
@@ -271,6 +285,14 @@ const StudioContent = () => {
       });
 
       setVideoBlob(blob);
+
+      // Create a URL for the video preview
+      if (videoPreviewUrl) {
+        URL.revokeObjectURL(videoPreviewUrl);
+      }
+      const url = URL.createObjectURL(blob);
+      setVideoPreviewUrl(url);
+
       return blob;
     } catch (error) {
       console.error("Failed to process video blob", error);
@@ -284,6 +306,20 @@ const StudioContent = () => {
     }
 
     return null;
+  };
+
+  const handlePreviewVideo = () => {
+    if (!videoBlob && recordedChunks.current.length > 0) {
+      finalizeVideoProcessing();
+    }
+
+    if (videoPreviewUrl) {
+      setIsPreviewingVideo(true);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setIsPreviewingVideo(false);
   };
 
   const handleDownloadVideo = () => {
@@ -532,6 +568,7 @@ const StudioContent = () => {
         counterSettings.startValue +
         easedProgress * (counterSettings.endValue - counterSettings.startValue);
 
+      // Update current value which will trigger transitions in CounterPreview
       setCurrentValue(newValue);
       setRecordingTime(elapsed);
 
@@ -539,7 +576,7 @@ const StudioContent = () => {
       if (rawProgress >= 1) {
         handleStopRecording();
       }
-    }, 1000 / 60);
+    }, 1000 / 60); // 60fps updates for smooth animation
 
     return () => clearInterval(interval);
   }, [isRecording, isPaused, counterSettings]);
@@ -575,7 +612,7 @@ const StudioContent = () => {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Studio Sidebar */}
+        {/* Left Studio Sidebar */}
         <StudioSidebar
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -588,48 +625,75 @@ const StudioContent = () => {
         />
 
         {/* Main Content Area */}
-        <div
-          className={`flex-1 flex flex-col transition-all duration-300 ${
-            sidebarOpen ? "" : ""
-          } overflow-hidden h-full`}
-        >
-          {/* Preview Area */}
+        <div className="flex-1 flex flex-col transition-all duration-300 overflow-hidden h-full">
+          {/* Preview Area - Centered */}
           <div className="flex-1 flex justify-center items-center bg-[#0c0c0c] p-6">
-            <div className="w-[600px] h-[350px] flex items-center justify-center rounded-lg overflow-hidden bg-[#080808] shadow-2xl border border-white/5">
-              <CounterPreview
-                ref={canvasRef}
-                settings={counterSettings}
-                textSettings={textSettings}
-                designSettings={designSettings}
-                currentValue={currentValue}
-                isRecording={isRecording}
-                formatNumber={formatNumber}
-              />
+            <div className="max-w-[800px] w-full flex flex-col items-center justify-center">
+              <div className="w-full aspect-video flex items-center justify-center rounded-lg overflow-hidden bg-[#080808] shadow-2xl border border-white/5">
+                {isPreviewingVideo && videoPreviewUrl ? (
+                  <div className="relative w-full h-full">
+                    <video
+                      src={videoPreviewUrl}
+                      className="w-full h-full object-contain"
+                      autoPlay
+                      controls
+                      loop
+                    />
+                    <button
+                      onClick={handleClosePreview}
+                      className="absolute top-2 right-2 bg-black/70 text-white p-1 rounded-full hover:bg-black"
+                    >
+                      <Square className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <CounterPreview
+                    ref={canvasRef}
+                    settings={counterSettings}
+                    textSettings={textSettings}
+                    designSettings={designSettings}
+                    currentValue={currentValue}
+                    isRecording={isRecording}
+                    formatNumber={formatNumber}
+                  />
+                )}
+              </div>
+
+              {/* Recording Controls - Moved below the preview */}
+              <div className="py-4 px-4 flex justify-center w-full mt-4">
+                <RecordingControls
+                  isPaused={isPaused}
+                  onStart={handleStartRecording}
+                  onStop={handleStopRecording}
+                  onPause={handlePauseRecording}
+                  onRestart={handleRestartRecording}
+                  onDownloadVideo={handleDownloadVideo}
+                  onDownloadGif={handleDownloadGif}
+                  onPreviewVideo={handlePreviewVideo}
+                  recordedChunksLength={recordedChunks.current.length}
+                  isGeneratingGif={isGeneratingGif}
+                  onCancelGif={handleCancelGif}
+                  isProcessingVideo={isProcessingVideo}
+                  hasCredits={
+                    profile?.subscription_plan === "pro" ||
+                    profile?.credits === null ||
+                    (typeof profile?.credits === "number" &&
+                      profile.credits > 0)
+                  }
+                  hasRecordedVideo={!!videoPreviewUrl}
+                />
+              </div>
             </div>
           </div>
-
-          {/* Recording Controls */}
-          <div className="flex-shrink-0 py-4 px-4 flex justify-center border-t border-white/5">
-            <RecordingControls
-              isPaused={isPaused}
-              onStart={handleStartRecording}
-              onStop={handleStopRecording}
-              onPause={handlePauseRecording}
-              onRestart={handleRestartRecording}
-              onDownloadVideo={handleDownloadVideo}
-              onDownloadGif={handleDownloadGif}
-              recordedChunksLength={recordedChunks.current.length}
-              isGeneratingGif={isGeneratingGif}
-              onCancelGif={handleCancelGif}
-              isProcessingVideo={isProcessingVideo}
-              hasCredits={
-                profile?.subscription_plan === "pro" ||
-                profile?.credits === null ||
-                (typeof profile?.credits === "number" && profile.credits > 0)
-              }
-            />
-          </div>
         </div>
+
+        {/* Right Side Panel - Always visible */}
+        <StudioRightPanel
+          counterSettings={counterSettings}
+          onCounterSettingsChange={setCounterSettings}
+          designSettings={designSettings}
+          onDesignSettingsChange={setDesignSettings}
+        />
       </div>
     </div>
   );

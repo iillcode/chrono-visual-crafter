@@ -5,10 +5,10 @@ import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const UserManagement = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, loading } = useAuth();
 
   // Wait for auth to initialize
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="flex flex-col items-center">
@@ -24,7 +24,7 @@ const UserManagement = () => {
   }
 
   // Redirect if not authenticated
-  if (!isAuthenticated) {
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
 

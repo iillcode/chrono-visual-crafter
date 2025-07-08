@@ -9,10 +9,10 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Pricing from "./pages/Pricing";
 import Studio from "./pages/Studio";
-import UserProfile from "./pages/UserProfile";
 import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import StudioRightPanel from "@/components/StudioRightPanel";
 
 const queryClient = new QueryClient();
 
@@ -47,14 +47,6 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <Studio />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <UserProfile />
                     </ProtectedRoute>
                   }
                 />

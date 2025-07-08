@@ -11,6 +11,7 @@ import {
   Pause,
   PlayIcon,
   Film,
+  Eye,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRecording } from "@/contexts/RecordingContext";
@@ -29,6 +30,7 @@ interface RecordingControlsProps {
   onRestart: () => void;
   onDownloadVideo: () => void;
   onDownloadGif: () => void;
+  onPreviewVideo: () => void;
   recordedChunksLength: number;
   isGeneratingGif: boolean;
   onCancelGif: () => void;
@@ -36,6 +38,8 @@ interface RecordingControlsProps {
   isProcessingVideo: boolean;
   /** Whether the current user still has credits to export */
   hasCredits: boolean;
+  /** Whether there's a recorded video available for preview */
+  hasRecordedVideo?: boolean;
 }
 
 const RecordingControls: React.FC<RecordingControlsProps> = ({
@@ -46,11 +50,13 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   onRestart,
   onDownloadVideo,
   onDownloadGif,
+  onPreviewVideo,
   recordedChunksLength,
   isGeneratingGif,
   onCancelGif,
   isProcessingVideo,
   hasCredits,
+  hasRecordedVideo = false,
 }) => {
   const { isRecording, setIsRecording } = useRecording();
 
@@ -158,6 +164,25 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
 
       {/* Export Controls */}
       <div className="flex items-center gap-3">
+        {/* Preview Button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={onPreviewVideo}
+              disabled={
+                recordedChunksLength === 0 ||
+                isProcessingVideo ||
+                !hasRecordedVideo
+              }
+              className="w-12 h-12 rounded-full bg-green-600/90 hover:bg-green-700 disabled:opacity-30 disabled:cursor-not-allowed text-white shadow-lg border-0 flex items-center justify-center"
+              aria-label="Preview video"
+            >
+              <Eye className="w-5 h-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Preview Video</TooltipContent>
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

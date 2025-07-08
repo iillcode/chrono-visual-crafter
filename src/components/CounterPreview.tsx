@@ -12,6 +12,8 @@ interface CounterPreviewProps {
     duration: number;
     fontFamily: string;
     fontSize: number;
+    fontWeight?: number;
+    letterSpacing?: number;
     design: string;
     background: string;
     speed: number;
@@ -23,6 +25,7 @@ interface CounterPreviewProps {
     separator: string;
     backgroundGradient?: string;
     customBackgroundColor?: string;
+    textColor?: string;
   };
   textSettings: {
     enabled: boolean;
@@ -102,6 +105,10 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         russo: '"Russo One", sans-serif',
         audiowide: '"Audiowide", monospace',
         michroma: '"Michroma", monospace',
+        // Newly supported fonts
+        roboto: '"Roboto", sans-serif',
+        montserrat: '"Montserrat", sans-serif',
+        arial: '"Arial", sans-serif',
       };
 
       return fontMap[fontKey] || '"Inter", sans-serif';
@@ -280,7 +287,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
               x: x + glitchX,
               y: y + glitchY,
               opacity: 0.7 + Math.random() * 0.3,
-            };
+            } as const;
           }
           return { x, y, opacity: 0.7 + progress * 0.3 };
         },
@@ -679,123 +686,190 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", {
+        alpha: settings.background === "transparent",
+      });
       if (!ctx) return;
 
       // Set canvas size
       canvas.width = 800;
       canvas.height = 600;
 
-      // Utility to extract color stops from a CSS linear-gradient string (simple hex detection)
+      // Clear canvas with proper transparency handling
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Extract colors from gradient strings if needed
       const extractColors = (gradientStr: string): string[] => {
-        if (!gradientStr) return ["#000000", "#ffffff"];
         const matches = gradientStr.match(/#[0-9a-fA-F]{3,6}/g);
-        return matches && matches.length >= 2
-          ? matches
-          : ["#000000", "#ffffff"];
+        return matches || ["#000000", "#ffffff"];
       };
 
-      // Clear / fill canvas based on background setting
-      if (settings.background === "gradient") {
-        const gradientColors =
-          settings.backgroundGradient || designSettings.gradientColors;
-
-        const colors = extractColors(gradientColors);
+      // Draw background (solid, gradient, or transparent)
+      if (settings.background === "transparent") {
+        // Keep transparent
+      } else if (
+        settings.background === "gradient" &&
+        settings.backgroundGradient
+      ) {
         const grad = ctx.createLinearGradient(
           0,
           0,
           canvas.width,
           canvas.height
         );
+        const colors = extractColors(settings.backgroundGradient);
         const step = colors.length > 1 ? 1 / (colors.length - 1) : 1;
-        colors.forEach((c, i) => grad.addColorStop(i * step, c));
+        colors.forEach((color, i) => grad.addColorStop(i * step, color));
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-      } else if (settings.background === "custom") {
-        const fill = settings.customBackgroundColor || "#000000";
-        ctx.fillStyle = fill;
+      } else if (
+        settings.background === "custom" &&
+        settings.customBackgroundColor
+      ) {
+        ctx.fillStyle = settings.customBackgroundColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       } else {
-        // Assume plain color keywords or hex strings
-        let fill = settings.background;
-        if (settings.background === "white") fill = "#FFFFFF";
-        if (settings.background === "black") fill = "#000000";
-        ctx.fillStyle = fill;
+        ctx.fillStyle = settings.background === "white" ? "#FFFFFF" : "#000000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // Load custom font if specified
-      if (settings.customFont) {
-        await loadGoogleFont(settings.customFont);
-      }
-
-      // Calculate transition progress
-      let transitionProgress = 1;
-      const transitionThreshold = 0.05; // Always show at least a bit of the transition for visibility
-
-      if (Math.floor(currentValue) !== Math.floor(lastValueRef.current)) {
-        transitionStartTimeRef.current = Date.now();
-        lastValueRef.current = Math.floor(currentValue);
-      }
-
-      if (settings.transition !== "none") {
-        const timeSinceTransition = Date.now() - transitionStartTimeRef.current;
-        const transitionDuration = 500; // Increased from 300ms to 500ms for more visible transitions
-        transitionProgress = Math.min(
-          transitionThreshold +
-            (timeSinceTransition / transitionDuration) *
-              (1 - transitionThreshold),
-          1
-        );
-      }
-
-      // Draw counter
-      const fontSize = settings.fontSize;
+      // Set font with new properties
+      const fontWeight = settings.fontWeight || 400;
+      const letterSpacing = settings.letterSpacing || 0;
       const fontFamily = getFontFamily(
         settings.fontFamily,
         settings.customFont
       );
 
-      ctx.font = `${fontSize}px ${fontFamily}`;
+      // Set the font with weight
+      ctx.font = `${fontWeight} ${settings.fontSize}px ${fontFamily}`;
+
+      // Set text color based on settings or background
+      ctx.fillStyle =
+        settings.textColor ||
+        (settings.background === "white" ? "#000000" : "#FFFFFF");
+
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      const counterText = formatNumber(currentValue);
+      // Apply letter spacing if needed
+      if (letterSpacing !== 0) {
+        const text = formatNumber(currentValue);
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
 
-      // Measure counter text width for positioning calculations
-      const counterWidth = ctx.measureText(counterText).width;
+        // Draw each character separately with spacing
+        let totalWidth = 0;
 
-      // Initial centered position - counter is always drawn at center + any transition effects
-      let x = canvas.width / 2;
-      let y = canvas.height / 2;
+        // First calculate total width with spacing
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          const charWidth = ctx.measureText(char).width;
+          totalWidth += charWidth + (i < text.length - 1 ? letterSpacing : 0);
+        }
 
-      // Apply transition effects
-      ctx.save();
+        // Now draw each character centered
+        let currentX = centerX - totalWidth / 2;
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          const charWidth = ctx.measureText(char).width;
 
-      if (settings.transition !== "none") {
-        const newPos = applyTransitionEffect(
+          // Apply design effects to each character
+          if (settings.design !== "classic") {
+            applyDesignEffects(
+              ctx,
+              char,
+              currentX + charWidth / 2,
+              centerY,
+              settings.fontSize
+            );
+          } else {
+            ctx.fillText(char, currentX + charWidth / 2, centerY);
+          }
+
+          currentX += charWidth + letterSpacing;
+        }
+      } else {
+        // Normal text rendering without letter spacing
+        const counterText = formatNumber(currentValue);
+        const counterX = canvas.width / 2;
+        const counterY = canvas.height / 2;
+
+        // Calculate transition progress
+        const totalRange = settings.endValue - settings.startValue;
+        const rawProgress =
+          totalRange !== 0
+            ? (currentValue - settings.startValue) / totalRange
+            : 1;
+        const transitionProgress = Math.min(Math.max(rawProgress, 0), 1);
+
+        // Measure text width for certain transition calcs
+        const counterWidth = ctx.measureText(counterText).width;
+
+        // Apply transition effect (position & opacity)
+        ctx.save();
+        const {
+          x: tX,
+          y: tY,
+          opacity: tOpacity,
+        } = applyTransitionEffect(
           ctx,
           transitionProgress,
-          x,
-          y,
-          fontSize,
+          counterX,
+          counterY,
+          settings.fontSize,
           counterWidth
         );
-        x = newPos.x;
-        y = newPos.y;
-        ctx.globalAlpha = newPos.opacity || 1;
+
+        const previousAlpha = ctx.globalAlpha;
+        ctx.globalAlpha = (previousAlpha ?? 1) * (tOpacity ?? 1);
+
+        // Apply design effects or plain fill depending on selection
+        if (settings.design !== "classic") {
+          applyDesignEffects(ctx, counterText, tX, tY, settings.fontSize);
+        } else {
+          ctx.fillText(counterText, tX, tY);
+        }
+
+        // Restore alpha & context
+        ctx.globalAlpha = previousAlpha;
+        ctx.restore();
       }
-
-      // Apply design effects to counter with formatted text
-      applyDesignEffects(ctx, counterText, x, y, fontSize);
-
-      ctx.restore();
 
       // Draw additional text if enabled
-      if (textSettings.enabled && textSettings.text) {
-        drawText(ctx, canvas, counterWidth, x, y);
+      if (textSettings.enabled) {
+        drawText(
+          ctx,
+          canvas,
+          ctx.measureText(formatNumber(currentValue)).width,
+          canvas.width / 2,
+          canvas.height / 2
+        );
       }
     };
+
+    // Dynamically load Google fonts when font family changes (skip common system fonts and custom uploads)
+    useEffect(() => {
+      const loadFontForKey = async (key: string) => {
+        if (!key || key === "custom" || key === "arial") return; // Arial is usually available system-wide.
+
+        // Capitalize first letter to match Google Fonts naming
+        const googleName = key.charAt(0).toUpperCase() + key.slice(1);
+        await loadGoogleFont(googleName);
+      };
+
+      loadFontForKey(settings.fontFamily);
+      loadFontForKey(textSettings.fontFamily);
+    }, [settings.fontFamily, textSettings.fontFamily]);
+
+    // Track value changes for transitions
+    useEffect(() => {
+      // When the value changes, store the previous value and start time for transition
+      if (currentValue !== lastValueRef.current) {
+        lastValueRef.current = currentValue;
+        transitionStartTimeRef.current = Date.now();
+      }
+    }, [currentValue]);
 
     useEffect(() => {
       const animate = () => {

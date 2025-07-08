@@ -14,6 +14,7 @@ import {
   Crown,
   Home,
 } from "lucide-react";
+import UserProfileModal from "./UserProfileModal";
 
 interface UserMenuProps {
   className?: string;
@@ -25,6 +26,7 @@ export function UserMenu({ className }: UserMenuProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isLandingPage =
@@ -52,6 +54,11 @@ export function UserMenu({ className }: UserMenuProps) {
 
   const handleNavigate = (path: string) => {
     navigate(path);
+    setIsOpen(false);
+  };
+
+  const handleOpenProfile = () => {
+    setShowProfileModal(true);
     setIsOpen(false);
   };
 
@@ -249,44 +256,84 @@ export function UserMenu({ className }: UserMenuProps) {
                         : "border-white/10 bg-white/5 hover:bg-white/10"
                     )}
                   >
-                    {isPro || isTeam ? "Manage" : "Upgrade"}
+                    {isPro || isTeam ? "Manage Plan" : "Upgrade"}
                   </motion.button>
                 </div>
               </div>
-            </div>
 
-            <div className="py-1 relative">
-              {/* Subtle divider lines between items */}
-              <MenuButton
-                icon={<User size={16} />}
-                label="My Profile"
-                onClick={() => handleNavigate("/profile")}
-                isLandingPage={isLandingPage}
-              />
-            </div>
+              <div className="p-2 relative z-10">
+                {/* My Profile */}
+                <MenuButton
+                  icon={<User className="w-4 h-4" />}
+                  label="My Profile"
+                  onClick={handleOpenProfile}
+                  isLandingPage={isLandingPage}
+                />
 
-            <div
-              className={cn(
-                "py-1 mt-1 border-t",
-                isLandingPage
-                  ? "border-white/[0.1]"
-                  : isDark
-                  ? "border-white/[0.08]"
-                  : "border-gray-200"
-              )}
-            >
-              <MenuButton
-                icon={<LogOut size={16} />}
-                label="Sign Out"
-                onClick={handleSignOut}
-                className={isDark ? "text-rose-400" : "text-rose-500"}
-                dangerous
-                isLandingPage={isLandingPage}
-              />
+                {/* Account Settings */}
+                <MenuButton
+                  icon={<Settings className="w-4 h-4" />}
+                  label="Account Settings"
+                  onClick={() => handleNavigate("/account")}
+                  isLandingPage={isLandingPage}
+                />
+
+                {/* Dashboard */}
+                {location.pathname !== "/studio" && (
+                  <MenuButton
+                    icon={<Home className="w-4 h-4" />}
+                    label="Go to Dashboard"
+                    onClick={() => handleNavigate("/studio")}
+                    isLandingPage={isLandingPage}
+                  />
+                )}
+
+                {/* Billing */}
+                <MenuButton
+                  icon={<CreditCard className="w-4 h-4" />}
+                  label="Billing & Payments"
+                  onClick={() => handleNavigate("/pricing")}
+                  isLandingPage={isLandingPage}
+                />
+
+                {/* Help & Support */}
+                <MenuButton
+                  icon={<HelpCircle className="w-4 h-4" />}
+                  label="Help & Support"
+                  onClick={() => handleNavigate("/help")}
+                  isLandingPage={isLandingPage}
+                />
+
+                <div
+                  className={cn(
+                    "my-1 border-t",
+                    isLandingPage
+                      ? "border-white/[0.1]"
+                      : isDark
+                      ? "border-white/[0.08]"
+                      : "border-gray-100"
+                  )}
+                />
+
+                {/* Sign Out */}
+                <MenuButton
+                  icon={<LogOut className="w-4 h-4" />}
+                  label="Sign Out"
+                  onClick={handleSignOut}
+                  dangerous={true}
+                  isLandingPage={isLandingPage}
+                />
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Profile Modal */}
+      <UserProfileModal
+        open={showProfileModal}
+        onOpenChange={setShowProfileModal}
+      />
     </div>
   );
 }
@@ -312,55 +359,26 @@ function MenuButton({
 
   return (
     <motion.button
-      whileHover={{
-        x: 3,
-        backgroundColor: isLandingPage
-          ? dangerous
-            ? "rgba(225, 29, 72, 0.2)"
-            : "rgba(255, 255, 255, 0.1)"
-          : isDark
-          ? dangerous
-            ? "rgba(225, 29, 72, 0.2)"
-            : "rgba(255, 255, 255, 0.07)"
-          : dangerous
-          ? "rgba(225, 29, 72, 0.1)"
-          : "rgba(0, 0, 0, 0.05)",
-      }}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
       className={cn(
-        "flex items-center w-full px-4 py-2.5 text-sm",
-        "transition-colors border-l-2 border-transparent",
+        "flex items-center gap-2 w-full p-2 text-sm rounded-md transition-colors",
         isLandingPage
           ? dangerous
-            ? "hover:border-l-rose-500 text-rose-400"
-            : "hover:border-l-cyan-400 text-white/80"
+            ? "hover:bg-rose-500/20 text-rose-300"
+            : "hover:bg-white/10 text-white"
           : isDark
           ? dangerous
-            ? "hover:border-l-rose-500 text-rose-400"
-            : "hover:border-l-indigo-500 text-white/80"
+            ? "hover:bg-rose-500/20 text-rose-400"
+            : "hover:bg-white/10 text-white"
           : dangerous
-          ? "hover:border-l-rose-500 text-rose-500"
-          : "hover:border-l-indigo-500 text-gray-700",
+          ? "hover:bg-rose-500/10 text-rose-600"
+          : "hover:bg-black/5 text-gray-700",
         className
       )}
-      onClick={onClick}
     >
-      <span
-        className={cn(
-          "mr-3",
-          isLandingPage
-            ? dangerous
-              ? "text-rose-400"
-              : "text-white/40"
-            : isDark
-            ? "text-white/40"
-            : "text-gray-400",
-          dangerous &&
-            !isLandingPage &&
-            (isDark ? "text-rose-400" : "text-rose-500")
-        )}
-      >
-        {icon}
-      </span>
+      {icon}
       {label}
     </motion.button>
   );
