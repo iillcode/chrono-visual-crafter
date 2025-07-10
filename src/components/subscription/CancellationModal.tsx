@@ -149,43 +149,75 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({
         return;
       }
 
-      const cancellationData = {
-        subscription_id: subscription!.id,
-        effective_from: 'next_billing_period', // Cancel at end of current period
-        custom_data: {
-          userId: subscription!.id, // This should be the actual user ID
-          cancelReason: reason === 'other' ? customReason : reason,
-          feedback: feedback,
-          timestamp: new Date().toISOString(),
-        }
-      };
+      // Check which Paddle API method is available
+      if (window.Paddle.Subscription && typeof window.Paddle.Subscription.cancel === 'function') {
+        // Use the modern Paddle API
+        window.Paddle.Subscription.cancel({
+          subscriptionId: subscription!.id,
+          effectiveFrom: 'next_billing_period',
+          customData: {
+            cancelReason: reason === 'other' ? customReason : reason,
+            feedback: feedback,
+            timestamp: new Date().toISOString(),
+          },
+          eventCallback: (data: any) => {
+            console.log('Paddle cancellation event:', data);
 
-      // Use Paddle's subscription cancellation
-      window.Paddle.Subscription.cancel({
-        subscriptionId: subscription!.id,
-        effectiveFrom: 'next_billing_period',
-        eventCallback: (data: any) => {
-          console.log('Paddle cancellation event:', data);
-
-          if (data.name === 'subscription.cancel.completed') {
-            setState('success');
-            toast({
-              title: "Subscription Cancelled",
-              description: "Your subscription has been cancelled successfully.",
-            });
-            
-            // Notify parent component
-            setTimeout(() => {
-              onCancellationComplete();
-              onOpenChange(false);
-            }, 2000);
-            
-            resolve();
-          } else if (data.name === 'subscription.cancel.error') {
-            reject(new Error(data.error?.message || 'Cancellation failed'));
+            if (data.name === 'subscription.cancel.completed' || data.name === 'cancel.complete') {
+              setState('success');
+              toast({
+                title: "Subscription Cancelled",
+                description: "Your subscription has been cancelled successfully.",
+              });
+              
+              // Notify parent component
+              setTimeout(() => {
+                onCancellationComplete();
+                onOpenChange(false);
+              }, 2000);
+              
+              resolve();
+            } else if (data.name === 'subscription.cancel.error' || data.name === 'cancel.error') {
+              reject(new Error(data.error?.message || 'Cancellation failed'));
+            }
           }
-        }
-      });
+        });
+      }
+      
+      // Fallback: Try the legacy cancelPreview method
+      else if (window.Paddle.Subscription && typeof window.Paddle.Subscription.cancelPreview === 'function') {
+        window.Paddle.Subscription.cancelPreview({
+          subscriptionId: subscription!.id,
+          effectiveFrom: 'next_billing_period',
+          eventCallback: (data: any) => {
+            console.log('Paddle cancelPreview event:', data);
+
+            if (data.name === 'cancel.complete') {
+              setState('success');
+              toast({
+                title: "Subscription Cancelled",
+                description: "Your subscription has been cancelled successfully.",
+              });
+              
+              // Notify parent component
+              setTimeout(() => {
+                onCancellationComplete();
+                onOpenChange(false);
+              }, 2000);
+              
+              resolve();
+            } else if (data.name === 'cancel.error') {
+              reject(new Error(data.error?.message || 'Cancellation failed'));
+            }
+          }
+        });
+      }
+      
+      // If no client-side method is available, use server-side approach
+      else {
+        console.warn("No Paddle client-side cancellation methods available");
+        reject(new Error('Paddle cancellation methods not available. Please contact support.'));
+      }
     });
   };
 
