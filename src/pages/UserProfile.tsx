@@ -165,7 +165,7 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
           const { data: planData, error: planError } = await supabase
             .from("subscription_plans")
             .select("*")
-            .eq("paddle_product_id", typedSubscription.plan_id)
+            .eq("id", typedSubscription.plan_id)
             .single();
           if (planError) {
             console.error("Error fetching plan:", planError);
