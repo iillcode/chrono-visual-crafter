@@ -331,6 +331,9 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
         userId: user.id,
         subscriptionId,
       });
+      
+      // Import audit logger
+      const { SubscriptionAuditLogger } = await import("@/utils/subscriptionAudit");
 
       // IMPORTANT: Direct API calls to Paddle from the browser will fail due to:
       // 1. CORS restrictions - Paddle doesn't allow browser-based API calls
@@ -352,6 +355,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
       // Use Paddle's cancelPreview method instead of direct API call
       window.Paddle.Subscription.cancelPreview({
         subscriptionId: subscriptionId,
+        effectiveFrom: 'next_billing_period', // Cancel at end of current period
         eventCallback: async (data: any) => {
           console.log("Paddle cancel event received", {
             eventName: data.name,
@@ -364,6 +368,14 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
               title: "Subscription Canceled",
               description: "Your subscription has been canceled successfully.",
             });
+
+            // Log cancellation in audit trail
+            await SubscriptionAuditLogger.logCancellation(
+              user.id,
+              subscriptionId,
+              'user_initiated',
+              subscription?.status || 'active'
+            );
 
             // Refresh subscription status after cancellation
             await refreshSubscriptionStatus();
@@ -444,6 +456,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
   const openCheckout = (priceId: string, customData?: any) => {
     console.log("Opening Paddle checkout with:", { priceId, customData });
 
+    // Enhanced error handling and validation
     if (!isLoaded || !window.Paddle) {
       console.error("Paddle not loaded:", {
         isLoaded,
@@ -451,7 +464,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
       });
       toast({
         title: "Payment System Not Ready",
-        description: "Please wait for the payment system to load.",
+        description: "Please wait for the payment system to load and try again.",
         variant: "destructive",
       });
       return;
@@ -481,6 +494,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
         userId: user.id,
         email: user.primaryEmailAddress?.emailAddress,
         full_name: user.fullName,
+        timestamp: new Date().toISOString(),
         ...customData,
       },
       settings: {
@@ -488,6 +502,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
         theme: "dark",
         locale: "en",
         successUrl: `${window.location.origin}/studio?payment=success`,
+        failureUrl: `${window.location.origin}/pricing?payment=failed`,
       },
 
       eventCallback: (data: any) => {
@@ -495,6 +510,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
 
         if (data.name === "checkout.completed") {
           logger.info("Payment completed, processing subscription update");
+          
           toast({
             title: "Payment Successful!",
             description:
@@ -502,6 +518,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
           });
 
           // Wait a moment for webhook processing, then refresh and navigate
+          // Increased timeout to allow for webhook processing
           setTimeout(async () => {
             const updatedSubscription = await refreshSubscriptionStatus();
             if (updatedSubscription) {
@@ -510,7 +527,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
               });
             }
             navigate("/studio?payment=success");
-          }, 2000);
+          }, 3000); // Increased from 2000ms to 3000ms
         }
 
         if (data.name === "checkout.closed") {
@@ -521,7 +538,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
           logger.error("Checkout error occurred", { data });
           toast({
             title: "Payment Error",
-            description:
+            description: data.error?.message || 
               "There was an issue processing your payment. Please try again.",
             variant: "destructive",
           });
