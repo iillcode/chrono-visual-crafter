@@ -9,6 +9,7 @@ import CounterPreview from "@/components/CounterPreview";
 import RecordingControls from "@/components/RecordingControls";
 import StudioSidebar from "@/components/StudioSidebar";
 import StudioRightPanel from "@/components/StudioRightPanel";
+import { TransparentExportModal } from "@/components/TransparentExportModal";
 import GlassCard from "@/components/ui/glass-card";
 import AuthButton from "@/components/auth/AuthButton";
 import { Loader2 } from "lucide-react";
@@ -117,6 +118,7 @@ const StudioContent = () => {
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [isPreviewingVideo, setIsPreviewingVideo] = useState(false);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [showTransparentExport, setShowTransparentExport] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -721,6 +723,7 @@ const StudioContent = () => {
                   onDownloadVideo={handleDownloadVideo}
                   onDownloadGif={handleDownloadGif}
                   onPreviewVideo={handlePreviewVideo}
+                  onTransparentExport={() => setShowTransparentExport(true)}
                   recordedChunksLength={recordedChunks.current.length}
                   isGeneratingGif={isGeneratingGif}
                   onCancelGif={handleCancelGif}
@@ -746,6 +749,15 @@ const StudioContent = () => {
           onDesignSettingsChange={setDesignSettings}
         />
       </div>
+
+            {/* Transparent Export Modal */}
+      <TransparentExportModal
+        open={showTransparentExport}
+        onOpenChange={setShowTransparentExport}
+        counterSettings={counterSettings}
+        textSettings={textSettings}
+        designSettings={designSettings}
+      />
     </div>
   );
 };
