@@ -12,6 +12,7 @@ import {
   PlayIcon,
   Film,
   Eye,
+  Layers,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRecording } from "@/contexts/RecordingContext";
@@ -31,6 +32,7 @@ interface RecordingControlsProps {
   onDownloadVideo: () => void;
   onDownloadGif: () => void;
   onPreviewVideo: () => void;
+  onTransparentExport?: () => void;
   recordedChunksLength: number;
   isGeneratingGif: boolean;
   onCancelGif: () => void;
@@ -51,6 +53,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
   onDownloadVideo,
   onDownloadGif,
   onPreviewVideo,
+  onTransparentExport,
   recordedChunksLength,
   isGeneratingGif,
   onCancelGif,
@@ -183,7 +186,7 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
           <TooltipContent side="bottom">Preview Video</TooltipContent>
         </Tooltip>
 
-        <Tooltip>
+        {/* <Tooltip>
           <TooltipTrigger asChild>
             <Button
               onClick={onDownloadVideo}
@@ -201,9 +204,9 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">Export Video</TooltipContent>
-        </Tooltip>
+        </Tooltip> */}
 
-        <Tooltip>
+        {/* <Tooltip>
           <TooltipTrigger asChild>
             <Button
               onClick={isGeneratingGif ? onCancelGif : onDownloadGif}
@@ -223,7 +226,25 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
           <TooltipContent side="bottom">
             {isGeneratingGif ? "Cancel GIF" : "Export GIF"}
           </TooltipContent>
-        </Tooltip>
+        </Tooltip> */}
+
+        {onTransparentExport && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={onTransparentExport}
+                disabled={recordedChunksLength === 0 }
+                className="w-12 h-12 rounded-full bg-cyan-600/90 hover:bg-cyan-700 text-white shadow-lg border-0 flex items-center justify-center"
+                aria-label="Export transparent overlay"
+              >
+                <Layers className="w-5 h-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Export Transparent Overlay
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </motion.div>
   );

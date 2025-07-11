@@ -3,10 +3,13 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useClerkAuth } from "@/hooks/useClerkAuth";
 import { useNavigate } from "react-router-dom";
+import { VideoExportManager } from "@/utils/videoExportFixes";
+import { ErrorHandler } from "@/utils/errorHandling";
 import CounterPreview from "@/components/CounterPreview";
 import RecordingControls from "@/components/RecordingControls";
 import StudioSidebar from "@/components/StudioSidebar";
 import StudioRightPanel from "@/components/StudioRightPanel";
+import { TransparentExportModal } from "@/components/TransparentExportModal";
 import GlassCard from "@/components/ui/glass-card";
 import AuthButton from "@/components/auth/AuthButton";
 import { Loader2 } from "lucide-react";
@@ -115,6 +118,7 @@ const StudioContent = () => {
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [isPreviewingVideo, setIsPreviewingVideo] = useState(false);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [showTransparentExport, setShowTransparentExport] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -362,45 +366,70 @@ const StudioContent = () => {
       return;
     }
 
-    let blobToDownload: Blob | null = videoBlob;
+    const exportVideo = async () => {
+      try {
+        let blobToDownload: Blob | null = videoBlob;
 
-    if (!blobToDownload) {
-      blobToDownload = finalizeVideoProcessing();
-    }
+        if (!blobToDownload) {
+          blobToDownload = finalizeVideoProcessing();
+        }
 
-    if (!blobToDownload) return;
+        if (!blobToDownload && canvasRef.current) {
+          // Use enhanced video export with alpha channel support
+          blobToDownload = await VideoExportManager.exportWithAlphaChannel(
+            canvasRef.current,
+            {
+              canvas: canvasRef.current,
+              settings: counterSettings,
+              duration: counterSettings.duration,
+              fps: 60,
+              quality: 'high'
+            }
+          );
+        }
 
-    const fileExtension = "webm";
+        if (!blobToDownload) return;
 
-    const url = URL.createObjectURL(blobToDownload);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `counter-animation-${Date.now()}.${fileExtension}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+        // Use enhanced download with validation
+        await VideoExportManager.downloadVideo(
+          blobToDownload,
+          `counter-animation-${Date.now()}`
+        );
 
-    const hasTransparency = counterSettings.background === "transparent";
+        const hasTransparency = counterSettings.background === "transparent";
 
-    toast({
-      title: "Video Downloaded",
-      description: `Your counter animation video has been saved${
-        hasTransparency ? " with transparency support" : ""
-      }.`,
-    });
-    console.log(profile, "------------t");
+        toast({
+          title: "Video Downloaded",
+          description: `Your counter animation video has been saved${
+            hasTransparency ? " with transparency support" : ""
+          }.`,
+        });
 
-    // Decrement credits for free users
-    if (
-      profile?.subscription_plan === "free" &&
-      typeof profile?.credits === "number" &&
-      profile.credits > 0
-    ) {
-      updateProfile({ credits: profile.credits - 1 });
-      // Optionally refresh after update
-      refreshProfile();
-    }
+        // Decrement credits for free users
+        if (
+          profile?.subscription_plan === "free" &&
+          typeof profile?.credits === "number" &&
+          profile.credits > 0
+        ) {
+          updateProfile({ credits: profile.credits - 1 });
+          refreshProfile();
+        }
+      } catch (error) {
+        console.error('Video export failed:', error);
+        ErrorHandler.logError(error as Error, {
+          userId: user?.id,
+          action: 'video_export',
+        });
+        
+        toast({
+          title: "Export Failed",
+          description: ErrorHandler.getUserFriendlyMessage(error as Error),
+          variant: "destructive",
+        });
+      }
+    };
+
+    exportVideo();
   };
 
   const handleDownloadGif = async () => {
@@ -694,6 +723,7 @@ const StudioContent = () => {
                   onDownloadVideo={handleDownloadVideo}
                   onDownloadGif={handleDownloadGif}
                   onPreviewVideo={handlePreviewVideo}
+                  onTransparentExport={() => setShowTransparentExport(true)}
                   recordedChunksLength={recordedChunks.current.length}
                   isGeneratingGif={isGeneratingGif}
                   onCancelGif={handleCancelGif}
@@ -719,6 +749,15 @@ const StudioContent = () => {
           onDesignSettingsChange={setDesignSettings}
         />
       </div>
+
+            {/* Transparent Export Modal */}
+      <TransparentExportModal
+        open={showTransparentExport}
+        onOpenChange={setShowTransparentExport}
+        counterSettings={counterSettings}
+        textSettings={textSettings}
+        designSettings={designSettings}
+      />
     </div>
   );
 };
