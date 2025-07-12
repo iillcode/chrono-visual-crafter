@@ -25,7 +25,7 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
   // Category state for filtering transitions
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
-  // Define visible transitions (keeping only None, Fade In, Glitch, Blur, Typewriter)
+  // Define all transitions including new multi-digit ones
   const transitions = [
     {
       id: "none",
@@ -38,6 +38,48 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
       name: "Fade In",
       category: "basic",
       description: "Simple fade in transition",
+    },
+    {
+      id: "fade-roll",
+      name: "Fade Roll",
+      category: "multi-digit",
+      description: "Each digit fades in with a rolling motion",
+    },
+    {
+      id: "flip-down",
+      name: "Flip Down",
+      category: "multi-digit",
+      description: "Each digit flips down like a mechanical counter",
+    },
+    {
+      id: "slide-vertical",
+      name: "Slide Vertical",
+      category: "multi-digit",
+      description: "Each digit slides in vertically",
+    },
+    {
+      id: "bounce",
+      name: "Bounce",
+      category: "multi-digit",
+      description: "Each digit bounces into place",
+    },
+    {
+      id: "scale",
+      name: "Scale",
+      category: "multi-digit",
+      description: "Each digit scales up from small to full size",
+    },
+    {
+      id: "slideUp",
+      name: "Slide Up",
+      category: "basic",
+      description: "Counter slides up into view",
+    },
+    {
+      id: "slideDown",
+      name: "Slide Down",
+      category: "basic",
+      description: "Counter slides down into view",
     },
     {
       id: "glitch",
@@ -88,6 +130,7 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
   const categories = [
     { id: "all", name: "All Effects" },
     { id: "basic", name: "Basic" },
+    { id: "multi-digit", name: "Multi-Digit" },
     { id: "special", name: "Special" },
   ];
 
@@ -138,14 +181,34 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
                     transition.id
                   )}`}
                 >
-                  123
+                  {transition.category === "multi-digit" ? "123" : "123"}
                 </div>
               </div>
-              <div className="mt-2 text-xs text-white">{transition.name}</div>
+              <div className="mt-2 text-xs text-white text-center">
+                {transition.name}
+              </div>
+              {transition.category === "multi-digit" && (
+                <div className="absolute top-1 right-1">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                </div>
+              )}
             </div>
           </button>
         ))}
       </div>
+
+      {/* Multi-digit info */}
+      {activeCategory === "multi-digit" && (
+        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mt-4">
+          <div className="flex items-start gap-2">
+            <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
+            <div className="text-xs text-green-400">
+              <p className="font-medium mb-1">Multi-Digit Animation</p>
+              <p>These effects animate each digit individually for more dynamic and engaging counter animations.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Easing Function Selection */}
       <div className="mt-6 space-y-2">
@@ -182,6 +245,20 @@ function getPreviewAnimationClass(transitionId: string): string {
       return `${baseClasses}`;
     case "fadeIn":
       return `${baseClasses} animate-fade-in`;
+    case "fade-roll":
+      return `${baseClasses} animate-fade-in transform rotate-1`;
+    case "flip-down":
+      return `${baseClasses} animate-flip`;
+    case "slide-vertical":
+      return `${baseClasses} animate-slide-up`;
+    case "bounce":
+      return `${baseClasses} animate-bounce`;
+    case "scale":
+      return `${baseClasses} animate-scale`;
+    case "slideUp":
+      return `${baseClasses} animate-slide-up`;
+    case "slideDown":
+      return `${baseClasses} animate-slide-down`;
     case "glitch":
       return `${baseClasses} animate-glitch`;
     case "blur":

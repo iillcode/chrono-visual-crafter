@@ -64,6 +64,22 @@ export interface DesignSettings {
   chromeColors: string;
 }
 
+// Easing functions for transitions
+const easingFunctions = {
+  linear: (progress: number): number => progress,
+  easeOut: (progress: number): number => 1 - Math.pow(1 - progress, 2),
+  easeIn: (progress: number): number => progress * progress,
+  bounce: (progress: number): number => {
+    if (progress < 0.5) {
+      return 4 * progress * progress;
+    } else if (progress < 0.8) {
+      return 1 + (progress - 0.8) * 5;
+    } else {
+      return 1 - 0.5 * Math.pow((progress - 1) * 2.5, 2);
+    }
+  },
+};
+
 export class TransparentCounterExporter {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -71,6 +87,8 @@ export class TransparentCounterExporter {
   private counterSettings: CounterSettings;
   private textSettings: TextSettings;
   private designSettings: DesignSettings;
+  private previousValue: number = 0;
+  private digitTransitions: Map<number, { oldDigit: string; newDigit: string; progress: number }> = new Map();
 
   constructor(
     exportOptions: TransparentExportOptions,
@@ -172,26 +190,40 @@ export class TransparentCounterExporter {
 
         this.ctx.save();
         
-        // Multiple glow layers for better transparency support
-        this.ctx.globalAlpha = 0.4;
-        this.ctx.shadowColor = neonColor;
-        this.ctx.shadowBlur = intensity * 2;
-        this.ctx.fillStyle = neonColor;
-        this.ctx.fillText(text, x, y);
-
-        this.ctx.globalAlpha = 0.6;
-        this.ctx.shadowBlur = intensity * 1.3;
-        this.ctx.fillText(text, x, y);
-
-        this.ctx.globalAlpha = 0.8;
-        this.ctx.shadowBlur = intensity * 0.8;
-        this.ctx.fillText(text, x, y);
-
-        this.ctx.globalAlpha = 1.0;
-        this.ctx.shadowBlur = intensity * 0.4;
-        this.ctx.fillText(text, x, y);
-
+        // Clear any existing shadows
         this.ctx.shadowBlur = 0;
+        this.ctx.shadowColor = "rgba(0,0,0,0)";
+        
+        // Create contained neon effect to prevent color spreading
+        this.ctx.globalCompositeOperation = 'source-over';
+        
+        // Base text layer
+        this.ctx.globalAlpha = 0.8;
+        this.ctx.fillStyle = "#FFFFFF";
+        this.ctx.fillText(text, x, y);
+        
+        // Neon glow layers with controlled spread
+        this.ctx.globalCompositeOperation = 'screen';
+        
+        // Inner glow
+        this.ctx.globalAlpha = 0.9;
+        this.ctx.shadowColor = neonColor;
+        this.ctx.shadowBlur = Math.max(2, intensity * 0.5);
+        this.ctx.strokeStyle = neonColor;
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeText(text, x, y);
+        
+        // Outer glow
+        this.ctx.globalAlpha = 0.7;
+        this.ctx.shadowBlur = Math.max(4, intensity * 0.8);
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeText(text, x, y);
+        
+        // Final colored text
+        this.ctx.globalCompositeOperation = 'source-over';
+        this.ctx.shadowBlur = 0;
+        this.ctx.globalAlpha = 1.0;
+        this.ctx.fillStyle = neonColor;
         this.ctx.fillText(text, x, y);
 
         this.ctx.restore();
@@ -202,27 +234,27 @@ export class TransparentCounterExporter {
         const intensity = this.designSettings.glowIntensity || 15;
 
         this.ctx.save();
-
-        // Multi-pass glow for transparency
-        this.ctx.globalAlpha = 0.4;
-        this.ctx.shadowColor = glowColor;
-        this.ctx.shadowBlur = intensity * 2;
-        this.ctx.fillStyle = glowColor;
-        this.ctx.fillText(text, x, y);
-
-        this.ctx.globalAlpha = 0.6;
-        this.ctx.shadowBlur = intensity * 1.3;
-        this.ctx.fillText(text, x, y);
-
-        this.ctx.globalAlpha = 0.8;
-        this.ctx.shadowBlur = intensity * 0.8;
-        this.ctx.fillText(text, x, y);
-
-        this.ctx.globalAlpha = 1.0;
-        this.ctx.shadowBlur = intensity * 0.4;
-        this.ctx.fillText(text, x, y);
-
+        
+        // Clear any existing shadows
         this.ctx.shadowBlur = 0;
+        this.ctx.shadowColor = "rgba(0,0,0,0)";
+        
+        // Create contained glow effect
+        this.ctx.globalCompositeOperation = 'source-over';
+
+        // Multiple glow layers with controlled intensity
+        for (let i = 3; i >= 1; i--) {
+          this.ctx.globalAlpha = 0.3 / i;
+          this.ctx.shadowColor = glowColor;
+          this.ctx.shadowBlur = intensity * i * 0.5;
+          this.ctx.fillStyle = glowColor;
+          this.ctx.fillText(text, x, y);
+        }
+
+        // Final sharp text
+        this.ctx.shadowBlur = 0;
+        this.ctx.globalAlpha = 1.0;
+        this.ctx.fillStyle = glowColor;
         this.ctx.fillText(text, x, y);
 
         this.ctx.restore();
@@ -268,11 +300,13 @@ export class TransparentCounterExporter {
         this.ctx.fillStyle = gradient;
         this.ctx.fillText(text, x, y);
 
+        // Controlled fire glow
         const fireGlow = this.designSettings.fireGlow || 10;
+        this.ctx.save();
         this.ctx.shadowColor = "#FF4444";
-        this.ctx.shadowBlur = fireGlow;
+        this.ctx.shadowBlur = Math.min(fireGlow, 15); // Limit glow spread
         this.ctx.fillText(text, x, y);
-        this.ctx.shadowBlur = 0;
+        this.ctx.restore();
       },
 
       rainbow: () => {
@@ -323,43 +357,187 @@ export class TransparentCounterExporter {
     effect();
   }
 
-  private applyTransitionEffect(progress: number, x: number, y: number, fontSize: number): { x: number; y: number; opacity: number } {
+  private applyDigitTransition(
+    digit: string, 
+    x: number, 
+    y: number, 
+    fontSize: number, 
+    transitionProgress: number,
+    transitionType: string
+  ): { x: number; y: number; opacity: number; transform?: () => void } {
+    
     const effects = {
       none: () => ({ x, y, opacity: 1 }),
       
+      fadeIn: () => {
+        const easeInOutCubic = transitionProgress < 0.5
+          ? 4 * transitionProgress * transitionProgress * transitionProgress
+          : 1 - Math.pow(-2 * transitionProgress + 2, 3) / 2;
+        return { x, y, opacity: easeInOutCubic };
+      },
+      
+      'fade-roll': () => {
+        const rollDistance = fontSize * 0.3;
+        const rollY = y - (1 - transitionProgress) * rollDistance;
+        const opacity = transitionProgress;
+        return { 
+          x, 
+          y: rollY, 
+          opacity,
+          transform: () => {
+            this.ctx.save();
+            this.ctx.translate(x, rollY);
+            this.ctx.rotate((1 - transitionProgress) * Math.PI * 0.1);
+            this.ctx.translate(-x, -rollY);
+          }
+        };
+      },
+      
+      'flip-down': () => {
+        const scaleY = Math.abs(Math.cos(transitionProgress * Math.PI));
+        const opacity = scaleY > 0.1 ? 1 : 0;
+        return {
+          x, y, opacity,
+          transform: () => {
+            this.ctx.save();
+            this.ctx.translate(x, y);
+            this.ctx.scale(1, Math.max(0.1, scaleY));
+            this.ctx.translate(-x, -y);
+          }
+        };
+      },
+      
+      'slide-vertical': () => {
+        const slideDistance = fontSize * 1.2;
+        const slideY = y + (1 - transitionProgress) * slideDistance;
+        return { x, y: slideY, opacity: transitionProgress };
+      },
+      
+      bounce: () => {
+        const bounceHeight = Math.sin(transitionProgress * Math.PI) * (fontSize * 0.3);
+        const bounceY = y - bounceHeight;
+        return { x, y: bounceY, opacity: 1 };
+      },
+      
+      scale: () => {
+        const scaleValue = 0.3 + transitionProgress * 0.7;
+        return {
+          x, y, opacity: transitionProgress,
+          transform: () => {
+            this.ctx.save();
+            this.ctx.translate(x, y);
+            this.ctx.scale(scaleValue, scaleValue);
+            this.ctx.translate(-x, -y);
+          }
+        };
+      },
+      
       slideUp: () => {
         const distance = fontSize * 1.5;
-        const offset = (1 - progress) * distance;
-        const opacity = 0.3 + progress * 0.7;
-        return { x, y: y + offset, opacity };
+        const offset = (1 - transitionProgress) * distance;
+        return { x, y: y + offset, opacity: 0.3 + transitionProgress * 0.7 };
       },
       
       slideDown: () => {
         const distance = fontSize * 1.5;
-        const offset = (1 - progress) * -distance;
-        const opacity = 0.3 + progress * 0.7;
-        return { x, y: y + offset, opacity };
-      },
-      
-      fadeIn: () => {
-        const easeInOutCubic = progress < 0.5
-          ? 4 * progress * progress * progress
-          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-        return { x, y, opacity: easeInOutCubic };
-      },
-      
-      scale: () => {
-        const scaleValue = 0.3 + progress * 0.7;
-        this.ctx.save();
-        this.ctx.translate(x, y);
-        this.ctx.scale(scaleValue, scaleValue);
-        this.ctx.translate(-x, -y);
-        return { x, y, opacity: 0.3 + progress * 0.7 };
+        const offset = (1 - transitionProgress) * -distance;
+        return { x, y: y + offset, opacity: 0.3 + transitionProgress * 0.7 };
       },
     };
 
-    const effect = effects[this.counterSettings.transition as keyof typeof effects] || effects.none;
+    const effect = effects[transitionType as keyof typeof effects] || effects.none;
     return effect();
+  }
+
+  private updateDigitTransitions(currentValue: number, frameProgress: number): void {
+    const currentText = this.formatNumber(currentValue);
+    const previousText = this.formatNumber(this.previousValue);
+    
+    // Clear old transitions
+    this.digitTransitions.clear();
+    
+    // Find digit changes
+    const maxLength = Math.max(currentText.length, previousText.length);
+    for (let i = 0; i < maxLength; i++) {
+      const currentDigit = currentText[i] || '';
+      const previousDigit = previousText[i] || '';
+      
+      if (currentDigit !== previousDigit) {
+        this.digitTransitions.set(i, {
+          oldDigit: previousDigit,
+          newDigit: currentDigit,
+          progress: frameProgress
+        });
+      }
+    }
+    
+    this.previousValue = currentValue;
+  }
+
+  private drawMultiDigitCounter(value: number, centerX: number, centerY: number, frameProgress: number): void {
+    const counterText = this.formatNumber(value);
+    const fontSize = this.counterSettings.fontSize;
+    const fontFamily = this.getFontFamily(this.counterSettings.fontFamily);
+    const letterSpacing = this.counterSettings.letterSpacing || 0;
+
+    this.ctx.font = `${this.counterSettings.fontWeight || 400} ${fontSize}px ${fontFamily}`;
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+
+    // Calculate total width for centering
+    let totalWidth = 0;
+    for (let i = 0; i < counterText.length; i++) {
+      const char = counterText[i];
+      const charWidth = this.ctx.measureText(char).width;
+      totalWidth += charWidth + (i < counterText.length - 1 ? letterSpacing : 0);
+    }
+
+    // Apply easing to frame progress
+    const easedProgress = this.counterSettings.easing && this.counterSettings.easing in easingFunctions
+      ? easingFunctions[this.counterSettings.easing as keyof typeof easingFunctions](frameProgress)
+      : frameProgress;
+
+    // Draw each digit with individual transitions
+    let currentX = centerX - totalWidth / 2;
+    
+    for (let i = 0; i < counterText.length; i++) {
+      const char = counterText[i];
+      const charWidth = this.ctx.measureText(char).width;
+      const digitX = currentX + charWidth / 2;
+      
+      // Check if this digit has a transition
+      const transition = this.digitTransitions.get(i);
+      let digitProgress = easedProgress;
+      
+      if (transition && this.exportOptions.preserveAnimations) {
+        // Use transition-specific progress
+        digitProgress = transition.progress;
+      }
+
+      // Apply digit-specific transition
+      const { x: tX, y: tY, opacity: tOpacity, transform } = this.applyDigitTransition(
+        char, digitX, centerY, fontSize, digitProgress, this.counterSettings.transition
+      );
+
+      // Save context for this digit
+      this.ctx.save();
+      
+      // Apply transform if provided
+      if (transform) {
+        transform();
+      }
+      
+      // Apply opacity
+      this.ctx.globalAlpha = tOpacity;
+
+      // Draw the digit with design effects
+      this.applyDesignEffects(char, tX, tY, fontSize);
+
+      // Restore context
+      this.ctx.restore();
+
+      currentX += charWidth + letterSpacing;
+    }
   }
 
   private drawFrame(value: number, progress: number): void {
@@ -369,29 +547,12 @@ export class TransparentCounterExporter {
     const centerX = this.exportOptions.width / 2;
     const centerY = this.exportOptions.height / 2;
 
+    // Update digit transitions
+    this.updateDigitTransitions(value, progress);
+
     // Draw counter if enabled
     if (this.exportOptions.includeCounter) {
-      const counterText = this.formatNumber(value);
-      const fontSize = this.counterSettings.fontSize;
-      const fontFamily = this.getFontFamily(this.counterSettings.fontFamily);
-
-      this.ctx.font = `${this.counterSettings.fontWeight || 400} ${fontSize}px ${fontFamily}`;
-      this.ctx.textAlign = "center";
-      this.ctx.textBaseline = "middle";
-
-      // Apply transition effects
-      const { x: tX, y: tY, opacity: tOpacity } = this.applyTransitionEffect(
-        progress, centerX, centerY, fontSize
-      );
-
-      const previousAlpha = this.ctx.globalAlpha;
-      this.ctx.globalAlpha = (previousAlpha ?? 1) * (tOpacity ?? 1);
-
-      // Apply design effects
-      this.applyDesignEffects(counterText, tX, tY, fontSize);
-
-      this.ctx.globalAlpha = previousAlpha;
-      this.ctx.restore();
+      this.drawMultiDigitCounter(value, centerX, centerY, progress);
     }
 
     // Draw text if enabled
@@ -469,14 +630,14 @@ export class TransparentCounterExporter {
   private async generateWebMWithAlpha(): Promise<Blob> {
     const stream = this.canvas.captureStream(this.exportOptions.frameRate);
     
-    // Use VP9 codec for best alpha channel support
+    // Use VP9 codec for best alpha channel support with controlled quality
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
       ? 'video/webm;codecs=vp9'
       : 'video/webm';
 
     const recorder = new MediaRecorder(stream, {
       mimeType,
-      videoBitsPerSecond: 10000000, // High bitrate for quality
+      videoBitsPerSecond: 8000000, // Reduced bitrate to prevent artifacts
     });
 
     const chunks: Blob[] = [];
@@ -497,7 +658,7 @@ export class TransparentCounterExporter {
         reject(new Error('Recording failed'));
       };
 
-      recorder.start();
+      recorder.start(100); // Collect data every 100ms
 
       // Animate the counter
       const frameCount = Math.ceil(this.exportOptions.frameRate * this.exportOptions.duration);

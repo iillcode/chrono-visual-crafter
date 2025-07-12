@@ -34,6 +34,7 @@ import {
   Monitor,
   Smartphone,
   Tv,
+  CheckCircle,
 } from "lucide-react";
 import {
   TransparentCounterExporter,
@@ -162,6 +163,11 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
 
   const { pngSize, webmSize, frameCount } = estimatedFileSize();
 
+  // Check if multi-digit transition is selected
+  const isMultiDigitTransition = [
+    'fade-roll', 'flip-down', 'slide-vertical', 'bounce', 'scale'
+  ].includes(counterSettings.transition);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm max-h-[90vh] overflow-y-auto">
@@ -172,7 +178,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
           </DialogTitle>
           <DialogDescription className="text-white/60">
             Generate professional overlay elements for video editing workflows
-            with full transparency support.
+            with full transparency support and advanced multi-digit animations.
           </DialogDescription>
         </DialogHeader>
 
@@ -261,6 +267,23 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                     }
                   />
                 </div>
+
+                {/* Multi-digit animation info */}
+                {isMultiDigitTransition && (
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <p className="text-green-400 font-medium mb-1">
+                          Multi-Digit Animation Detected
+                        </p>
+                        <p className="text-green-400/80">
+                          Your current transition "{counterSettings.transition}" will animate each digit individually for enhanced visual appeal.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -307,6 +330,9 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-white/40">
+                    PNG sequences preserve all effects perfectly. WebM files are optimized to prevent color bleeding.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -434,6 +460,9 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                       </button>
                     ))}
                   </div>
+                  <p className="text-xs text-white/40">
+                    Higher frame rates create smoother multi-digit animations
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -514,8 +543,8 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs text-white/60">Content</p>
-                  <div className="flex gap-2">
+                  <p className="text-xs text-white/60">Content & Features</p>
+                  <div className="flex gap-2 flex-wrap">
                     {exportOptions.includeCounter && (
                       <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">
                         Counter
@@ -529,6 +558,11 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                     {exportOptions.preserveAnimations && (
                       <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
                         Animations
+                      </Badge>
+                    )}
+                    {isMultiDigitTransition && (
+                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                        Multi-Digit
                       </Badge>
                     )}
                   </div>
@@ -549,8 +583,10 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                       alpha channel support
                     </li>
                     <li>
-                      • WebM files are smaller but may have slight compression
-                      artifacts
+                      • WebM files are optimized to prevent color bleeding and artifacts
+                    </li>
+                    <li>
+                      • Multi-digit animations create individual digit transitions for enhanced visual appeal
                     </li>
                     <li>
                       • Both formats are compatible with major video editing
