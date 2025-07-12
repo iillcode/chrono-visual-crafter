@@ -44,6 +44,9 @@ import {
   DesignSettings,
 } from "@/utils/transparentExport";
 
+// Custom scrollbar styles
+import "./scrollbar-styles.css";
+
 interface TransparentExportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -72,7 +75,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
   const [exportOptions, setExportOptions] = useState<TransparentExportOptions>({
     includeCounter: true,
     includeText: textSettings.enabled,
-    format: 'both',
+    format: "both",
     width: 1920,
     height: 1080,
     frameRate: 60,
@@ -91,15 +94,15 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
   const handlePresetChange = (presetIndex: number) => {
     setSelectedPreset(presetIndex);
     const preset = PRESET_SIZES[presetIndex];
-    
+
     if (preset.name === "Custom") {
-      setExportOptions(prev => ({
+      setExportOptions((prev) => ({
         ...prev,
         width: customSize.width,
         height: customSize.height,
       }));
     } else {
-      setExportOptions(prev => ({
+      setExportOptions((prev) => ({
         ...prev,
         width: preset.width,
         height: preset.height,
@@ -107,16 +110,20 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
     }
   };
 
-  const handleCustomSizeChange = (dimension: 'width' | 'height', value: number) => {
-    setCustomSize(prev => ({ ...prev, [dimension]: value }));
-    if (selectedPreset === PRESET_SIZES.length - 1) { // Custom preset
-      setExportOptions(prev => ({ ...prev, [dimension]: value }));
+  const handleCustomSizeChange = (
+    dimension: "width" | "height",
+    value: number
+  ) => {
+    setCustomSize((prev) => ({ ...prev, [dimension]: value }));
+    if (selectedPreset === PRESET_SIZES.length - 1) {
+      // Custom preset
+      setExportOptions((prev) => ({ ...prev, [dimension]: value }));
     }
   };
 
   const handleExport = async () => {
     setIsExporting(true);
-    
+
     try {
       const exporter = new TransparentCounterExporter(
         exportOptions,
@@ -126,23 +133,25 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
       );
 
       const exports = await exporter.export();
-      
+
       await TransparentCounterExporter.downloadExports(
         exports,
-        'transparent-counter-overlay'
+        "transparent-counter-overlay"
       );
 
       toast({
         title: "Export Complete",
-        description: "Your transparent counter overlay has been exported successfully!",
+        description:
+          "Your transparent counter overlay has been exported successfully!",
       });
 
       onOpenChange(false);
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error("Export failed:", error);
       toast({
         title: "Export Failed",
-        description: "There was an error exporting your transparent counter. Please try again.",
+        description:
+          "There was an error exporting your transparent counter. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -151,13 +160,19 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
   };
 
   const estimatedFileSize = () => {
-    const frameCount = Math.ceil(exportOptions.frameRate * exportOptions.duration);
-    const pixelCount = exportOptions.width * exportOptions.height * exportOptions.scale * exportOptions.scale;
-    
+    const frameCount = Math.ceil(
+      exportOptions.frameRate * exportOptions.duration
+    );
+    const pixelCount =
+      exportOptions.width *
+      exportOptions.height *
+      exportOptions.scale *
+      exportOptions.scale;
+
     // Rough estimates
-    const pngSize = frameCount * (pixelCount * 4) / 1024 / 1024; // 4 bytes per pixel (RGBA)
+    const pngSize = (frameCount * (pixelCount * 4)) / 1024 / 1024; // 4 bytes per pixel (RGBA)
     const webmSize = (pixelCount * exportOptions.duration * 8) / 1024 / 1024; // Compressed estimate
-    
+
     return { pngSize, webmSize, frameCount };
   };
 
@@ -165,12 +180,16 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
 
   // Check if multi-digit transition is selected
   const isMultiDigitTransition = [
-    'fade-roll', 'flip-down', 'slide-vertical', 'bounce', 'scale'
+    "fade-roll",
+    "flip-down",
+    "slide-vertical",
+    "bounce",
+    "scale",
   ].includes(counterSettings.transition);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[800px] bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm max-h-[90vh] overflow-y-auto custom-scrollbar">
         <DialogHeader>
           <DialogTitle className="text-white flex items-center gap-2">
             <Zap className="w-5 h-5 text-cyan-400" />
@@ -204,7 +223,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="content" className="space-y-6">
+          <TabsContent value="content" className="space-y-6 custom-scrollbar">
             <Card className="bg-white/[0.03] border border-white/[0.08]">
               <CardHeader>
                 <CardTitle className="text-white text-sm">
@@ -278,7 +297,9 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                           Multi-Digit Animation Detected
                         </p>
                         <p className="text-green-400/80">
-                          Your current transition "{counterSettings.transition}" will animate each digit individually for enhanced visual appeal.
+                          Your current transition "{counterSettings.transition}"
+                          will animate each digit individually for enhanced
+                          visual appeal.
                         </p>
                       </div>
                     </div>
@@ -288,7 +309,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
             </Card>
           </TabsContent>
 
-          <TabsContent value="format" className="space-y-6">
+          <TabsContent value="format" className="space-y-6 custom-scrollbar">
             <Card className="bg-white/[0.03] border border-white/[0.08]">
               <CardHeader>
                 <CardTitle className="text-white text-sm">
@@ -331,7 +352,8 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-white/40">
-                    PNG sequences preserve all effects perfectly. WebM files are optimized to prevent color bleeding.
+                    PNG sequences preserve all effects perfectly. WebM files are
+                    optimized to prevent color bleeding.
                   </p>
                 </div>
               </CardContent>
@@ -487,7 +509,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
             </Card>
           </TabsContent>
 
-          <TabsContent value="preview" className="space-y-6">
+          <TabsContent value="preview" className="space-y-6 custom-scrollbar">
             <Card className="bg-white/[0.03] border border-white/[0.08]">
               <CardHeader>
                 <CardTitle className="text-white text-sm flex items-center gap-2">
@@ -583,10 +605,12 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                       alpha channel support
                     </li>
                     <li>
-                      • WebM files are optimized to prevent color bleeding and artifacts
+                      • WebM files are optimized to prevent color bleeding and
+                      artifacts
                     </li>
                     <li>
-                      • Multi-digit animations create individual digit transitions for enhanced visual appeal
+                      • Multi-digit animations create individual digit
+                      transitions for enhanced visual appeal
                     </li>
                     <li>
                       • Both formats are compatible with major video editing

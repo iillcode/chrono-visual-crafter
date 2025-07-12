@@ -39,48 +39,48 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
       category: "basic",
       description: "Simple fade in transition",
     },
-    {
-      id: "fade-roll",
-      name: "Fade Roll",
-      category: "multi-digit",
-      description: "Each digit fades in with a rolling motion",
-    },
-    {
-      id: "flip-down",
-      name: "Flip Down",
-      category: "multi-digit",
-      description: "Each digit flips down like a mechanical counter",
-    },
-    {
-      id: "slide-vertical",
-      name: "Slide Vertical",
-      category: "multi-digit",
-      description: "Each digit slides in vertically",
-    },
-    {
-      id: "bounce",
-      name: "Bounce",
-      category: "multi-digit",
-      description: "Each digit bounces into place",
-    },
-    {
-      id: "scale",
-      name: "Scale",
-      category: "multi-digit",
-      description: "Each digit scales up from small to full size",
-    },
-    {
-      id: "slideUp",
-      name: "Slide Up",
-      category: "basic",
-      description: "Counter slides up into view",
-    },
-    {
-      id: "slideDown",
-      name: "Slide Down",
-      category: "basic",
-      description: "Counter slides down into view",
-    },
+    // {
+    //   id: "fade-roll",
+    //   name: "Fade Roll",
+    //   category: "multi-digit",
+    //   description: "Each digit fades in with a rolling motion",
+    // },
+    // {
+    //   id: "flip-down",
+    //   name: "Flip Down",
+    //   category: "multi-digit",
+    //   description: "Each digit flips down like a mechanical counter",
+    // },
+    // {
+    //   id: "slide-vertical",
+    //   name: "Slide Vertical",
+    //   category: "multi-digit",
+    //   description: "Each digit slides in vertically",
+    // },
+    // {
+    //   id: "bounce",
+    //   name: "Bounce",
+    //   category: "multi-digit",
+    //   description: "Each digit bounces into place",
+    // },
+    // {
+    //   id: "scale",
+    //   name: "Scale",
+    //   category: "multi-digit",
+    //   description: "Each digit scales up from small to full size",
+    // },
+    // {
+    //   id: "slideUp",
+    //   name: "Slide Up",
+    //   category: "basic",
+    //   description: "Counter slides up into view",
+    // },
+    // {
+    //   id: "slideDown",
+    //   name: "Slide Down",
+    //   category: "basic",
+    //   description: "Counter slides down into view",
+    // },
     {
       id: "glitch",
       name: "Glitch",
@@ -130,7 +130,7 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
   const categories = [
     { id: "all", name: "All Effects" },
     { id: "basic", name: "Basic" },
-    { id: "multi-digit", name: "Multi-Digit" },
+    // { id: "multi-digit", name: "Multi-Digit" },
     { id: "special", name: "Special" },
   ];
 
