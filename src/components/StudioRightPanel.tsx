@@ -103,7 +103,7 @@ const StudioRightPanel: React.FC<StudioRightPanelProps> = ({
                       }
                       className={`p-2 rounded border text-sm h-10 flex items-center justify-center transition-all ${
                         counterSettings.fontFamily === font.id
-                          ? "bg-[#2BA6FF]/20 border-[#2BA6FF] text-[#2BA6FF]"
+                          ? "bg-[#2BA6FF]/10 border-[#2BA6FF] text-[#2BA6FF]"
                           : "bg-[#181818] border-gray-600 text-white hover:bg-[#202020]"
                       }`}
                       style={{
@@ -222,7 +222,7 @@ const StudioRightPanel: React.FC<StudioRightPanelProps> = ({
                     }
                     className={`relative p-2 rounded border h-16 flex flex-col items-center justify-center transition-all ${
                       counterSettings.background === bg.id
-                        ? "border-[#2BA6FF]"
+                        ? "border-[#2BA6FF]/50"
                         : "border-gray-600 hover:border-gray-400"
                     }`}
                   >

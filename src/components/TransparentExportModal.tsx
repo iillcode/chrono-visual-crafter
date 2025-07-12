@@ -171,19 +171,29 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
             Export Transparent Counter Overlay
           </DialogTitle>
           <DialogDescription className="text-white/60">
-            Generate professional overlay elements for video editing workflows with full transparency support.
+            Generate professional overlay elements for video editing workflows
+            with full transparency support.
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="content" className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-white/[0.03] border border-white/[0.08]">
-            <TabsTrigger value="content" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
+            <TabsTrigger
+              value="content"
+              className="data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
+            >
               Content
             </TabsTrigger>
-            <TabsTrigger value="format" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
+            <TabsTrigger
+              value="format"
+              className="data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
+            >
               Format & Quality
             </TabsTrigger>
-            <TabsTrigger value="preview" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
+            <TabsTrigger
+              value="preview"
+              className="data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF]"
+            >
               Preview & Export
             </TabsTrigger>
           </TabsList>
@@ -191,18 +201,27 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
           <TabsContent value="content" className="space-y-6">
             <Card className="bg-white/[0.03] border border-white/[0.08]">
               <CardHeader>
-                <CardTitle className="text-white text-sm">Content Selection</CardTitle>
+                <CardTitle className="text-white text-sm">
+                  Content Selection
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-white">Include Counter Numbers</Label>
-                    <p className="text-xs text-white/40">Export the animated counter display</p>
+                    <Label className="text-white">
+                      Include Counter Numbers
+                    </Label>
+                    <p className="text-xs text-white/40">
+                      Export the animated counter display
+                    </p>
                   </div>
                   <Switch
                     checked={exportOptions.includeCounter}
                     onCheckedChange={(checked) =>
-                      setExportOptions(prev => ({ ...prev, includeCounter: checked }))
+                      setExportOptions((prev) => ({
+                        ...prev,
+                        includeCounter: checked,
+                      }))
                     }
                   />
                 </div>
@@ -210,12 +229,17 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-white">Include Text Elements</Label>
-                    <p className="text-xs text-white/40">Export additional text overlays</p>
+                    <p className="text-xs text-white/40">
+                      Export additional text overlays
+                    </p>
                   </div>
                   <Switch
                     checked={exportOptions.includeText}
                     onCheckedChange={(checked) =>
-                      setExportOptions(prev => ({ ...prev, includeText: checked }))
+                      setExportOptions((prev) => ({
+                        ...prev,
+                        includeText: checked,
+                      }))
                     }
                   />
                 </div>
@@ -223,12 +247,17 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-white">Preserve Animations</Label>
-                    <p className="text-xs text-white/40">Include transition effects and animations</p>
+                    <p className="text-xs text-white/40">
+                      Include transition effects and animations
+                    </p>
                   </div>
                   <Switch
                     checked={exportOptions.preserveAnimations}
                     onCheckedChange={(checked) =>
-                      setExportOptions(prev => ({ ...prev, preserveAnimations: checked }))
+                      setExportOptions((prev) => ({
+                        ...prev,
+                        preserveAnimations: checked,
+                      }))
                     }
                   />
                 </div>
@@ -239,15 +268,19 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
           <TabsContent value="format" className="space-y-6">
             <Card className="bg-white/[0.03] border border-white/[0.08]">
               <CardHeader>
-                <CardTitle className="text-white text-sm">Export Format</CardTitle>
+                <CardTitle className="text-white text-sm">
+                  Export Format
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-white">Output Format</Label>
                   <Select
                     value={exportOptions.format}
-                    onValueChange={(value: 'png-sequence' | 'webm-alpha' | 'both') =>
-                      setExportOptions(prev => ({ ...prev, format: value }))
+                    onValueChange={(
+                      value: "png-sequence" | "webm-alpha" | "both"
+                    ) =>
+                      setExportOptions((prev) => ({ ...prev, format: value }))
                     }
                   >
                     <SelectTrigger className="bg-white/[0.03] border-white/[0.08] text-white">
@@ -280,7 +313,9 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
 
             <Card className="bg-white/[0.03] border border-white/[0.08]">
               <CardHeader>
-                <CardTitle className="text-white text-sm">Resolution & Scaling</CardTitle>
+                <CardTitle className="text-white text-sm">
+                  Resolution & Scaling
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
@@ -294,13 +329,15 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                           onClick={() => handlePresetChange(index)}
                           className={`p-3 rounded-lg border text-left transition-all ${
                             selectedPreset === index
-                              ? "border-cyan-400 bg-cyan-500/20"
+                              ? "border-[#2BA6FF] bg-[#2BA6FF]/20"
                               : "border-white/20 bg-white/5 hover:bg-white/10"
                           }`}
                         >
                           <div className="flex items-center gap-2 mb-1">
                             <Icon className="w-4 h-4" />
-                            <span className="text-white text-sm font-medium">{preset.name}</span>
+                            <span className="text-white text-sm font-medium">
+                              {preset.name}
+                            </span>
                           </div>
                           <p className="text-xs text-white/60">
                             {preset.width} × {preset.height}
@@ -318,7 +355,12 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                       <Input
                         type="number"
                         value={customSize.width}
-                        onChange={(e) => handleCustomSizeChange('width', parseInt(e.target.value) || 800)}
+                        onChange={(e) =>
+                          handleCustomSizeChange(
+                            "width",
+                            parseInt(e.target.value) || 800
+                          )
+                        }
                         className="bg-white/[0.03] border-white/[0.08] text-white"
                       />
                     </div>
@@ -327,7 +369,12 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                       <Input
                         type="number"
                         value={customSize.height}
-                        onChange={(e) => handleCustomSizeChange('height', parseInt(e.target.value) || 600)}
+                        onChange={(e) =>
+                          handleCustomSizeChange(
+                            "height",
+                            parseInt(e.target.value) || 600
+                          )
+                        }
                         className="bg-white/[0.03] border-white/[0.08] text-white"
                       />
                     </div>
@@ -337,12 +384,14 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <Label className="text-white">Scale Factor</Label>
-                    <span className="text-sm text-white">{exportOptions.scale}x</span>
+                    <span className="text-sm text-white">
+                      {exportOptions.scale}x
+                    </span>
                   </div>
                   <Slider
                     value={[exportOptions.scale]}
                     onValueChange={([scale]) =>
-                      setExportOptions(prev => ({ ...prev, scale }))
+                      setExportOptions((prev) => ({ ...prev, scale }))
                     }
                     min={0.5}
                     max={4.0}
@@ -358,7 +407,9 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
 
             <Card className="bg-white/[0.03] border border-white/[0.08]">
               <CardHeader>
-                <CardTitle className="text-white text-sm">Timing & Frame Rate</CardTitle>
+                <CardTitle className="text-white text-sm">
+                  Timing & Frame Rate
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -367,10 +418,15 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                     {PRESET_FRAME_RATES.map((fps) => (
                       <button
                         key={fps}
-                        onClick={() => setExportOptions(prev => ({ ...prev, frameRate: fps }))}
+                        onClick={() =>
+                          setExportOptions((prev) => ({
+                            ...prev,
+                            frameRate: fps,
+                          }))
+                        }
                         className={`p-2 rounded border text-center transition-all ${
                           exportOptions.frameRate === fps
-                            ? "border-cyan-400 bg-cyan-500/20 text-cyan-400"
+                            ? "border-[#2BA6FF] bg-[#2BA6FF]/20 text-[#2BA6FF]"
                             : "border-white/20 bg-white/5 hover:bg-white/10 text-white"
                         }`}
                       >
@@ -383,12 +439,14 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <Label className="text-white">Duration</Label>
-                    <span className="text-sm text-white">{exportOptions.duration}s</span>
+                    <span className="text-sm text-white">
+                      {exportOptions.duration}s
+                    </span>
                   </div>
                   <Slider
                     value={[exportOptions.duration]}
                     onValueChange={([duration]) =>
-                      setExportOptions(prev => ({ ...prev, duration }))
+                      setExportOptions((prev) => ({ ...prev, duration }))
                     }
                     min={1}
                     max={30}
@@ -413,32 +471,41 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
                   <div className="space-y-2">
                     <p className="text-xs text-white/60">Resolution</p>
                     <p className="text-white font-medium">
-                      {Math.round(exportOptions.width * exportOptions.scale)} × {Math.round(exportOptions.height * exportOptions.scale)}
+                      {Math.round(exportOptions.width * exportOptions.scale)} ×{" "}
+                      {Math.round(exportOptions.height * exportOptions.scale)}
                     </p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs text-white/60">Frame Count</p>
-                    <p className="text-white font-medium">{frameCount} frames</p>
+                    <p className="text-white font-medium">
+                      {frameCount} frames
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs text-white/60">Frame Rate</p>
-                    <p className="text-white font-medium">{exportOptions.frameRate} FPS</p>
+                    <p className="text-white font-medium">
+                      {exportOptions.frameRate} FPS
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs text-white/60">Duration</p>
-                    <p className="text-white font-medium">{exportOptions.duration}s</p>
+                    <p className="text-white font-medium">
+                      {exportOptions.duration}s
+                    </p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <p className="text-xs text-white/60">Estimated File Sizes</p>
                   <div className="flex gap-2">
-                    {(exportOptions.format === 'png-sequence' || exportOptions.format === 'both') && (
+                    {(exportOptions.format === "png-sequence" ||
+                      exportOptions.format === "both") && (
                       <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
                         PNG: ~{pngSize.toFixed(1)}MB
                       </Badge>
                     )}
-                    {(exportOptions.format === 'webm-alpha' || exportOptions.format === 'both') && (
+                    {(exportOptions.format === "webm-alpha" ||
+                      exportOptions.format === "both") && (
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
                         WebM: ~{webmSize.toFixed(1)}MB
                       </Badge>
@@ -469,16 +536,30 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
               </CardContent>
             </Card>
 
-            <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
+            <div className="bg-[#2BA6FF]/10 border border-[#2BA6FF]/30 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+                <Info className="w-5 h-5 text-[#2BA6FF] flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <p className="text-cyan-200 font-medium mb-2">Export Information</p>
-                  <ul className="text-cyan-200/80 space-y-1 text-xs">
-                    <li>• PNG sequences provide the highest quality with perfect alpha channel support</li>
-                    <li>• WebM files are smaller but may have slight compression artifacts</li>
-                    <li>• Both formats are compatible with major video editing software</li>
-                    <li>• Transparent backgrounds allow seamless overlay on any content</li>
+                  <p className="text-[#2BA6FF] font-medium mb-2">
+                    Export Information
+                  </p>
+                  <ul className="text-[#2BA6FF] space-y-1 text-xs">
+                    <li>
+                      • PNG sequences provide the highest quality with perfect
+                      alpha channel support
+                    </li>
+                    <li>
+                      • WebM files are smaller but may have slight compression
+                      artifacts
+                    </li>
+                    <li>
+                      • Both formats are compatible with major video editing
+                      software
+                    </li>
+                    <li>
+                      • Transparent backgrounds allow seamless overlay on any
+                      content
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -496,8 +577,11 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
           </Button>
           <Button
             onClick={handleExport}
-            disabled={isExporting || (!exportOptions.includeCounter && !exportOptions.includeText)}
-            className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white"
+            disabled={
+              isExporting ||
+              (!exportOptions.includeCounter && !exportOptions.includeText)
+            }
+            className="flex-1 bg-[#2BA6FF]/60 hover:bg-[#2BA6FF]/80 text-white"
           >
             {isExporting ? (
               <>
@@ -506,7 +590,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
               </>
             ) : (
               <>
-                <Download className="w-4 h-4 mr-2" />
+                <Download className=" w-4 h-4 mr-2" />
                 Export Overlay
               </>
             )}

@@ -438,7 +438,7 @@ export class TransparentCounterExporter {
       // Add to zip with zero-padded frame number
       const frameNumber = frame.toString().padStart(6, '0');
       const arrayBuffer = await blob.arrayBuffer();
-      zip.file(`frame_${frameNumber}.png`, arrayBuffer);
+      zip.file(`frame${frameNumber}.png`, arrayBuffer);
 
       // Update progress
       if (frame % 10 === 0) {

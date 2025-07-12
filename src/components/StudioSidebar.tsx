@@ -104,7 +104,7 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
                   >
                     <TabsTrigger
                       value="counter"
-                      className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF] focus:ring-2 focus:ring-[#2BA6FF]/50"
+                      className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/10 data-[state=active]:text-[#2BA6FF] "
                       aria-label="Counter settings tab"
                     >
                       <Hash className="w-3 h-3" aria-hidden="true" />
@@ -112,7 +112,7 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
                     </TabsTrigger>
                     <TabsTrigger
                       value="text"
-                      className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF] focus:ring-2 focus:ring-[#2BA6FF]/50"
+                      className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/10 data-[state=active]:text-[#2BA6FF] "
                       aria-label="Text settings tab"
                     >
                       <Type className="w-3 h-3" aria-hidden="true" />
@@ -120,7 +120,7 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
                     </TabsTrigger>
                     <TabsTrigger
                       value="design"
-                      className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/20 data-[state=active]:text-[#2BA6FF] focus:ring-2 focus:ring-[#2BA6FF]/50"
+                      className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/10 data-[state=active]:text-[#2BA6FF] "
                       aria-label="Design settings tab"
                     >
                       <Palette className="w-3 h-3" aria-hidden="true" />

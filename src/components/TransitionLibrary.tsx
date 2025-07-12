@@ -109,7 +109,7 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
             onClick={() => setActiveCategory(category.id)}
             className={`px-3 py-1 text-xs rounded-full transition-colors ${
               activeCategory === category.id
-                ? "bg-[#2BA6FF] text-white"
+                ? "bg-[#2BA6FF]/50 text-white"
                 : "bg-[#202020] text-gray-300 hover:bg-[#2BA6FF]/20"
             }`}
           >
@@ -126,8 +126,8 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
             onClick={() => onSelectTransition(transition.id)}
             className={`p-3 rounded-lg border transition-colors relative ${
               selectedTransition === transition.id
-                ? "border-[#2BA6FF] bg-[#2BA6FF]/20"
-                : "border-gray-700 bg-[#181818] hover:border-gray-500"
+                ? "border-[#2BA6FF] bg-[#2BA6FF]/10"
+                : "border-gray-700 bg-[#171717] hover:border-gray-500"
             }`}
           >
             <div className="flex flex-col items-center">
