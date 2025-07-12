@@ -383,7 +383,7 @@ const StudioContent = () => {
               settings: counterSettings,
               duration: counterSettings.duration,
               fps: 60,
-              quality: 'high'
+              quality: "high",
             }
           );
         }
@@ -415,12 +415,12 @@ const StudioContent = () => {
           refreshProfile();
         }
       } catch (error) {
-        console.error('Video export failed:', error);
+        console.error("Video export failed:", error);
         ErrorHandler.logError(error as Error, {
           userId: user?.id,
-          action: 'video_export',
+          action: "video_export",
         });
-        
+
         toast({
           title: "Export Failed",
           description: ErrorHandler.getUserFriendlyMessage(error as Error),
@@ -637,7 +637,7 @@ const StudioContent = () => {
   return (
     <div className="h-screen bg-[#101010] text-white flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-b border-white/10 bg-[#171717] px-4 sm:px-6 py-3 sticky top-0 z-30 flex-shrink-0">
+      <header className="border-b border-gray-100/10 bg-[#171717] px-4 sm:px-6 py-3 sticky top-0 z-30 flex-shrink-0">
         <div className="flex flex-row flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <img src="/favicon.ico" alt="Logo" className="w-8 h-8 rounded" />
@@ -648,7 +648,7 @@ const StudioContent = () => {
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 text-sm text-gray-400 px-3 py-1 rounded border border-[#2BA6FF]/30">
-              <span className="hidden sm:inline">Recording Time:</span>
+              <span className="hidden sm:inline">Recording : </span>
               <span className="font-mono text-[#2BA6FF]">
                 {(recordingTime / 1000).toFixed(1)}s
               </span>
@@ -657,7 +657,7 @@ const StudioContent = () => {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ">
               {user && <AuthButton mode="user" />}
             </div>
           </div>
@@ -680,9 +680,9 @@ const StudioContent = () => {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col transition-all duration-300 overflow-hidden h-full">
           {/* Preview Area - Centered */}
-          <div className="flex-1 flex justify-center items-center bg-[#0c0c0c] p-6">
-            <div className="max-w-[800px] w-full flex flex-col items-center justify-center">
-              <div className="w-full aspect-video flex items-center justify-center rounded-lg overflow-hidden bg-[#080808] shadow-2xl border border-white/5">
+          <div className="flex-1 flex justify-center items-start bg-[#0c0c0c] pt-3">
+            <div className="max-w-[800px] w-full flex flex-col items-center justify-start">
+              <div className="w-full aspect-video flex items-start justify-center rounded-lg overflow-hidden bg-[#080808] shadow-2xl border border-white/5">
                 {isPreviewingVideo && videoPreviewUrl ? (
                   <div className="relative w-full h-full">
                     <video
@@ -713,30 +713,27 @@ const StudioContent = () => {
               </div>
 
               {/* Recording Controls - Moved below the preview */}
-              <div className="py-4 px-4 flex justify-center w-full mt-4">
-                <RecordingControls
-                  isPaused={isPaused}
-                  onStart={handleStartRecording}
-                  onStop={handleStopRecording}
-                  onPause={handlePauseRecording}
-                  onRestart={handleRestartRecording}
-                  onDownloadVideo={handleDownloadVideo}
-                  onDownloadGif={handleDownloadGif}
-                  onPreviewVideo={handlePreviewVideo}
-                  onTransparentExport={() => setShowTransparentExport(true)}
-                  recordedChunksLength={recordedChunks.current.length}
-                  isGeneratingGif={isGeneratingGif}
-                  onCancelGif={handleCancelGif}
-                  isProcessingVideo={isProcessingVideo}
-                  hasCredits={
-                    profile?.subscription_plan === "pro" ||
-                    profile?.credits === null ||
-                    (typeof profile?.credits === "number" &&
-                      profile.credits > 0)
-                  }
-                  hasRecordedVideo={!!videoPreviewUrl}
-                />
-              </div>
+              <RecordingControls
+                isPaused={isPaused}
+                onStart={handleStartRecording}
+                onStop={handleStopRecording}
+                onPause={handlePauseRecording}
+                onRestart={handleRestartRecording}
+                onDownloadVideo={handleDownloadVideo}
+                onDownloadGif={handleDownloadGif}
+                onPreviewVideo={handlePreviewVideo}
+                onTransparentExport={() => setShowTransparentExport(true)}
+                recordedChunksLength={recordedChunks.current.length}
+                isGeneratingGif={isGeneratingGif}
+                onCancelGif={handleCancelGif}
+                isProcessingVideo={isProcessingVideo}
+                hasCredits={
+                  profile?.subscription_plan === "pro" ||
+                  profile?.credits === null ||
+                  (typeof profile?.credits === "number" && profile.credits > 0)
+                }
+                hasRecordedVideo={!!videoPreviewUrl}
+              />
             </div>
           </div>
         </div>
@@ -750,7 +747,7 @@ const StudioContent = () => {
         />
       </div>
 
-            {/* Transparent Export Modal */}
+      {/* Transparent Export Modal */}
       <TransparentExportModal
         open={showTransparentExport}
         onOpenChange={setShowTransparentExport}

@@ -88,7 +88,9 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
     const animationRef = useRef<number>();
     const lastValueRef = useRef<number>(settings.startValue);
     const transitionStartTimeRef = useRef<number>(0);
-    const digitTransitionsRef = useRef<Map<number, { oldDigit: string; newDigit: string; startTime: number }>>(new Map());
+    const digitTransitionsRef = useRef<
+      Map<number, { oldDigit: string; newDigit: string; startTime: number }>
+    >(new Map());
 
     useImperativeHandle(ref, () => canvasRef.current!);
 
@@ -136,27 +138,33 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       const currentText = formatNumber(newValue);
       const previousText = formatNumber(lastValueRef.current);
       const currentTime = Date.now();
-      
+
       // Clear old transitions that are complete
       const transitionsToRemove: number[] = [];
       digitTransitionsRef.current.forEach((transition, index) => {
-        if (currentTime - transition.startTime > 500) { // 500ms transition duration
+        if (currentTime - transition.startTime > 500) {
+          // 500ms transition duration
           transitionsToRemove.push(index);
         }
       });
-      transitionsToRemove.forEach(index => digitTransitionsRef.current.delete(index));
-      
+      transitionsToRemove.forEach((index) =>
+        digitTransitionsRef.current.delete(index)
+      );
+
       // Add new transitions for changed digits
       const maxLength = Math.max(currentText.length, previousText.length);
       for (let i = 0; i < maxLength; i++) {
-        const currentDigit = currentText[i] || '';
-        const previousDigit = previousText[i] || '';
-        
-        if (currentDigit !== previousDigit && !digitTransitionsRef.current.has(i)) {
+        const currentDigit = currentText[i] || "";
+        const previousDigit = previousText[i] || "";
+
+        if (
+          currentDigit !== previousDigit &&
+          !digitTransitionsRef.current.has(i)
+        ) {
           digitTransitionsRef.current.set(i, {
             oldDigit: previousDigit,
             newDigit: currentDigit,
-            startTime: currentTime
+            startTime: currentTime,
           });
         }
       }
@@ -171,54 +179,55 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       transitionProgress: number,
       transitionType: string
     ): { x: number; y: number; opacity: number } => {
-      
       const effects = {
         none: () => ({ x, y, opacity: 1 }),
-        
+
         fadeIn: () => {
-          const easeInOutCubic = transitionProgress < 0.5
-            ? 4 * transitionProgress * transitionProgress * transitionProgress
-            : 1 - Math.pow(-2 * transitionProgress + 2, 3) / 2;
+          const easeInOutCubic =
+            transitionProgress < 0.5
+              ? 4 * transitionProgress * transitionProgress * transitionProgress
+              : 1 - Math.pow(-2 * transitionProgress + 2, 3) / 2;
           return { x, y, opacity: easeInOutCubic };
         },
-        
-        'fade-roll': () => {
+
+        "fade-roll": () => {
           const rollDistance = fontSize * 0.3;
           const rollY = y - (1 - transitionProgress) * rollDistance;
           const opacity = transitionProgress;
-          
+
           ctx.save();
           ctx.translate(x, rollY);
           ctx.rotate((1 - transitionProgress) * Math.PI * 0.1);
           ctx.translate(-x, -rollY);
-          
+
           return { x, y: rollY, opacity };
         },
-        
-        'flip-down': () => {
+
+        "flip-down": () => {
           const scaleY = Math.abs(Math.cos(transitionProgress * Math.PI));
           const opacity = scaleY > 0.1 ? 1 : 0;
-          
+
           ctx.save();
           ctx.translate(x, y);
           ctx.scale(1, Math.max(0.1, scaleY));
           ctx.translate(-x, -y);
-          
+
           return { x, y, opacity };
         },
-        
-        'slide-vertical': () => {
+
+        "slide-vertical": () => {
           const slideDistance = fontSize * 1.2;
           const slideY = y + (1 - transitionProgress) * slideDistance;
           return { x, y: slideY, opacity: transitionProgress };
         },
-        
+
         bounce: () => {
-          const bounceHeight = Math.sin(transitionProgress * Math.PI) * (fontSize * 0.3);
+          const bounceHeight =
+            Math.sin(transitionProgress * Math.PI) * (fontSize * 0.3);
           const bounceY = y - bounceHeight;
           return { x, y: bounceY, opacity: 1 };
         },
-        
+
         scale: () => {
           const scaleValue = 0.3 + transitionProgress * 0.7;
           ctx.save();
@@ -227,38 +236,43 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           ctx.translate(-x, -y);
           return { x, y, opacity: transitionProgress };
         },
-        
+
         slideUp: () => {
           const distance = fontSize * 1.5;
           const offset = (1 - transitionProgress) * distance;
           return { x, y: y + offset, opacity: 0.3 + transitionProgress * 0.7 };
         },
-        
+
         slideDown: () => {
           const distance = fontSize * 1.5;
           const offset = (1 - transitionProgress) * -distance;
           return { x, y: y + offset, opacity: 0.3 + transitionProgress * 0.7 };
         },
-        
+
         glitch: () => {
           if (transitionProgress < 0.8 && Math.random() > 0.7) {
             const glitchX = (Math.random() - 0.5) * 10;
             const glitchY = (Math.random() - 0.5) * 10;
-            return { x: x + glitchX, y: y + glitchY, opacity: 0.7 + Math.random() * 0.3 };
+            return {
+              x: x + glitchX,
+              y: y + glitchY,
+              opacity: 0.7 + Math.random() * 0.3,
+            };
           }
           return { x, y, opacity: 0.7 + transitionProgress * 0.3 };
         },
-        
+
         blur: () => {
           return { x, y, opacity: transitionProgress };
         },
-        
+
         typewriter: () => {
           return { x, y, opacity: 1 };
         },
       };
 
-      const effect = effects[transitionType as keyof typeof effects] || effects.none;
+      const effect =
+        effects[transitionType as keyof typeof effects] || effects.none;
       return effect();
     };
 
@@ -605,7 +619,10 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
     ) => {
       const counterText = formatNumber(value);
       const fontSize = settings.fontSize;
-      const fontFamily = getFontFamily(settings.fontFamily, settings.customFont);
+      const fontFamily = getFontFamily(
+        settings.fontFamily,
+        settings.customFont
+      );
       const letterSpacing = settings.letterSpacing || 0;
       const fontWeight = settings.fontWeight || 400;
 
@@ -618,7 +635,8 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       for (let i = 0; i < counterText.length; i++) {
         const char = counterText[i];
         const charWidth = ctx.measureText(char).width;
-        totalWidth += charWidth + (i < counterText.length - 1 ? letterSpacing : 0);
+        totalWidth +=
+          charWidth + (i < counterText.length - 1 ? letterSpacing : 0);
       }
 
       const centerX = canvas.width / 2;
@@ -627,7 +645,11 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
 
       // Check if we should use multi-digit transitions
       const isMultiDigitTransition = [
-        'fade-roll', 'flip-down', 'slide-vertical', 'bounce', 'scale'
+        "fade-roll",
+        "flip-down",
+        "slide-vertical",
+        "bounce",
+        "scale",
       ].includes(settings.transition);
 
       if (isMultiDigitTransition) {
@@ -636,25 +658,38 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           const char = counterText[i];
           const charWidth = ctx.measureText(char).width;
           const digitX = currentX + charWidth / 2;
-          
+
           // Check if this digit has a transition
           const transition = digitTransitionsRef.current.get(i);
           let digitProgress = 1; // Default to fully visible
-          
+
           if (transition) {
             const elapsed = Date.now() - transition.startTime;
             digitProgress = Math.min(elapsed / 500, 1); // 500ms transition
-            
+
             // Apply easing
             if (settings.easing && settings.easing in easingFunctions) {
-              digitProgress = easingFunctions[settings.easing as keyof typeof easingFunctions](digitProgress);
+              digitProgress =
+                easingFunctions[
+                  settings.easing as keyof typeof easingFunctions
+                ](digitProgress);
             }
           }
 
           // Apply digit-specific transition
           ctx.save();
-          const { x: tX, y: tY, opacity: tOpacity } = applyDigitTransition(
-            ctx, char, digitX, centerY, fontSize, digitProgress, settings.transition
+          const {
+            x: tX,
+            y: tY,
+            opacity: tOpacity,
+          } = applyDigitTransition(
+            ctx,
+            char,
+            digitX,
+            centerY,
+            fontSize,
+            digitProgress,
+            settings.transition
           );
 
           ctx.globalAlpha = tOpacity;
@@ -666,29 +701,46 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       } else {
         // Use traditional whole-counter transitions
         const totalRange = settings.endValue - settings.startValue;
-        const rawProgress = totalRange !== 0 ? (value - settings.startValue) / totalRange : 1;
+        const rawProgress =
+          totalRange !== 0 ? (value - settings.startValue) / totalRange : 1;
         const transitionProgress = Math.min(Math.max(rawProgress, 0), 1);
 
         ctx.save();
-        const { x: tX, y: tY, opacity: tOpacity } = applyDigitTransition(
-          ctx, counterText, centerX, centerY, fontSize, transitionProgress, settings.transition
+        const {
+          x: tX,
+          y: tY,
+          opacity: tOpacity,
+        } = applyDigitTransition(
+          ctx,
+          counterText,
+          centerX,
+          centerY,
+          fontSize,
+          transitionProgress,
+          settings.transition
         );
 
         ctx.globalAlpha = tOpacity;
-        
+
         if (letterSpacing !== 0) {
           // Draw each character with spacing
           currentX = centerX - totalWidth / 2;
           for (let i = 0; i < counterText.length; i++) {
             const char = counterText[i];
             const charWidth = ctx.measureText(char).width;
-            applyDesignEffects(ctx, char, currentX + charWidth / 2, tY, fontSize);
+            applyDesignEffects(
+              ctx,
+              char,
+              currentX + charWidth / 2,
+              tY,
+              fontSize
+            );
             currentX += charWidth + letterSpacing;
           }
         } else {
           applyDesignEffects(ctx, counterText, tX, tY, fontSize);
         }
-        
+
         ctx.restore();
       }
     };

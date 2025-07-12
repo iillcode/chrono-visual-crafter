@@ -69,13 +69,13 @@ const StudioRightPanel: React.FC<StudioRightPanelProps> = ({
   };
 
   return (
-    <div className="w-80 h-full bg-[#171717] border-l border-white/10 flex flex-col overflow-hidden">
-      <div className="p-4 border-b border-gray-700/50">
+    <div className="w-80 h-full bg-[#0C0C0C]   flex flex-col overflow-hidden">
+      {/* <div className="p-4 border-b border-gray-700/50">
         <h2 className="text-white font-semibold px-3 py-1 rounded  flex items-center">
           <Palette className="w-4 h-4 mr-2" aria-hidden="true" />
           Visual Settings
         </h2>
-      </div>
+      </div> */}
 
       <ScrollArea className="flex-1 p-4 custom-scrollbar">
         <div className="space-y-6">

@@ -550,7 +550,7 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl p-0 h-[85vh] max-h-[700px] bg-[#101010]">
+      <DialogContent className="sm:max-w-6xl  h-[85vh] pt-10 border border-white/[0.08] backdrop-blur-sm max-h-[90vh] overflow-y-auto custom-scrollbar">
         <div className="flex h-full min-h-0">
           {/* Sidebar */}
           <div className="w-64 flex-shrink-0 border-r border-white/[0.08] flex flex-col bg-[#101010] backdrop-blur-sm">
@@ -611,12 +611,7 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 min-w-0 overflow-y-auto relative bg-[#101010] custom-scrollbar">
-            {/* Close button */}
-            <DialogClose className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all">
-              {/* <X className="w-4 h-4" /> */}
-            </DialogClose>
-
+          <div className="flex-1 min-w-0 overflow-y-auto bg-[#101010] custom-scrollbar">
             <div className="p-6 relative z-10">
               {/* Overview Tab */}
               {activeTab === "overview" && (

@@ -50,7 +50,7 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
       {/* Backdrop - improved with aria labels */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0  bg-black/50 z-40 lg:hidden"
           onClick={onToggle}
           aria-label="Close sidebar"
           role="button"
@@ -61,7 +61,7 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
       {/* Sidebar - improved with ARIA role, tab index and keyboard support */}
       <div
         className={`
-        fixed left-0 top-0 h-full w-80 bg-[#171717] border-r border-white/10 z-50 transform transition-transform duration-300 ease-in-out
+        fixed left-0 top-0 h-full w-80 bg-[#171717]  z-50 transform transition-transform duration-300 ease-in-out
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
         lg:relative lg:translate-x-0 lg:z-auto
         ${!isOpen && "lg:w-0 lg:border-r-0"}
@@ -75,7 +75,7 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
           {isOpen && (
             <>
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
+              {/* <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
                 <h2 className="text-white font-semibold px-3 py-1 rounded border border-gray-700/50 flex items-center">
                   <Settings className="w-4 h-4 mr-2" aria-hidden="true" />
                   Studio Controls
@@ -89,7 +89,7 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
                 >
                   <ChevronLeft className="w-4 h-4" aria-hidden="true" />
                 </Button>
-              </div>
+              </div> */}
 
               {/* Tabs */}
               <div className="flex-1 overflow-hidden">

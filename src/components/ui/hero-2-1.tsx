@@ -175,7 +175,7 @@ const Hero2 = () => {
             <img
               src="/studio.png"
               alt="Counter Animation Studio"
-              className="relative w-full h-auto shadow-md rounded"
+              className="relative w-full h-auto shadow-md rounded-xl border border-white/10"
             />
           </div>
         </div>

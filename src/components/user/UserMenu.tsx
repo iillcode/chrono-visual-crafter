@@ -88,7 +88,7 @@ export function UserMenu({ className }: UserMenuProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-2 rounded-full pl-1 pr-3 transition-all",
+          "flex items-center gap-2 rounded-full pr-1 transition-all",
           "backdrop-blur-sm shadow-lg",
           isLandingPage
             ? "bg-white/[0.08] border border-white/[0.1] hover:bg-white/[0.15]"
@@ -151,9 +151,9 @@ export function UserMenu({ className }: UserMenuProps) {
               "absolute right-0 mt-2 w-64 rounded-xl overflow-hidden z-50 shadow-[0_8px_30px_rgb(0,0,0,0.12)]",
               "backdrop-blur-md border",
               isLandingPage
-                ? "bg-black/90 border-white/[0.1]"
+                ? "bg-[#171717] border-white/[0.1]"
                 : isDark
-                ? "bg-black/80 border-white/[0.08]"
+                ? "bg-[#171717] border-white/[0.08]"
                 : "bg-white/90 border-black/[0.05]"
             )}
           >
@@ -270,40 +270,7 @@ export function UserMenu({ className }: UserMenuProps) {
                   isLandingPage={isLandingPage}
                 />
 
-                {/* Account Settings */}
-                <MenuButton
-                  icon={<Settings className="w-4 h-4" />}
-                  label="Account Settings"
-                  onClick={() => handleNavigate("/account")}
-                  isLandingPage={isLandingPage}
-                />
-
-                {/* Dashboard */}
-                {location.pathname !== "/studio" && (
-                  <MenuButton
-                    icon={<Home className="w-4 h-4" />}
-                    label="Go to Dashboard"
-                    onClick={() => handleNavigate("/studio")}
-                    isLandingPage={isLandingPage}
-                  />
-                )}
-
-                {/* Billing */}
-                <MenuButton
-                  icon={<CreditCard className="w-4 h-4" />}
-                  label="Billing & Payments"
-                  onClick={() => handleNavigate("/pricing")}
-                  isLandingPage={isLandingPage}
-                />
-
-                {/* Help & Support */}
-                <MenuButton
-                  icon={<HelpCircle className="w-4 h-4" />}
-                  label="Help & Support"
-                  onClick={() => handleNavigate("/help")}
-                  isLandingPage={isLandingPage}
-                />
-
+               
                 <div
                   className={cn(
                     "my-1 border-t",

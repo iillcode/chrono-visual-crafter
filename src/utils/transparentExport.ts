@@ -683,7 +683,9 @@ export class TransparentCounterExporter {
     }
   }
 
-  private async generatePNGSequence(): Promise<Blob> {
+  private async generatePNGSequence(
+    checkCancellation?: () => boolean
+  ): Promise<Blob> {
     const zip = new JSZip();
     const frameCount = Math.ceil(
       this.exportOptions.frameRate * this.exportOptions.duration
@@ -697,6 +699,16 @@ export class TransparentCounterExporter {
     let initialTransitionApplied = false;
 
     for (let frame = 0; frame < frameCount; frame++) {
+      // Check for cancellation
+      if (checkCancellation && checkCancellation()) {
+        toast.info("PNG sequence generation cancelled");
+        // Return partial result if some frames were generated
+        if (frame > 0) {
+          return await zip.generateAsync({ type: "blob" });
+        }
+        throw new Error("Export cancelled");
+      }
+
       const progress = frame / (frameCount - 1);
       const value =
         this.counterSettings.startValue +
@@ -910,7 +922,9 @@ export class TransparentCounterExporter {
     }
   }
 
-  private async generateWebMWithAlpha(): Promise<Blob> {
+  private async generateWebMWithAlpha(
+    checkCancellation?: () => boolean
+  ): Promise<Blob> {
     const stream = this.canvas.captureStream(this.exportOptions.frameRate);
 
     // Use VP9 codec for best alpha channel support with controlled quality
@@ -951,6 +965,15 @@ export class TransparentCounterExporter {
       let currentFrame = 0;
 
       const animate = () => {
+        // Check for cancellation
+        if (checkCancellation && checkCancellation()) {
+          recorder.stop();
+          stream.getTracks().forEach((track) => track.stop());
+          toast.info("WebM generation cancelled");
+          resolve(new Blob(chunks, { type: mimeType }));
+          return;
+        }
+
         if (currentFrame >= frameCount) {
           recorder.stop();
           stream.getTracks().forEach((track) => track.stop());
@@ -974,6 +997,11 @@ export class TransparentCounterExporter {
         // Draw the frame with alpha containment
         this.drawFrameWithAlphaContainment(value, progress);
         currentFrame++;
+
+        // Update progress toast occasionally
+        if (currentFrame % Math.floor(frameCount / 10) === 0) {
+          toast.info(`WebM frames: ${currentFrame}/${frameCount}`);
+        }
 
         setTimeout(animate, 1000 / this.exportOptions.frameRate);
       };
@@ -1189,7 +1217,9 @@ export class TransparentCounterExporter {
     }
   }
 
-  async export(): Promise<{ pngSequence?: Blob; webmAlpha?: Blob }> {
+  async export(
+    checkCancellation?: () => boolean
+  ): Promise<{ pngSequence?: Blob; webmAlpha?: Blob }> {
     const results: { pngSequence?: Blob; webmAlpha?: Blob } = {};
 
     try {
@@ -1198,7 +1228,12 @@ export class TransparentCounterExporter {
         this.exportOptions.format === "both"
       ) {
         toast.info("Generating PNG sequence with alpha channel...");
-        results.pngSequence = await this.generatePNGSequence();
+        results.pngSequence = await this.generatePNGSequence(checkCancellation);
+
+        // Check for cancellation after PNG generation
+        if (checkCancellation && checkCancellation()) {
+          return results;
+        }
       }
 
       if (
@@ -1206,7 +1241,7 @@ export class TransparentCounterExporter {
         this.exportOptions.format === "both"
       ) {
         toast.info("Generating WebM video with alpha channel...");
-        results.webmAlpha = await this.generateWebMWithAlpha();
+        results.webmAlpha = await this.generateWebMWithAlpha(checkCancellation);
       }
 
       return results;

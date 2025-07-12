@@ -11,6 +11,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -89,6 +90,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(0);
   const [customSize, setCustomSize] = useState({ width: 800, height: 600 });
+  const [isCancelRequested, setIsCancelRequested] = useState(false);
   const { toast } = useToast();
 
   const handlePresetChange = (presetIndex: number) => {
@@ -123,6 +125,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
 
   const handleExport = async () => {
     setIsExporting(true);
+    setIsCancelRequested(false);
 
     try {
       const exporter = new TransparentCounterExporter(
@@ -132,7 +135,19 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
         designSettings
       );
 
-      const exports = await exporter.export();
+      // Add cancellation check function
+      const checkCancellation = () => isCancelRequested;
+      const exports = await exporter.export(checkCancellation);
+
+      // If cancelled, don't download exports
+      if (isCancelRequested) {
+        toast({
+          title: "Export Cancelled",
+          description: "The export process was cancelled.",
+        });
+        setIsExporting(false);
+        return;
+      }
 
       await TransparentCounterExporter.downloadExports(
         exports,
@@ -156,6 +171,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
       });
     } finally {
       setIsExporting(false);
+      setIsCancelRequested(false);
     }
   };
 
@@ -630,10 +646,32 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
         <div className="flex gap-3 pt-4 border-t border-white/[0.08]">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => {
+              if (isExporting && !isCancelRequested) {
+                // Request cancellation of the export process
+                setIsCancelRequested(true);
+                toast({
+                  title: "Cancelling Export",
+                  description: "Cancelling the export process...",
+                });
+              } else if (!isExporting) {
+                // Just close the modal if not exporting
+                onOpenChange(false);
+              }
+            }}
+            disabled={isCancelRequested && isExporting}
             className="flex-1 border-white/20 bg-white/5 hover:bg-white/10 text-white"
           >
-            Cancel
+            {isCancelRequested && isExporting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Cancelling...
+              </>
+            ) : isExporting ? (
+              "Cancel Export"
+            ) : (
+              "Cancel"
+            )}
           </Button>
           <Button
             onClick={handleExport}
