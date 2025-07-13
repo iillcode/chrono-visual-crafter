@@ -40,15 +40,6 @@ import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  validateSubscription,
-  cancelSubscription,
-  reactivateSubscription,
-  retryBilling,
-  updateSubscriptionInSupabase as updateSupabaseSubscription,
-  isSubscriptionExpired,
-  getDaysUntilExpiry,
-} from "@/api/subscriptions";
 import { usePaddle } from "@/components/payments/PaddleProvider";
 
 interface UserProfileProps {
@@ -68,39 +59,21 @@ interface SubscriptionDetails {
   days_until_expiry?: number;
 }
 
-// Interface for Paddle subscription data
-interface PaddleSubscription {
-  id: string;
-  status: string;
-  current_billing_period: {
-    starts_at: string;
-    ends_at: string;
-  };
-  next_billing_period?: {
-    starts_at: string;
-    ends_at: string;
-  };
-  cancel_at_period_end: boolean;
-}
-
 const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
   const navigate = useNavigate();
   const { user, profile, signOut } = useClerkAuth();
   const { theme } = useTheme();
   const { toast } = useToast();
-  const { cancelSubscriptionAPI } = usePaddle();
+  const { cancelSubscriptionAPI, refreshSubscriptionStatus } = usePaddle();
   const isDark = theme === "dark";
   const [activeTab, setActiveTab] = useState("overview");
   const [subscriptionDetails, setSubscriptionDetails] =
     useState<SubscriptionDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isValidating, setIsValidating] = useState(false);
   const [isCanceling, setIsCanceling] = useState(false);
-  const [paddleSubscription, setPaddleSubscription] =
-    useState<PaddleSubscription | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
 
-  // Fetch subscription details from Supabase and validate with Paddle
+  // Fetch subscription details from Supabase
   useEffect(() => {
     const fetchSubscriptionDetails = async () => {
       if (!user) return;
@@ -191,11 +164,6 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
         }
 
         setSubscriptionDetails(details);
-
-        // If user has a Paddle subscription ID, fetch latest data from Paddle
-        if (details.paddle_subscription_id) {
-          await validateWithPaddle(details.paddle_subscription_id);
-        }
       } catch (error) {
         console.error("Error fetching subscription details:", error);
       } finally {
@@ -224,96 +192,6 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
       fetchPaymentHistory();
     }
   }, [user, open]);
-
-  // Validate subscription with Paddle API
-  const validateWithPaddle = async (subscriptionId: string) => {
-    try {
-      setIsValidating(true);
-
-      // Call your backend API to fetch Paddle subscription data
-      const response = await fetch(
-        `/api/subscriptions/${subscriptionId}/validate`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.ok) {
-        const paddleData: PaddleSubscription = await response.json();
-        setPaddleSubscription(paddleData);
-        console.log("paddleData", paddleData);
-
-        // Update local subscription details with Paddle data
-        setSubscriptionDetails((prev) =>
-          prev
-            ? {
-                ...prev,
-                current_period_end: paddleData.current_billing_period.ends_at,
-                next_invoice_date: paddleData.next_billing_period?.starts_at,
-                cancel_at_period_end: paddleData.cancel_at_period_end,
-                status: paddleData.status,
-                is_expired:
-                  new Date(paddleData.current_billing_period.ends_at) <
-                  new Date(),
-                days_until_expiry: Math.ceil(
-                  (new Date(
-                    paddleData.current_billing_period.ends_at
-                  ).getTime() -
-                    new Date().getTime()) /
-                    (1000 * 60 * 60 * 24)
-                ),
-              }
-            : null
-        );
-
-        // Update Supabase if there are discrepancies
-        await updateSubscriptionInSupabase(paddleData);
-
-        toast({
-          title: "Subscription Validated",
-          description:
-            "Your subscription status has been updated with the latest information.",
-        });
-      } else {
-        throw new Error("Failed to validate subscription");
-      }
-    } catch (error) {
-      console.error("Error validating subscription with Paddle:", error);
-      toast({
-        title: "Validation Error",
-        description: "Unable to validate subscription. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsValidating(false);
-    }
-  };
-
-  // Update subscription data in Supabase
-  const updateSubscriptionInSupabase = async (
-    paddleData: PaddleSubscription
-  ) => {
-    try {
-      const { error } = await supabase
-        .from("user_subscriptions")
-        .update({
-          current_period_start: paddleData.current_billing_period.starts_at,
-          current_period_end: paddleData.current_billing_period.ends_at,
-          status: paddleData.status,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("subscription_id", paddleData.id);
-
-      if (error) {
-        console.error("Error updating subscription in Supabase:", error);
-      }
-    } catch (error) {
-      console.error("Error updating subscription:", error);
-    }
-  };
 
   // Handle subscription cancellation
   const handleCancelSubscription = async () => {
@@ -344,6 +222,9 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
               }
             : null
         );
+
+        // Refresh subscription status
+        await refreshSubscriptionStatus();
       }
     } catch (error) {
       console.error("Error canceling subscription:", error);
@@ -357,113 +238,24 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
     }
   };
 
-  // Handle subscription reactivation
+  // Handle subscription reactivation - removed since we don't have backend
   const handleReactivateSubscription = async () => {
-    if (!subscriptionDetails?.paddle_subscription_id) {
-      toast({
-        title: "Error",
-        description: "No subscription found to reactivate.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsCanceling(true);
-
-      // Call your backend API to reactivate subscription
-      const response = await fetch(
-        `/api/subscriptions/${subscriptionDetails.paddle_subscription_id}/reactivate`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.ok) {
-        toast({
-          title: "Subscription Reactivated",
-          description: "Your subscription has been reactivated successfully.",
-        });
-
-        // Refresh subscription details
-        setSubscriptionDetails((prev) =>
-          prev
-            ? {
-                ...prev,
-                cancel_at_period_end: false,
-              }
-            : null
-        );
-      } else {
-        throw new Error("Failed to reactivate subscription");
-      }
-    } catch (error) {
-      console.error("Error reactivating subscription:", error);
-      toast({
-        title: "Reactivation Error",
-        description:
-          "Unable to reactivate subscription. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsCanceling(false);
-    }
+    toast({
+      title: "Feature Not Available",
+      description:
+        "Subscription reactivation is not available at this time. Please contact support.",
+      variant: "destructive",
+    });
   };
 
-  // Handle billing retry for expired subscriptions
+  // Handle billing retry - removed since we don't have backend
   const handleRetryBilling = async () => {
-    if (!subscriptionDetails?.paddle_subscription_id) {
-      toast({
-        title: "Error",
-        description: "No subscription found to retry billing.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsValidating(true);
-
-      // Call your backend API to retry billing
-      const response = await fetch(
-        `/api/subscriptions/${subscriptionDetails.paddle_subscription_id}/retry-billing`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.ok) {
-        toast({
-          title: "Billing Retry Initiated",
-          description:
-            "We've initiated a retry of your payment. You'll be notified of the result.",
-        });
-
-        // Refresh subscription details after a delay
-        setTimeout(() => {
-          if (subscriptionDetails.paddle_subscription_id) {
-            validateWithPaddle(subscriptionDetails.paddle_subscription_id);
-          }
-        }, 5000);
-      } else {
-        throw new Error("Failed to retry billing");
-      }
-    } catch (error) {
-      console.error("Error retrying billing:", error);
-      toast({
-        title: "Billing Retry Error",
-        description: "Unable to retry billing. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsValidating(false);
-    }
+    toast({
+      title: "Feature Not Available",
+      description:
+        "Billing retry is not available at this time. Please contact support.",
+      variant: "destructive",
+    });
   };
 
   const handleSignOut = async () => {
@@ -781,37 +573,14 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                           subscriptionDetails.paddle_subscription_id && (
                             <div className="flex gap-2">
                               <Button
-                                onClick={() =>
-                                  validateWithPaddle(
-                                    subscriptionDetails.paddle_subscription_id!
-                                  )
-                                }
-                                disabled={isValidating}
+                                onClick={() => refreshSubscriptionStatus()}
                                 variant="outline"
                                 size="sm"
                                 className="border-white/20 bg-white/5 hover:bg-white/10 text-white"
                               >
-                                {isValidating ? (
-                                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                  <Zap className="w-4 h-4 mr-2" />
-                                )}
-                                {isValidating
-                                  ? "Validating..."
-                                  : "Refresh Status"}
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                Refresh Status
                               </Button>
-
-                              {subscriptionDetails.is_expired && (
-                                <Button
-                                  onClick={handleRetryBilling}
-                                  disabled={isValidating}
-                                  size="sm"
-                                  className="bg-orange-600 hover:bg-orange-700 text-white"
-                                >
-                                  <AlertCircle className="w-4 h-4 mr-2" />
-                                  Retry Payment
-                                </Button>
-                              )}
 
                               {subscriptionDetails.cancel_at_period_end ? (
                                 <Button
@@ -820,9 +589,7 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
                                   size="sm"
                                   className="bg-green-600 hover:bg-green-700 text-white"
                                 >
-                                  {isCanceling
-                                    ? "Reactivating..."
-                                    : "Reactivate"}
+                                  Reactivate
                                 </Button>
                               ) : (
                                 <Button
