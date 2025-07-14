@@ -56,21 +56,8 @@ interface CounterPreviewProps {
   formatNumber: (value: number) => string;
 }
 
-// Easing functions for transitions
-const easingFunctions = {
-  linear: (progress: number): number => progress,
-  easeOut: (progress: number): number => 1 - Math.pow(1 - progress, 2),
-  easeIn: (progress: number): number => progress * progress,
-  bounce: (progress: number): number => {
-    if (progress < 0.5) {
-      return 4 * progress * progress;
-    } else if (progress < 0.8) {
-      return 1 + (progress - 0.8) * 5;
-    } else {
-      return 1 - 0.5 * Math.pow((progress - 1) * 2.5, 2);
-    }
-  },
-};
+// Import shared utilities for consistency
+import { easingFunctions } from '../utils/sharedCounterUtils';
 
 const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
   (
@@ -114,7 +101,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
 
     const getFontFamily = (fontKey: string, customFont: string) => {
       if (customFont) return `"${customFont}", sans-serif`;
-
+      
       const fontMap = {
         inter: '"Inter", sans-serif',
         mono: '"Roboto Mono", monospace',
@@ -650,9 +637,126 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         "slide-vertical",
         "bounce",
         "scale",
+        "odometer",
       ].includes(settings.transition);
 
-      if (isMultiDigitTransition) {
+      if (settings.transition === "odometer") {
+        // Continuous odometer animation
+        const absValue = Math.abs(value);
+        const decimals = settings.useFloatValues ? 2 : 0;
+        const integer = Math.floor(absValue);
+        let integerStr = integer.toString();
+        if (settings.separator === "comma") {
+          integerStr = integerStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+        let decimalStr = "";
+        if (decimals > 0) {
+          decimalStr = Math.floor((absValue - integer) * Math.pow(10, decimals))
+            .toString()
+            .padStart(decimals, "0");
+        }
+        let numericStr = integerStr;
+        if (decimals > 0) numericStr += "." + decimalStr;
+        const sign = value < 0 ? "-" : "";
+        const fullStr = settings.prefix + sign + numericStr + settings.suffix;
+
+        // Calculate total width
+        let totalWidth = 0;
+        for (let i = 0; i < fullStr.length; i++) {
+          const charWidth = ctx.measureText(fullStr[i]).width;
+          totalWidth +=
+            charWidth + (i < fullStr.length - 1 ? letterSpacing : 0);
+        }
+
+        let currentX = centerX - totalWidth / 2;
+
+        // Find digit positions and calculate locals
+        const digitIndices = [];
+        for (let i = 0; i < fullStr.length; i++) {
+          if (/\d/.test(fullStr[i])) {
+            digitIndices.push(i);
+          }
+        }
+
+        const numDigits = digitIndices.length;
+        const integerDigits = decimals > 0 ? numDigits - decimals : numDigits;
+
+        // Calculate local for each digit from right to left
+        const digitLocals = [];
+        let pos = decimals > 0 ? -decimals : 0;
+        for (let j = numDigits - 1; j >= 0; j--) {
+          const place = Math.pow(10, pos);
+          const local = (absValue / place) % 10;
+          digitLocals.unshift(local); // unshift to keep left to right
+          pos += 1;
+        }
+
+        // Draw each character
+        for (let i = 0; i < fullStr.length; i++) {
+          const char = fullStr[i];
+          const charWidth = ctx.measureText(char).width;
+          const charX = currentX + charWidth / 2;
+          const charY = centerY;
+
+          if (/\d/.test(char)) {
+            // Animate rolling digit
+            const local = digitLocals.shift()!;
+            const floor = Math.floor(local);
+            const frac = local - floor;
+            const next = (floor + 1) % 10;
+
+            // Check if we're at the end value and snap to final position
+            const isEndValue = value === settings.endValue;
+
+            // Clip to digit area
+            ctx.save();
+            const clipHeight = fontSize * 1.1; // slight extra to avoid cutoff
+            const clipY = charY - clipHeight / 2;
+            ctx.beginPath();
+            ctx.rect(
+              charX - charWidth / 2 - 2,
+              clipY,
+              charWidth + 4,
+              clipHeight
+            );
+            ctx.clip();
+
+            if (isEndValue || frac < 0.001) {
+              // Snap to final position
+              applyDesignEffects(ctx, floor.toString(), charX, charY, fontSize);
+            } else {
+              // Normal rolling
+              // Offset for rolling up (next comes from top)
+              const offset = frac * fontSize;
+
+              // Draw next digit
+              applyDesignEffects(
+                ctx,
+                next.toString(),
+                charX,
+                charY - fontSize + offset,
+                fontSize
+              );
+
+              // Draw current digit
+              applyDesignEffects(
+                ctx,
+                floor.toString(),
+                charX,
+                charY + offset,
+                fontSize
+              );
+            }
+
+            ctx.restore();
+          } else {
+            // Draw fixed character
+            applyDesignEffects(ctx, char, charX, charY, fontSize);
+          }
+
+          currentX += charWidth + letterSpacing;
+        }
+      } else if (isMultiDigitTransition) {
         // Draw each digit with individual transitions
         for (let i = 0; i < counterText.length; i++) {
           const char = counterText[i];

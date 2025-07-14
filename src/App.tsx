@@ -13,6 +13,7 @@ import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import StudioRightPanel from "@/components/StudioRightPanel";
+import About from "./pages/About";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,8 @@ const App = () => {
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/pricing" element={<Pricing />} />
+                <Route path="/about" element={<About />} />
+
                 <Route
                   path="/studio"
                   element={

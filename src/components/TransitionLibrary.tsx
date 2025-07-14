@@ -57,6 +57,12 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
       category: "special",
       description: "Types text character by character",
     },
+    {
+      id: "odometer",
+      name: "Odometer",
+      category: "multi-digit",
+      description: "Rolling digits like an odometer",
+    },
   ];
 
   // Define easing functions
@@ -88,7 +94,7 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
   const categories = [
     { id: "all", name: "All Effects" },
     { id: "basic", name: "Basic" },
-    // { id: "multi-digit", name: "Multi-Digit" },
+    { id: "multi-digit", name: "Multi-Digit" },
     { id: "special", name: "Special" },
   ];
 
@@ -162,7 +168,10 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
             <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
             <div className="text-xs text-green-400">
               <p className="font-medium mb-1">Multi-Digit Animation</p>
-              <p>These effects animate each digit individually for more dynamic and engaging counter animations.</p>
+              <p>
+                These effects animate each digit individually for more dynamic
+                and engaging counter animations.
+              </p>
             </div>
           </div>
         </div>
@@ -223,6 +232,8 @@ function getPreviewAnimationClass(transitionId: string): string {
       return `${baseClasses} animate-blur`;
     case "typewriter":
       return `${baseClasses} animate-typewriter`;
+    case "odometer":
+      return `${baseClasses} animate-odometer`;
     default:
       return baseClasses;
   }

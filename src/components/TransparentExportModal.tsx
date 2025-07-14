@@ -76,7 +76,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
   const [exportOptions, setExportOptions] = useState<TransparentExportOptions>({
     includeCounter: true,
     includeText: textSettings.enabled,
-    format: "both",
+    format: "png-sequence",
     width: 1920,
     height: 1080,
     frameRate: 60,

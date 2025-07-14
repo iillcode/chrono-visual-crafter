@@ -135,10 +135,15 @@ const StudioContent = () => {
 
   useEffect(() => {
     // When the user tweaks the start value while not recording we immediately reflect it in the preview.
-    if (!isRecording) {
-      setCurrentValue(counterSettings.startValue);
+    // Only reset to startValue if we're not currently recording and the value hasn't been set by animation
+    if (!isRecording && currentValue !== counterSettings.endValue) {
+      // Check if we just finished recording (value is at end) or if it's a manual reset
+      const isAtEndValue = Math.abs(currentValue - counterSettings.endValue) < 0.01;
+      if (!isAtEndValue) {
+        setCurrentValue(counterSettings.startValue);
+      }
     }
-  }, [counterSettings.startValue, isRecording]);
+  }, [counterSettings.startValue, isRecording, counterSettings.endValue, currentValue]);
 
   const formatNumber = (value: number) => {
     // Check if we should use float values and if the value has decimal places
@@ -255,6 +260,10 @@ const StudioContent = () => {
     if (mediaRecorder.current) {
       mediaRecorder.current.stop();
     }
+    
+    // Keep the counter at the last value instead of resetting
+    // The currentValue already reflects the last animated value
+    // No need to reset it to startValue
   };
 
   const handlePauseRecording = () => {

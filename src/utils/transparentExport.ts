@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import JSZip from "jszip";
+import { easingFunctions, getFontFamily, formatNumber } from './sharedCounterUtils';
 
 export interface TransparentExportOptions {
   // Content options
@@ -40,7 +41,7 @@ export interface CounterSettings {
   separator: string;
   useFloatValues: boolean;
 }
-
+ 
 export interface TextSettings {
   enabled: boolean;
   text: string;
@@ -64,21 +65,7 @@ export interface DesignSettings {
   chromeColors: string;
 }
 
-// Easing functions for transitions
-const easingFunctions = {
-  linear: (progress: number): number => progress,
-  easeOut: (progress: number): number => 1 - Math.pow(1 - progress, 2),
-  easeIn: (progress: number): number => progress * progress,
-  bounce: (progress: number): number => {
-    if (progress < 0.5) {
-      return 4 * progress * progress;
-    } else if (progress < 0.8) {
-      return 1 + (progress - 0.8) * 5;
-    } else {
-      return 1 - 0.5 * Math.pow((progress - 1) * 2.5, 2);
-    }
-  },
-};
+// Import shared utilities to ensure consistency with CounterPreview
 
 export class TransparentCounterExporter {
   private canvas: HTMLCanvasElement;
@@ -128,69 +115,16 @@ export class TransparentCounterExporter {
   }
 
   private formatNumber(value: number): string {
-    const hasDecimal = value % 1 !== 0;
-    let formattedValue;
-
-    if (this.counterSettings.useFloatValues) {
-      formattedValue = value.toFixed(2).replace(/\.?0+$/, "");
-      if (formattedValue.indexOf(".") === -1 && hasDecimal) {
-        formattedValue = value.toFixed(1);
-      }
-    } else {
-      formattedValue = Math.round(value).toString();
-    }
-
-    // Apply separator
-    if (
-      this.counterSettings.separator &&
-      this.counterSettings.separator !== "none"
-    ) {
-      const separator =
-        this.counterSettings.separator === "comma"
-          ? ","
-          : this.counterSettings.separator === "dot"
-          ? "."
-          : this.counterSettings.separator === "space"
-          ? " "
-          : "";
-
-      if (separator) {
-        if (formattedValue.includes(".")) {
-          const parts = formattedValue.split(".");
-          parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, separator);
-          formattedValue = parts.join(".");
-        } else {
-          formattedValue = formattedValue.replace(
-            /\B(?=(\d{3})+(?!\d))/g,
-            separator
-          );
-        }
-      }
-    }
-
-    return `${this.counterSettings.prefix || ""}${formattedValue}${
-      this.counterSettings.suffix || ""
-    }`;
+    return formatNumber(value, {
+      prefix: this.counterSettings.prefix,
+      suffix: this.counterSettings.suffix,
+      separator: this.counterSettings.separator,
+      useFloatValues: this.counterSettings.useFloatValues,
+    });
   }
 
   private getFontFamily(fontKey: string): string {
-    const fontMap: Record<string, string> = {
-      inter: '"Inter", sans-serif',
-      mono: '"Roboto Mono", monospace',
-      poppins: '"Poppins", sans-serif',
-      orbitron: '"Orbitron", monospace',
-      rajdhani: '"Rajdhani", sans-serif',
-      exo: '"Exo 2", sans-serif',
-      play: '"Play", sans-serif',
-      russo: '"Russo One", sans-serif',
-      audiowide: '"Audiowide", monospace',
-      michroma: '"Michroma", monospace',
-      roboto: '"Roboto", sans-serif',
-      montserrat: '"Montserrat", sans-serif',
-      arial: '"Arial", sans-serif',
-    };
-
-    return fontMap[fontKey] || '"Inter", sans-serif';
+    return getFontFamily(fontKey);
   }
 
   private applyDesignEffects(
@@ -211,40 +145,18 @@ export class TransparentCounterExporter {
 
         this.ctx.save();
 
-        // Clear any existing shadows
-        this.ctx.shadowBlur = 0;
-        this.ctx.shadowColor = "rgba(0,0,0,0)";
-
-        // Create contained neon effect to prevent color spreading
-        this.ctx.globalCompositeOperation = "source-over";
-
-        // Base text layer
-        this.ctx.globalAlpha = 0.8;
-        this.ctx.fillStyle = "#FFFFFF";
+        // Exact same rendering as DesignPreview component
+        this.ctx.shadowColor = neonColor;
+        this.ctx.shadowBlur = intensity;
+        this.ctx.fillStyle = neonColor;
         this.ctx.fillText(text, x, y);
 
-        // Neon glow layers with controlled spread
-        this.ctx.globalCompositeOperation = "screen";
-
-        // Inner glow
-        this.ctx.globalAlpha = 0.9;
-        this.ctx.shadowColor = neonColor;
-        this.ctx.shadowBlur = Math.max(2, intensity * 0.5);
-        this.ctx.strokeStyle = neonColor;
-        this.ctx.lineWidth = 1;
-        this.ctx.strokeText(text, x, y);
-
-        // Outer glow
-        this.ctx.globalAlpha = 0.7;
-        this.ctx.shadowBlur = Math.max(4, intensity * 0.8);
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeText(text, x, y);
-
-        // Final colored text
-        this.ctx.globalCompositeOperation = "source-over";
-        this.ctx.shadowBlur = 0;
-        this.ctx.globalAlpha = 1.0;
-        this.ctx.fillStyle = neonColor;
+        // Additional glow layers to match DesignPreview exactly
+        this.ctx.shadowBlur = intensity * 2;
+        this.ctx.fillText(text, x, y);
+        
+        this.ctx.shadowBlur = intensity * 3;
+        this.ctx.fillStyle = "#FFFFFF";
         this.ctx.fillText(text, x, y);
 
         this.ctx.restore();
@@ -256,26 +168,14 @@ export class TransparentCounterExporter {
 
         this.ctx.save();
 
-        // Clear any existing shadows
-        this.ctx.shadowBlur = 0;
-        this.ctx.shadowColor = "rgba(0,0,0,0)";
-
-        // Create contained glow effect
-        this.ctx.globalCompositeOperation = "source-over";
-
-        // Multiple glow layers with controlled intensity
-        for (let i = 3; i >= 1; i--) {
-          this.ctx.globalAlpha = 0.3 / i;
-          this.ctx.shadowColor = glowColor;
-          this.ctx.shadowBlur = intensity * i * 0.5;
-          this.ctx.fillStyle = glowColor;
-          this.ctx.fillText(text, x, y);
-        }
-
-        // Final sharp text
-        this.ctx.shadowBlur = 0;
-        this.ctx.globalAlpha = 1.0;
+        // Exact same rendering as DesignPreview component
+        this.ctx.shadowColor = glowColor;
+        this.ctx.shadowBlur = intensity;
         this.ctx.fillStyle = glowColor;
+        this.ctx.fillText(text, x, y);
+
+        // Additional glow layer to match DesignPreview exactly
+        this.ctx.shadowBlur = intensity * 1.5;
         this.ctx.fillText(text, x, y);
 
         this.ctx.restore();
@@ -289,18 +189,15 @@ export class TransparentCounterExporter {
           y + fontSize / 2
         );
 
-        const colorMatches =
-          this.designSettings.gradientColors.match(/#[0-9A-Fa-f]{6}/g);
+        // Use exact same gradient as DesignPreview
+        const gradientValue = this.designSettings.gradientColors || 
+          "linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7)";
+        
+        const colorMatches = gradientValue.match(/#[0-9A-Fa-f]{6}/g);
         if (colorMatches && colorMatches.length > 0) {
           colorMatches.forEach((color, index) => {
             gradient.addColorStop(index / (colorMatches.length - 1), color);
           });
-        } else {
-          gradient.addColorStop(0, "#FF6B6B");
-          gradient.addColorStop(0.25, "#4ECDC4");
-          gradient.addColorStop(0.5, "#45B7D1");
-          gradient.addColorStop(0.75, "#96CEB4");
-          gradient.addColorStop(1, "#FFEAA7");
         }
 
         this.ctx.fillStyle = gradient;
@@ -314,27 +211,26 @@ export class TransparentCounterExporter {
           x,
           y + fontSize / 2
         );
-        const colorMatches =
-          this.designSettings.fireColors.match(/#[0-9A-Fa-f]{6}/g);
-
+        
+        // Use exact same gradient as DesignPreview
+        const fireValue = this.designSettings.fireColors || 
+          "linear-gradient(45deg, #FF4444, #FF8800, #FFFF00)";
+        
+        const colorMatches = fireValue.match(/#[0-9A-Fa-f]{6}/g);
         if (colorMatches && colorMatches.length > 0) {
           colorMatches.forEach((color, index) => {
             gradient.addColorStop(index / (colorMatches.length - 1), color);
           });
-        } else {
-          gradient.addColorStop(0, "#FF4444");
-          gradient.addColorStop(0.5, "#FF8800");
-          gradient.addColorStop(1, "#FFFF00");
         }
 
         this.ctx.fillStyle = gradient;
         this.ctx.fillText(text, x, y);
 
-        // Controlled fire glow
+        // Exact same fire glow as DesignPreview
         const fireGlow = this.designSettings.fireGlow || 10;
         this.ctx.save();
         this.ctx.shadowColor = "#FF4444";
-        this.ctx.shadowBlur = Math.min(fireGlow, 15); // Limit glow spread
+        this.ctx.shadowBlur = fireGlow;
         this.ctx.fillText(text, x, y);
         this.ctx.restore();
       },
@@ -347,20 +243,15 @@ export class TransparentCounterExporter {
           y + fontSize / 2
         );
 
-        const colorMatches =
-          this.designSettings.rainbowColors.match(/#[0-9A-Fa-f]{6}/g);
+        // Use exact same gradient as DesignPreview
+        const rainbowValue = this.designSettings.rainbowColors || 
+          "linear-gradient(45deg, #FF0000, #FF8800, #FFFF00, #00FF00, #0088FF, #8800FF, #FF0088)";
+        
+        const colorMatches = rainbowValue.match(/#[0-9A-Fa-f]{6}/g);
         if (colorMatches && colorMatches.length > 0) {
           colorMatches.forEach((color, index) => {
             gradient.addColorStop(index / (colorMatches.length - 1), color);
           });
-        } else {
-          gradient.addColorStop(0, "#FF0000");
-          gradient.addColorStop(0.17, "#FF8800");
-          gradient.addColorStop(0.33, "#FFFF00");
-          gradient.addColorStop(0.5, "#00FF00");
-          gradient.addColorStop(0.67, "#0088FF");
-          gradient.addColorStop(0.83, "#8800FF");
-          gradient.addColorStop(1, "#FF0088");
         }
 
         this.ctx.fillStyle = gradient;
@@ -374,17 +265,16 @@ export class TransparentCounterExporter {
           x,
           y + fontSize / 2
         );
-        const colorMatches =
-          this.designSettings.chromeColors.match(/#[0-9A-Fa-f]{6}/g);
 
+        // Use exact same gradient as DesignPreview
+        const chromeValue = this.designSettings.chromeColors || 
+          "linear-gradient(45deg, #FFFFFF, #CCCCCC, #999999)";
+        
+        const colorMatches = chromeValue.match(/#[0-9A-Fa-f]{6}/g);
         if (colorMatches && colorMatches.length > 0) {
           colorMatches.forEach((color, index) => {
             gradient.addColorStop(index / (colorMatches.length - 1), color);
           });
-        } else {
-          gradient.addColorStop(0, "#FFFFFF");
-          gradient.addColorStop(0.5, "#CCCCCC");
-          gradient.addColorStop(1, "#999999");
         }
 
         this.ctx.fillStyle = gradient;
@@ -510,6 +400,15 @@ export class TransparentCounterExporter {
       typewriter: () => {
         return { x, y, opacity: 1 };
       },
+
+      odometer: () => {
+        return {
+          x,
+          y,
+          opacity: 1,
+          // No transform needed as we'll handle odometer animation separately
+        };
+      },
     };
 
     const effect =
@@ -571,65 +470,190 @@ export class TransparentCounterExporter {
         charWidth + (i < counterText.length - 1 ? letterSpacing : 0);
     }
 
-    // Apply easing to frame progress
-    const easedProgress =
-      this.counterSettings.easing &&
-      this.counterSettings.easing in easingFunctions
-        ? easingFunctions[
-            this.counterSettings.easing as keyof typeof easingFunctions
-          ](frameProgress)
-        : frameProgress;
+    // frameProgress is already eased, no need to apply easing again
+    const easedProgress = frameProgress;
 
-    // Draw each digit with individual transitions
-    let currentX = centerX - totalWidth / 2;
+    // Special handling for odometer animation
+    if (this.counterSettings.transition === "odometer") {
+      // Calculate the current value based on eased progress
+      const startValue = this.counterSettings.startValue;
+      const endValue = this.counterSettings.endValue;
+      const currentValue = startValue + (endValue - startValue) * easedProgress;
 
-    for (let i = 0; i < counterText.length; i++) {
-      const char = counterText[i];
-      const charWidth = this.ctx.measureText(char).width;
-      const digitX = currentX + charWidth / 2;
+      // Calculate absolute value and handle decimals
+      const absValue = Math.abs(currentValue);
+      const decimals = this.counterSettings.useFloatValues ? 2 : 0;
+      const integer = Math.floor(absValue);
 
-      // Check if this digit has a transition
-      const transition = this.digitTransitions.get(i);
-      let digitProgress = easedProgress;
-
-      if (transition && this.exportOptions.preserveAnimations) {
-        // Use transition-specific progress
-        digitProgress = transition.progress;
+      // Format the integer part with separators if needed
+      let integerStr = integer.toString();
+      if (this.counterSettings.separator === "comma") {
+        integerStr = integerStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
       }
 
-      // Apply digit-specific transition
-      const {
-        x: tX,
-        y: tY,
-        opacity: tOpacity,
-        transform,
-      } = this.applyDigitTransition(
-        char,
-        digitX,
-        centerY,
-        fontSize,
-        digitProgress,
-        this.counterSettings.transition
-      );
-
-      // Save context for this digit
-      this.ctx.save();
-
-      // Apply transform if provided
-      if (transform) {
-        transform();
+      // Handle decimal part if needed
+      let decimalStr = "";
+      if (decimals > 0) {
+        decimalStr = Math.floor((absValue - integer) * Math.pow(10, decimals))
+          .toString()
+          .padStart(decimals, "0");
       }
 
-      // Apply opacity
-      this.ctx.globalAlpha = tOpacity;
+      // Combine parts
+      let numericStr = integerStr;
+      if (decimals > 0) numericStr += "." + decimalStr;
+      const sign = currentValue < 0 ? "-" : "";
+      const fullStr =
+        this.counterSettings.prefix +
+        sign +
+        numericStr +
+        this.counterSettings.suffix;
 
-      // Draw the digit with design effects
-      this.applyDesignEffects(char, tX, tY, fontSize);
+      // Recalculate total width for the formatted string
+      totalWidth = 0;
+      for (let i = 0; i < fullStr.length; i++) {
+        const charWidth = this.ctx.measureText(fullStr[i]).width;
+        totalWidth += charWidth + (i < fullStr.length - 1 ? letterSpacing : 0);
+      }
 
-      // Restore context
-      this.ctx.restore();
+      let currentX = centerX - totalWidth / 2;
 
-      currentX += charWidth + letterSpacing;
+      // Find digit positions and calculate locals
+      const digitIndices = [];
+      for (let i = 0; i < fullStr.length; i++) {
+        if (/\d/.test(fullStr[i])) {
+          digitIndices.push(i);
+        }
+      }
+
+      const numDigits = digitIndices.length;
+      const integerDigits = decimals > 0 ? numDigits - decimals : numDigits;
+
+      // Calculate local for each digit from right to left
+      const digitLocals = [];
+      let pos = decimals > 0 ? -decimals : 0;
+      for (let j = numDigits - 1; j >= 0; j--) {
+        const place = Math.pow(10, pos);
+        const local = (absValue / place) % 10;
+        digitLocals.unshift(local); // unshift to keep left to right
+        pos += 1;
+      }
+
+      // Draw each character
+      for (let i = 0; i < fullStr.length; i++) {
+        const char = fullStr[i];
+        const charWidth = this.ctx.measureText(char).width;
+        const charX = currentX + charWidth / 2;
+        const charY = centerY;
+
+        if (/\d/.test(char)) {
+          // Animate rolling digit
+          const local = digitLocals.shift()!;
+          const floor = Math.floor(local);
+          const frac = local - floor;
+          const next = (floor + 1) % 10;
+
+          // Check if we're at the end value
+          const isEndValue = currentValue >= endValue;
+
+          // Clip to digit area
+          this.ctx.save();
+          const clipHeight = fontSize * 1.1; // slight extra to avoid cutoff
+          const clipY = charY - clipHeight / 2;
+          this.ctx.beginPath();
+          this.ctx.rect(
+            charX - charWidth / 2 - 2,
+            clipY,
+            charWidth + 4,
+            clipHeight
+          );
+          this.ctx.clip();
+
+          if (isEndValue || frac < 0.001) {
+            // Snap to final position
+            this.applyDesignEffects(floor.toString(), charX, charY, fontSize);
+          } else {
+            // Normal rolling
+            // Offset for rolling up (next comes from top)
+            const offset = frac * fontSize;
+
+            // Draw next digit
+            this.applyDesignEffects(
+              next.toString(),
+              charX,
+              charY - fontSize + offset,
+              fontSize
+            );
+
+            // Draw current digit
+            this.applyDesignEffects(
+              floor.toString(),
+              charX,
+              charY + offset,
+              fontSize
+            );
+          }
+
+          this.ctx.restore();
+        } else {
+          // Draw fixed character
+          this.applyDesignEffects(char, charX, charY, fontSize);
+        }
+
+        currentX += charWidth + letterSpacing;
+      }
+    } else {
+      // Original code for other transitions
+      let currentX = centerX - totalWidth / 2;
+
+      for (let i = 0; i < counterText.length; i++) {
+        const char = counterText[i];
+        const charWidth = this.ctx.measureText(char).width;
+        const digitX = currentX + charWidth / 2;
+
+        // Check if this digit has a transition
+        const transition = this.digitTransitions.get(i);
+        let digitProgress = easedProgress;
+
+        if (transition && this.exportOptions.preserveAnimations) {
+          // Use transition-specific progress
+          digitProgress = transition.progress;
+        }
+
+        // Apply digit-specific transition
+        const {
+          x: tX,
+          y: tY,
+          opacity: tOpacity,
+          transform,
+        } = this.applyDigitTransition(
+          char,
+          digitX,
+          centerY,
+          fontSize,
+          digitProgress,
+          this.counterSettings.transition
+        );
+
+        // Save context for this digit
+        this.ctx.save();
+
+        // Apply transform if provided
+        if (transform) {
+          transform();
+        }
+
+        // Apply opacity
+        this.ctx.globalAlpha = tOpacity;
+
+        // Draw the digit with design effects
+        this.applyDesignEffects(char, tX, tY, fontSize);
+
+        // Restore context
+        this.ctx.restore();
+
+        currentX += charWidth + letterSpacing;
+      }
     }
   }
 
@@ -694,9 +718,33 @@ export class TransparentCounterExporter {
     toast.info(`Generating ${frameCount} PNG frames...`);
 
     // Initialize transition progress tracking
-    const transitionDuration = Math.ceil(frameCount * 0.25); // 25% of total frames for transition
+    const transitionDuration = Math.ceil(frameCount * 0.15); // 15% of total frames for smoother transition
     this.digitTransitions.clear(); // Clear any previous transitions
     let initialTransitionApplied = false;
+
+    // Pre-calculate all values for smoother animation with consistent easing
+    const values = [];
+    const easedProgresses = [];
+    
+    for (let frame = 0; frame < frameCount; frame++) {
+      // Calculate progress and apply easing once
+      const progress = frame / Math.max(1, frameCount - 1);
+      const easedProgress =
+        this.counterSettings.easing &&
+        this.counterSettings.easing in easingFunctions
+          ? easingFunctions[
+              this.counterSettings.easing as keyof typeof easingFunctions
+            ](progress)
+          : progress;
+      
+      const value =
+        this.counterSettings.startValue +
+        easedProgress *
+          (this.counterSettings.endValue - this.counterSettings.startValue);
+      
+      values.push(value);
+      easedProgresses.push(easedProgress);
+    }
 
     for (let frame = 0; frame < frameCount; frame++) {
       // Check for cancellation
@@ -709,34 +757,11 @@ export class TransparentCounterExporter {
         throw new Error("Export cancelled");
       }
 
-      const progress = frame / (frameCount - 1);
-      const value =
-        this.counterSettings.startValue +
-        progress *
-          (this.counterSettings.endValue - this.counterSettings.startValue);
+      const value = values[frame];
+      const easedProgress = easedProgresses[frame];
 
-      // Handle initial fade-in and transitions
-      if (frame < transitionDuration && !initialTransitionApplied) {
-        const fadeProgress = frame / transitionDuration;
-
-        // Create initial transitions for all digits
-        if (frame === 0) {
-          const text = this.formatNumber(value);
-          for (let i = 0; i < text.length; i++) {
-            this.digitTransitions.set(i, {
-              oldDigit: "",
-              newDigit: text[i],
-              progress: fadeProgress,
-            });
-          }
-          initialTransitionApplied = true;
-        } else {
-          // Update transition progress for initial fade
-          this.digitTransitions.forEach((transition, index) => {
-            transition.progress = fadeProgress;
-          });
-        }
-      }
+      // Update digit transitions with the pre-calculated eased progress
+      this.updateDigitTransitions(value, easedProgress);
 
       // Clear canvas for each frame
       this.ctx.clearRect(
@@ -746,21 +771,14 @@ export class TransparentCounterExporter {
         this.exportOptions.height
       );
 
-      // Draw frame with special handling for transitions
-      if (frame < transitionDuration) {
-        // For initial frames, use explicit transition progress
-        const fadeProgress = frame / transitionDuration;
-        this.drawFrameWithExplicitTransition(value, fadeProgress);
-      } else {
-        // For later frames, use normal drawing
-        this.drawFrame(value, progress);
-      }
+      // Draw frame with pre-calculated eased progress
+      this.drawFrame(value, easedProgress);
 
-      // Convert canvas to PNG blob
+      // Convert canvas to PNG blob with high quality
       const blob = await new Promise<Blob>((resolve) => {
         this.canvas.toBlob((blob) => {
           resolve(blob!);
-        }, "image/png");
+        }, "image/png", 1.0); // Maximum quality
       });
 
       // Add to zip with zero-padded frame number
@@ -768,8 +786,8 @@ export class TransparentCounterExporter {
       const arrayBuffer = await blob.arrayBuffer();
       zip.file(`frame${frameNumber}.png`, arrayBuffer);
 
-      // Update progress
-      if (frame % 10 === 0) {
+      // Update progress less frequently for performance
+      if (frame % 20 === 0 || frame === frameCount - 1) {
         toast.info(`Generated ${frame + 1}/${frameCount} frames`);
       }
     }
@@ -867,6 +885,103 @@ export class TransparentCounterExporter {
       const charWidth = this.ctx.measureText(char).width;
       totalWidth +=
         charWidth + (i < counterText.length - 1 ? letterSpacing : 0);
+    }
+
+    // Add special handling for odometer transition
+    if (this.counterSettings.transition === "odometer") {
+      // Use the same odometer drawing logic as regular frames
+      const absValue = Math.abs(value);
+      const decimals = this.counterSettings.useFloatValues ? 2 : 0;
+      const integer = Math.floor(absValue);
+      let integerStr = integer.toString();
+      if (this.counterSettings.separator === "comma") {
+        integerStr = integerStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      }
+      let decimalStr = "";
+      if (decimals > 0) {
+        decimalStr = Math.floor((absValue - integer) * Math.pow(10, decimals))
+          .toString()
+          .padStart(decimals, "0");
+      }
+      let numericStr = integerStr;
+      if (decimals > 0) numericStr += "." + decimalStr;
+      const sign = value < 0 ? "-" : "";
+      const fullStr =
+        this.counterSettings.prefix +
+        sign +
+        numericStr +
+        this.counterSettings.suffix;
+
+      // Re-compute totalWidth for odometer string
+      totalWidth = 0;
+      for (let i = 0; i < fullStr.length; i++) {
+        const charWidth = this.ctx.measureText(fullStr[i]).width;
+        totalWidth += charWidth + (i < fullStr.length - 1 ? letterSpacing : 0);
+      }
+
+      let currentX = centerX - totalWidth / 2;
+
+      // Find digit locals
+      const digitLocals: number[] = [];
+      const numDigits = Array.from(fullStr).filter((ch) =>
+        /\d/.test(ch)
+      ).length;
+      let pos = decimals > 0 ? -decimals : 0;
+      for (let j = numDigits - 1; j >= 0; j--) {
+        const place = Math.pow(10, pos);
+        const local = (absValue / place) % 10;
+        digitLocals.unshift(local);
+        pos += 1;
+      }
+
+      for (let i = 0; i < fullStr.length; i++) {
+        const char = fullStr[i];
+        const charWidth = this.ctx.measureText(char).width;
+        const charX = currentX + charWidth / 2;
+        const charY = centerY;
+
+        if (/\d/.test(char)) {
+          const local = digitLocals.shift()!;
+          const floorD = Math.floor(local);
+          const frac = local - floorD;
+          const next = (floorD + 1) % 10;
+
+          // Clip region for digit
+          this.ctx.save();
+          const clipHeight = fontSize * 1.1;
+          const clipY = charY - clipHeight / 2;
+          this.ctx.beginPath();
+          this.ctx.rect(
+            charX - charWidth / 2 - 2,
+            clipY,
+            charWidth + 4,
+            clipHeight
+          );
+          this.ctx.clip();
+
+          // Offset
+          const offset = frac * fontSize;
+          // Draw next and current digits
+          this.applyDesignEffects(
+            next.toString(),
+            charX,
+            charY - fontSize + offset,
+            fontSize
+          );
+          this.applyDesignEffects(
+            floorD.toString(),
+            charX,
+            charY + offset,
+            fontSize
+          );
+
+          this.ctx.restore();
+        } else {
+          this.applyDesignEffects(char, charX, charY, fontSize);
+        }
+        currentX += charWidth + letterSpacing;
+      }
+      return; // Skip the rest of original method for odometer
     }
 
     // Apply easing to transition progress if specified
@@ -1105,6 +1220,103 @@ export class TransparentCounterExporter {
           ](frameProgress)
         : frameProgress;
 
+    // Add special handling for odometer transition
+    if (this.counterSettings.transition === "odometer") {
+      // Use the same odometer drawing logic as regular frames
+      const absValue = Math.abs(value);
+      const decimals = this.counterSettings.useFloatValues ? 2 : 0;
+      const integer = Math.floor(absValue);
+      let integerStr = integer.toString();
+      if (this.counterSettings.separator === "comma") {
+        integerStr = integerStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      }
+      let decimalStr = "";
+      if (decimals > 0) {
+        decimalStr = Math.floor((absValue - integer) * Math.pow(10, decimals))
+          .toString()
+          .padStart(decimals, "0");
+      }
+      let numericStr = integerStr;
+      if (decimals > 0) numericStr += "." + decimalStr;
+      const sign = value < 0 ? "-" : "";
+      const fullStr =
+        this.counterSettings.prefix +
+        sign +
+        numericStr +
+        this.counterSettings.suffix;
+
+      // Re-compute totalWidth for odometer string
+      totalWidth = 0;
+      for (let i = 0; i < fullStr.length; i++) {
+        const charWidth = this.ctx.measureText(fullStr[i]).width;
+        totalWidth += charWidth + (i < fullStr.length - 1 ? letterSpacing : 0);
+      }
+
+      let currentX = centerX - totalWidth / 2;
+
+      // Find digit locals
+      const digitLocals: number[] = [];
+      const numDigits = Array.from(fullStr).filter((ch) =>
+        /\d/.test(ch)
+      ).length;
+      let pos = decimals > 0 ? -decimals : 0;
+      for (let j = numDigits - 1; j >= 0; j--) {
+        const place = Math.pow(10, pos);
+        const local = (absValue / place) % 10;
+        digitLocals.unshift(local);
+        pos += 1;
+      }
+
+      for (let i = 0; i < fullStr.length; i++) {
+        const char = fullStr[i];
+        const charWidth = this.ctx.measureText(char).width;
+        const charX = currentX + charWidth / 2;
+        const charY = centerY;
+
+        if (/\d/.test(char)) {
+          const local = digitLocals.shift()!;
+          const floorD = Math.floor(local);
+          const frac = local - floorD;
+          const next = (floorD + 1) % 10;
+
+          // Clip region for digit
+          this.ctx.save();
+          const clipHeight = fontSize * 1.1;
+          const clipY = charY - clipHeight / 2;
+          this.ctx.beginPath();
+          this.ctx.rect(
+            charX - charWidth / 2 - 2,
+            clipY,
+            charWidth + 4,
+            clipHeight
+          );
+          this.ctx.clip();
+
+          // Offset
+          const offset = frac * fontSize;
+          // Draw next and current digits
+          this.applyDesignEffects(
+            next.toString(),
+            charX,
+            charY - fontSize + offset,
+            fontSize
+          );
+          this.applyDesignEffects(
+            floorD.toString(),
+            charX,
+            charY + offset,
+            fontSize
+          );
+
+          this.ctx.restore();
+        } else {
+          this.applyDesignEffects(char, charX, charY, fontSize);
+        }
+        currentX += charWidth + letterSpacing;
+      }
+      return; // Skip the rest of original method for odometer
+    }
+
     // Draw each digit with individual transitions
     let currentX = centerX - totalWidth / 2;
 
@@ -1158,7 +1370,7 @@ export class TransparentCounterExporter {
     }
   }
 
-  // New method specifically for neon and glow effects with reduced bleeding
+  // New method specifically for neon and glow effects with zero bleeding
   private applyContainedDesignEffect(
     text: string,
     x: number,
@@ -1167,48 +1379,68 @@ export class TransparentCounterExporter {
   ): void {
     if (this.counterSettings.design === "neon") {
       const neonColor = this.designSettings.neonColor || "#00FFFF";
-      const intensity = Math.min(this.designSettings.neonIntensity || 10, 12); // Cap intensity
+      const intensity = Math.min(this.designSettings.neonIntensity || 10, 8); // Further reduced intensity
 
       this.ctx.save();
 
-      // Base text layer with minimal glow
-      this.ctx.globalCompositeOperation = "source-over";
-      this.ctx.fillStyle = "#FFFFFF";
-      this.ctx.fillText(text, x, y);
+      // Create a temporary canvas for the glow effect
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = this.canvas.width;
+      tempCanvas.height = this.canvas.height;
+      const tempCtx = tempCanvas.getContext('2d')!;
+      
+      // Set font properties on temp canvas
+      tempCtx.font = this.ctx.font;
+      tempCtx.textAlign = "center";
+      tempCtx.textBaseline = "middle";
 
-      // Contained glow layer
-      this.ctx.globalCompositeOperation = "lighter";
-      this.ctx.shadowColor = neonColor;
-      this.ctx.shadowBlur = intensity * 0.4;
-      this.ctx.fillStyle = neonColor;
-      this.ctx.fillText(text, x, y);
+      // Draw the glow effect on temp canvas
+      tempCtx.fillStyle = neonColor;
+      tempCtx.shadowColor = neonColor;
+      tempCtx.shadowBlur = intensity * 2;
+      tempCtx.fillText(text, x, y);
+      
+      // Draw the sharp text on top
+      tempCtx.shadowBlur = 0;
+      tempCtx.fillStyle = "#FFFFFF";
+      tempCtx.fillText(text, x, y);
 
-      // Sharp foreground layer
-      this.ctx.shadowBlur = 0;
+      // Draw the temp canvas onto main canvas with proper alpha
       this.ctx.globalCompositeOperation = "source-over";
-      this.ctx.fillStyle = neonColor;
-      this.ctx.fillText(text, x, y);
+      this.ctx.drawImage(tempCanvas, 0, 0);
 
       this.ctx.restore();
     } else if (this.counterSettings.design === "glow") {
       const glowColor = this.designSettings.glowColor || "#FFFFFF";
-      const intensity = Math.min(this.designSettings.glowIntensity || 15, 20); // Cap intensity
+      const intensity = Math.min(this.designSettings.glowIntensity || 15, 12); // Further reduced intensity
 
       this.ctx.save();
 
-      // Use layered approach with reduced blur for better alpha
+      // Create a temporary canvas for the glow effect
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = this.canvas.width;
+      tempCanvas.height = this.canvas.height;
+      const tempCtx = tempCanvas.getContext('2d')!;
+      
+      // Set font properties on temp canvas
+      tempCtx.font = this.ctx.font;
+      tempCtx.textAlign = "center";
+      tempCtx.textBaseline = "middle";
+
+      // Draw the glow effect on temp canvas
+      tempCtx.fillStyle = glowColor;
+      tempCtx.shadowColor = glowColor;
+      tempCtx.shadowBlur = intensity * 1.5;
+      tempCtx.fillText(text, x, y);
+      
+      // Draw the sharp text on top
+      tempCtx.shadowBlur = 0;
+      tempCtx.fillStyle = glowColor;
+      tempCtx.fillText(text, x, y);
+
+      // Draw the temp canvas onto main canvas with proper alpha
       this.ctx.globalCompositeOperation = "source-over";
-
-      // Main text
-      this.ctx.fillStyle = glowColor;
-      this.ctx.fillText(text, x, y);
-
-      // Inner glow - minimal spread
-      this.ctx.globalCompositeOperation = "lighter";
-      this.ctx.shadowColor = glowColor;
-      this.ctx.shadowBlur = intensity * 0.3;
-      this.ctx.globalAlpha = 0.7;
-      this.ctx.fillText(text, x, y);
+      this.ctx.drawImage(tempCanvas, 0, 0);
 
       this.ctx.restore();
     } else {
