@@ -562,7 +562,6 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
         theme: "dark",
         locale: "en",
         successUrl: `${window.location.origin}/studio?payment=success`,
-        failureUrl: `${window.location.origin}/pricing?payment=failed`,
       },
 
       eventCallback: (data: any) => {
