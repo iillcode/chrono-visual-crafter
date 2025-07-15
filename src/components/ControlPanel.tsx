@@ -13,6 +13,7 @@ import {
 import TransitionLibrary from "./TransitionLibrary";
 import { FastForward, Rewind, RotateCcw, Hash } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { useMobileDetection } from "@/hooks/useMobileDetection";
 
 interface ControlPanelProps {
   settings: any;
@@ -23,6 +24,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   settings,
   onSettingsChange,
 }) => {
+  const mobileDetection = useMobileDetection();
+
   // Helper function to get the speed descriptor
   const getSpeedDescription = (speed: number) => {
     if (speed <= 0.5) return "Slow";
@@ -54,7 +57,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <div className="flex items-center gap-2">⏱️ Animation Speed</div>
             <button
               onClick={resetAnimation}
-              className="rounded-md p-1 hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
+              className={`rounded-md hover:bg-gray-800 transition-colors text-gray-400 hover:text-white ${
+                mobileDetection.isMobile
+                  ? "p-2 min-h-[44px] min-w-[44px]"
+                  : "p-1"
+              }`}
               title="Reset animation to normal speed"
             >
               <RotateCcw className="w-4 h-4" />
@@ -149,7 +156,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       : parseInt(e.target.value) || 0,
                   })
                 }
-                className="bg-[#181818] border-gray-600 text-white scrollbar-hide"
+                className={`bg-[#181818] border-gray-600 text-white scrollbar-hide ${
+                  mobileDetection.isMobile ? "h-12 min-h-[44px]" : ""
+                }`}
                 style={{
                   WebkitAppearance: "none",
                   MozAppearance: "textfield",
@@ -177,7 +186,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       : parseInt(e.target.value) || 100,
                   })
                 }
-                className="bg-[#181818] border-gray-600 text-white"
+                className={`bg-[#181818] border-gray-600 text-white ${
+                  mobileDetection.isMobile ? "h-12 min-h-[44px]" : ""
+                }`}
                 style={{
                   WebkitAppearance: "none",
                   MozAppearance: "textfield",
@@ -202,7 +213,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               min={1}
               max={30}
               step={0.5}
-              className="w-full"
+              className={`w-full ${mobileDetection.isMobile ? "h-8" : ""}`}
             />
           </div>
 
@@ -231,7 +242,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onSettingsChange({ ...settings, prefix: e.target.value })
                   }
                   placeholder="$, #, etc."
-                  className="bg-[#181818] border-gray-600 text-white text-sm"
+                  className={`bg-[#181818] border-gray-600 text-white text-sm ${
+                    mobileDetection.isMobile ? "h-12 min-h-[44px]" : ""
+                  }`}
                 />
               </div>
               <div className="space-y-1">
@@ -242,7 +255,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     onSettingsChange({ ...settings, suffix: e.target.value })
                   }
                   placeholder="%, K, M, etc."
-                  className="bg-[#181818] border-gray-600 text-white text-sm"
+                  className={`bg-[#181818] border-gray-600 text-white text-sm ${
+                    mobileDetection.isMobile ? "h-12 min-h-[44px]" : ""
+                  }`}
                 />
               </div>
             </div>
@@ -256,7 +271,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 onSettingsChange({ ...settings, separator })
               }
             >
-              <SelectTrigger className="bg-[#181818] border-gray-600 text-white">
+              <SelectTrigger
+                className={`bg-[#181818] border-gray-600 text-white ${
+                  mobileDetection.isMobile ? "h-12 min-h-[44px]" : ""
+                }`}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

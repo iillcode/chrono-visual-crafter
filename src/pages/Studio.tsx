@@ -1,21 +1,23 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useClerkAuth } from "@/hooks/useClerkAuth";
-import { useNavigate } from "react-router-dom";
 import { VideoExportManager } from "@/utils/videoExportFixes";
 import { ErrorHandler } from "@/utils/errorHandling";
 import CounterPreview from "@/components/CounterPreview";
 import RecordingControls from "@/components/RecordingControls";
+import MobileRecordingControls from "@/components/MobileRecordingControls";
 import StudioSidebar from "@/components/StudioSidebar";
 import StudioRightPanel from "@/components/StudioRightPanel";
 import { TransparentExportModal } from "@/components/TransparentExportModal";
-import GlassCard from "@/components/ui/glass-card";
 import AuthButton from "@/components/auth/AuthButton";
-import { Loader2 } from "lucide-react";
 import { RecordingProvider, useRecording } from "@/contexts/RecordingContext";
-import { cn } from "@/lib/utils";
 import { Square } from "lucide-react";
+import { useMobileDetection } from "@/hooks/useMobileDetection";
+import MobileBottomPanel from "@/components/MobileBottomPanel";
+import MobileTabNavigation from "@/components/MobileTabNavigation";
+import MobileHeader from "@/components/MobileHeader";
+import VisualSettings from "@/components/VisualSettings";
+import type { MobileLayoutState } from "@/types/mobile";
 
 // @ts-ignore
 import GIF from "gif.js";
@@ -60,6 +62,19 @@ const StudioContent = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
+
+  // Mobile detection hook
+  const mobileDetection = useMobileDetection();
+
+  // Mobile layout state
+  const [mobileLayoutState, setMobileLayoutState] = useState<MobileLayoutState>(
+    {
+      activeTab: null,
+      bottomPanelOpen: false,
+      isRecording: false,
+      orientation: mobileDetection.orientation,
+    }
+  );
 
   const [counterSettings, setCounterSettings] = useState({
     startValue: 0,
@@ -124,6 +139,48 @@ const StudioContent = () => {
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const recordedChunks = useRef<Blob[]>([]);
 
+  // Mobile state management functions
+  const handleMobileTabChange = (tab: string) => {
+    setMobileLayoutState((prev) => ({
+      ...prev,
+      activeTab: tab as "counter" | "design" | "visual",
+      bottomPanelOpen: true,
+    }));
+  };
+
+  const handleMobileBottomPanelClose = () => {
+    setMobileLayoutState((prev) => ({
+      ...prev,
+      bottomPanelOpen: false,
+      activeTab: null,
+    }));
+  };
+
+  // Sync mobile layout state with recording state and orientation changes
+  useEffect(() => {
+    setMobileLayoutState((prev) => ({
+      ...prev,
+      isRecording,
+      orientation: mobileDetection.orientation,
+    }));
+
+    // Close bottom panel when recording starts on mobile
+    if (isRecording && mobileDetection.isMobile) {
+      setMobileLayoutState((prev) => ({
+        ...prev,
+        bottomPanelOpen: false,
+        activeTab: null,
+      }));
+    }
+  }, [isRecording, mobileDetection.orientation, mobileDetection.isMobile]);
+
+  // Handle sidebar state based on mobile detection
+  useEffect(() => {
+    if (mobileDetection.isMobile) {
+      setSidebarOpen(false); // Close sidebar on mobile by default
+    }
+  }, [mobileDetection.isMobile]);
+
   // Sync text settings with counter settings
   useEffect(() => {
     setTextSettings((prev) => ({
@@ -138,12 +195,18 @@ const StudioContent = () => {
     // Only reset to startValue if we're not currently recording and the value hasn't been set by animation
     if (!isRecording && currentValue !== counterSettings.endValue) {
       // Check if we just finished recording (value is at end) or if it's a manual reset
-      const isAtEndValue = Math.abs(currentValue - counterSettings.endValue) < 0.01;
+      const isAtEndValue =
+        Math.abs(currentValue - counterSettings.endValue) < 0.01;
       if (!isAtEndValue) {
         setCurrentValue(counterSettings.startValue);
       }
     }
-  }, [counterSettings.startValue, isRecording, counterSettings.endValue, currentValue]);
+  }, [
+    counterSettings.startValue,
+    isRecording,
+    counterSettings.endValue,
+    currentValue,
+  ]);
 
   const formatNumber = (value: number) => {
     // Check if we should use float values and if the value has decimal places
@@ -260,7 +323,7 @@ const StudioContent = () => {
     if (mediaRecorder.current) {
       mediaRecorder.current.stop();
     }
-    
+
     // Keep the counter at the last value instead of resetting
     // The currentValue already reflects the last animated value
     // No need to reset it to startValue
@@ -674,86 +737,221 @@ const StudioContent = () => {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Studio Sidebar */}
-        <StudioSidebar
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-          counterSettings={counterSettings}
-          onCounterSettingsChange={setCounterSettings}
-          textSettings={textSettings}
-          onTextSettingsChange={setTextSettings}
-          designSettings={designSettings}
-          onDesignSettingsChange={setDesignSettings}
-        />
+        {mobileDetection.isMobile ? (
+          // Mobile Layout
+          <>
+          
+           
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col transition-all duration-300 overflow-hidden h-full">
-          {/* Preview Area - Centered */}
-          <div className="flex-1 flex justify-center items-start bg-[#0c0c0c] pt-3">
-            <div className="max-w-[800px] w-full flex flex-col items-center justify-start">
-              <div className="w-full aspect-video flex items-start justify-center rounded-lg overflow-hidden bg-[#080808] shadow-2xl border border-white/5">
-                {isPreviewingVideo && videoPreviewUrl ? (
-                  <div className="relative w-full h-full">
-                    <video
-                      src={videoPreviewUrl}
-                      className="w-full h-full object-contain"
-                      autoPlay
-                      controls
-                      loop
-                    />
-                    <button
-                      onClick={handleClosePreview}
-                      className="absolute top-2 right-2 bg-black/70 text-white p-1 rounded-full hover:bg-black"
-                    >
-                      <Square className="w-4 h-4" />
-                    </button>
+            {/* Main Content Area - Full width on mobile */}
+            <div className="flex-1 flex flex-col transition-all duration-300 overflow-hidden h-full">
+              {/* Preview Area - Takes most of the screen */}
+              <div
+                className={`flex-1 flex justify-center items-start bg-[#0c0c0c] pt-3 transition-all duration-300 ${
+                  mobileLayoutState.bottomPanelOpen ? "pb-2" : "pb-16"
+                }`}
+              >
+                <div className="max-w-[800px] w-full flex flex-col items-center justify-start px-4">
+                  <div className="w-full aspect-video flex items-start justify-center rounded-lg overflow-hidden bg-[#080808] shadow-2xl border border-white/5">
+                    {isPreviewingVideo && videoPreviewUrl ? (
+                      <div className="relative w-full h-full">
+                        <video
+                          src={videoPreviewUrl}
+                          className="w-full h-full object-contain"
+                          autoPlay
+                          controls
+                          loop
+                        />
+                        <button
+                          onClick={handleClosePreview}
+                          className="absolute top-2 right-2 bg-black/70 text-white p-1 rounded-full hover:bg-black"
+                        >
+                          <Square className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <CounterPreview
+                        ref={canvasRef}
+                        settings={counterSettings}
+                        textSettings={textSettings}
+                        designSettings={designSettings}
+                        currentValue={currentValue}
+                        isRecording={isRecording}
+                        formatNumber={formatNumber}
+                      />
+                    )}
                   </div>
-                ) : (
-                  <CounterPreview
-                    ref={canvasRef}
-                    settings={counterSettings}
-                    textSettings={textSettings}
-                    designSettings={designSettings}
-                    currentValue={currentValue}
-                    isRecording={isRecording}
-                    formatNumber={formatNumber}
-                  />
-                )}
-              </div>
 
-              {/* Recording Controls - Moved below the preview */}
-              <RecordingControls
-                isPaused={isPaused}
-                onStart={handleStartRecording}
-                onStop={handleStopRecording}
-                onPause={handlePauseRecording}
-                onRestart={handleRestartRecording}
-                onDownloadVideo={handleDownloadVideo}
-                onDownloadGif={handleDownloadGif}
-                onPreviewVideo={handlePreviewVideo}
-                onTransparentExport={() => setShowTransparentExport(true)}
-                recordedChunksLength={recordedChunks.current.length}
-                isGeneratingGif={isGeneratingGif}
-                onCancelGif={handleCancelGif}
-                isProcessingVideo={isProcessingVideo}
-                hasCredits={
-                  profile?.subscription_plan === "pro" ||
-                  profile?.credits === null ||
-                  (typeof profile?.credits === "number" && profile.credits > 0)
-                }
-                hasRecordedVideo={!!videoPreviewUrl}
+                  {/* Mobile Recording Controls - Always visible but positioned appropriately */}
+                  <div
+                    className={`w-full transition-all duration-300 ${
+                      mobileLayoutState.isRecording
+                        ? "fixed bottom-4 left-0 right-0 z-40"
+                        : "mt-4"
+                    }`}
+                  >
+                    <MobileRecordingControls
+                      isPaused={isPaused}
+                      onStart={handleStartRecording}
+                      onStop={handleStopRecording}
+                      onPause={handlePauseRecording}
+                      onRestart={handleRestartRecording}
+                      onDownloadVideo={handleDownloadVideo}
+                      onDownloadGif={handleDownloadGif}
+                      onPreviewVideo={handlePreviewVideo}
+                      onTransparentExport={() => setShowTransparentExport(true)}
+                      recordedChunksLength={recordedChunks.current.length}
+                      isGeneratingGif={isGeneratingGif}
+                      onCancelGif={handleCancelGif}
+                      isProcessingVideo={isProcessingVideo}
+                      hasCredits={
+                        profile?.subscription_plan === "pro" ||
+                        profile?.credits === null ||
+                        (typeof profile?.credits === "number" &&
+                          profile.credits > 0)
+                      }
+                      hasRecordedVideo={!!videoPreviewUrl}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Tab Navigation - Fixed at bottom */}
+            <div className="fixed bottom-0 left-0 right-0 z-30">
+              <MobileTabNavigation
+                activeTab={mobileLayoutState.activeTab}
+                onTabChange={handleMobileTabChange}
+                isRecording={mobileLayoutState.isRecording}
               />
             </div>
-          </div>
-        </div>
 
-        {/* Right Side Panel - Always visible */}
-        <StudioRightPanel
-          counterSettings={counterSettings}
-          onCounterSettingsChange={setCounterSettings}
-          designSettings={designSettings}
-          onDesignSettingsChange={setDesignSettings}
-        />
+            {/* Mobile Bottom Panel */}
+            <MobileBottomPanel
+              isOpen={mobileLayoutState.bottomPanelOpen}
+              onClose={handleMobileBottomPanelClose}
+            >
+              {mobileLayoutState.activeTab === "counter" && (
+                <div className="p-4">
+                  <StudioSidebar
+                    isOpen={true}
+                    onToggle={() => {}}
+                    counterSettings={counterSettings}
+                    onCounterSettingsChange={setCounterSettings}
+                    textSettings={textSettings}
+                    onTextSettingsChange={setTextSettings}
+                    designSettings={designSettings}
+                    onDesignSettingsChange={setDesignSettings}
+                    isMobileView={true}
+                  />
+                </div>
+              )}
+              {mobileLayoutState.activeTab === "design" && (
+                <div className="p-4">
+                  <StudioRightPanel
+                    counterSettings={counterSettings}
+                    onCounterSettingsChange={setCounterSettings}
+                    designSettings={designSettings}
+                    onDesignSettingsChange={setDesignSettings}
+                  />
+                </div>
+              )}
+              {mobileLayoutState.activeTab === "visual" && (
+                <div className="p-4">
+                  <VisualSettings
+                    counterSettings={counterSettings}
+                    onCounterSettingsChange={setCounterSettings}
+                  />
+                </div>
+              )}
+            </MobileBottomPanel>
+          </>
+        ) : (
+          // Desktop Layout - Unchanged
+          <>
+            {/* Left Studio Sidebar */}
+            <StudioSidebar
+              isOpen={sidebarOpen}
+              onToggle={() => setSidebarOpen(!sidebarOpen)}
+              counterSettings={counterSettings}
+              onCounterSettingsChange={setCounterSettings}
+              textSettings={textSettings}
+              onTextSettingsChange={setTextSettings}
+              designSettings={designSettings}
+              onDesignSettingsChange={setDesignSettings}
+            />
+
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col transition-all duration-300 overflow-hidden h-full">
+              {/* Preview Area - Centered */}
+              <div className="flex-1 flex justify-center items-start bg-[#0c0c0c] pt-3">
+                <div className="max-w-[800px] w-full flex flex-col items-center justify-start">
+                  <div className="w-full aspect-video flex items-start justify-center rounded-lg overflow-hidden bg-[#080808] shadow-2xl border border-white/5">
+                    {isPreviewingVideo && videoPreviewUrl ? (
+                      <div className="relative w-full h-full">
+                        <video
+                          src={videoPreviewUrl}
+                          className="w-full h-full object-contain"
+                          autoPlay
+                          controls
+                          loop
+                        />
+                        <button
+                          onClick={handleClosePreview}
+                          className="absolute top-2 right-2 bg-black/70 text-white p-1 rounded-full hover:bg-black"
+                        >
+                          <Square className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <CounterPreview
+                        ref={canvasRef}
+                        settings={counterSettings}
+                        textSettings={textSettings}
+                        designSettings={designSettings}
+                        currentValue={currentValue}
+                        isRecording={isRecording}
+                        formatNumber={formatNumber}
+                      />
+                    )}
+                  </div>
+
+                  {/* Recording Controls - Moved below the preview */}
+                  <RecordingControls
+                    isPaused={isPaused}
+                    onStart={handleStartRecording}
+                    onStop={handleStopRecording}
+                    onPause={handlePauseRecording}
+                    onRestart={handleRestartRecording}
+                    onDownloadVideo={handleDownloadVideo}
+                    onDownloadGif={handleDownloadGif}
+                    onPreviewVideo={handlePreviewVideo}
+                    onTransparentExport={() => setShowTransparentExport(true)}
+                    recordedChunksLength={recordedChunks.current.length}
+                    isGeneratingGif={isGeneratingGif}
+                    onCancelGif={handleCancelGif}
+                    isProcessingVideo={isProcessingVideo}
+                    hasCredits={
+                      profile?.subscription_plan === "pro" ||
+                      profile?.credits === null ||
+                      (typeof profile?.credits === "number" &&
+                        profile.credits > 0)
+                    }
+                    hasRecordedVideo={!!videoPreviewUrl}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right Side Panel - Always visible on desktop */}
+            <StudioRightPanel
+              counterSettings={counterSettings}
+              onCounterSettingsChange={setCounterSettings}
+              designSettings={designSettings}
+              onDesignSettingsChange={setDesignSettings}
+            />
+          </>
+        )}
       </div>
 
       {/* Transparent Export Modal */}
