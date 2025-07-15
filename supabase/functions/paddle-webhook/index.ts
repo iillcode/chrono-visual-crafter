@@ -499,6 +499,9 @@ async function handleSubscriptionEvent(
     updated_at: new Date().toISOString(),
   };
 
+  if (subscription.status === "canceled") {
+    profileUpdateData.subscription_plan = "free";
+  }
   console.log(
     "[WEBHOOK INFO] Updating profile with data:",
     JSON.stringify(profileUpdateData, null, 2)
@@ -527,11 +530,22 @@ async function handleSubscriptionEvent(
   );
 
   // Create or update subscription record
+  // Normalize status to ensure consistent spelling
+  let normalizedStatus = subscription.status;
+  // Handle both US and UK spelling variants
+  if (normalizedStatus === "canceled") {
+    normalizedStatus = "cancelled";
+  }
+
+  console.log(
+    `Normalizing status from "${subscription.status}" to "${normalizedStatus}" for upsert`
+  );
+
   const subscriptionData = {
     user_id: userId,
     plan_id: plan.id,
     paddle_subscription_id: subscription.id,
-    status: subscription.status,
+    status: normalizedStatus,
     current_period_start: subscription.current_billing_period?.starts_at,
     current_period_end: subscription.current_billing_period?.ends_at,
     updated_at: new Date().toISOString(),
@@ -860,10 +874,13 @@ async function handleSubscriptionCanceled(
       currentProfile?.subscription_plan &&
       currentProfile.subscription_plan !== "free"
     ) {
-      subscriptionPlan = currentProfile.subscription_plan;
+      subscriptionPlan = "free";
     }
-  } else if (payload.event_type === "subscription.canceled") {
-    subscriptionStatus = "canceled";
+  } else if (
+    payload.event_type === "subscription.canceled" ||
+    payload.event_type === "subscription.cancelled"
+  ) {
+    subscriptionStatus = "cancelled"; // Using British spelling to match database constraint
     subscriptionPlan = "free";
   }
 
@@ -872,7 +889,7 @@ async function handleSubscriptionCanceled(
     .from("profiles")
     .update({
       subscription_status: subscriptionStatus,
-      subscription_plan: subscriptionPlan,
+      subscription_plan: "free",
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId);
@@ -888,10 +905,22 @@ async function handleSubscriptionCanceled(
   }
 
   // Update subscription record
+  // Normalize status to ensure consistent spelling
+  let normalizedStatus = subscription.status || "cancelled";
+  // Handle both US and UK spelling variants
+  if (normalizedStatus === "canceled") {
+    normalizedStatus = "cancelled";
+  }
+
+  console.log(
+    `Normalizing status from "${subscription.status}" to "${normalizedStatus}"`
+  );
+
   const { error: subscriptionUpdateError } = await supabaseClient
     .from("user_subscriptions")
     .update({
-      status: subscription.status || "canceled",
+      status: normalizedStatus,
+      subscription_plan: "free",
       updated_at: new Date().toISOString(),
       current_period_end:
         subscription.current_billing_period?.ends_at ||

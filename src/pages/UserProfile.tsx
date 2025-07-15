@@ -207,7 +207,47 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
     try {
       setIsCanceling(true);
 
-      // Use the cancelSubscriptionAPI method from PaddleProvider
+      // Try to cancel via the Edge Function first
+      try {
+        // Import the API function
+        const { cancelSubscription } = await import('@/api/subscriptions');
+        
+        // Call the Edge Function
+        const result = await cancelSubscription({
+          subscriptionId: subscriptionDetails.paddle_subscription_id,
+          userId: user.id,
+          reason: 'user_initiated'
+        });
+        
+        if (result.success) {
+          toast({
+            title: "Subscription Canceled",
+            description: "Your subscription has been canceled successfully.",
+          });
+          
+          // Refresh subscription details
+          setSubscriptionDetails((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  cancel_at_period_end: true,
+                }
+              : null
+          );
+          
+          // Refresh subscription status
+          await refreshSubscriptionStatus();
+          return;
+        } else {
+          console.error("Edge function cancellation failed:", result.error);
+          // Fall back to client-side API
+        }
+      } catch (edgeError) {
+        console.error("Error with Edge function cancellation:", edgeError);
+        // Fall back to client-side API
+      }
+
+      // Fallback: Use the cancelSubscriptionAPI method from PaddleProvider
       const success = await cancelSubscriptionAPI(
         subscriptionDetails.paddle_subscription_id
       );
