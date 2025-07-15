@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // @ts-ignore -- Deno environment
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // @ts-ignore -- Deno environment
-import { crypto } from "https://deno.land/std@0.168.0/node/crypto.ts";
+const crypto = globalThis.crypto;
 
 // @ts-ignore -- Deno environment
 declare const Deno: {
@@ -75,7 +75,9 @@ async function verifyPaddleSignature(
 
   // SECURITY: Reduce timestamp tolerance from 5 minutes to 2 minutes
   const currentTimestamp = Math.floor(Date.now() / 1000);
-  if (Math.abs(currentTimestamp - timestamp) > WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS) {
+  if (
+    Math.abs(currentTimestamp - timestamp) > WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS
+  ) {
     console.warn(
       `[WEBHOOK WARN] Timestamp validation failed. Header ts: ${timestamp}, Current ts: ${currentTimestamp}, Tolerance: ${WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS}s`
     );
@@ -118,19 +120,19 @@ const IDEMPOTENCY_TTL = 24 * 60 * 60 * 1000; // 24 hours
 function isEventProcessed(eventId: string): boolean {
   const timestamp = processedEvents.get(eventId);
   if (!timestamp) return false;
-  
+
   // Clean up expired entries
   if (Date.now() - timestamp > IDEMPOTENCY_TTL) {
     processedEvents.delete(eventId);
     return false;
   }
-  
+
   return true;
 }
 
 function markEventProcessed(eventId: string): void {
   processedEvents.set(eventId, Date.now());
-  
+
   // Clean up old entries periodically
   if (processedEvents.size > 1000) {
     const cutoff = Date.now() - IDEMPOTENCY_TTL;
@@ -148,19 +150,18 @@ serve(async (req) => {
   }
 
   const rawBody = await req.text();
-  
+
   // Validate payload size
   const payloadSizeBytes = new Blob([rawBody]).size;
   const maxSizeBytes = MAX_PAYLOAD_SIZE_MB * 1024 * 1024;
   if (payloadSizeBytes > maxSizeBytes) {
-    console.error(`[WEBHOOK ERROR] Payload too large: ${payloadSizeBytes} bytes (max: ${maxSizeBytes})`);
-    return new Response(
-      JSON.stringify({ error: "Payload too large" }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 413, // Payload Too Large
-      }
+    console.error(
+      `[WEBHOOK ERROR] Payload too large: ${payloadSizeBytes} bytes (max: ${maxSizeBytes})`
     );
+    return new Response(JSON.stringify({ error: "Payload too large" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 413, // Payload Too Large
+    });
   }
 
   try {
@@ -186,10 +187,12 @@ serve(async (req) => {
     // Parse the webhook payload
     const payload = JSON.parse(rawBody);
     const eventId = payload.event_id;
-    
+
     // Idempotency check
     if (eventId && isEventProcessed(eventId)) {
-      console.log(`[WEBHOOK INFO] Event ${eventId} already processed, skipping`);
+      console.log(
+        `[WEBHOOK INFO] Event ${eventId} already processed, skipping`
+      );
       return new Response(
         JSON.stringify({ received: true, message: "Event already processed" }),
         {
@@ -206,20 +209,20 @@ serve(async (req) => {
 
     // Validate event type
     const validEventTypes = [
-      'subscription.created',
-      'subscription.updated',
-      'subscription.cancelled',
-      'subscription.paused',
-      'subscription.resumed',
-      'transaction.completed',
-      'customer.created',
-      'customer.updated',
-      'invoice.paid',
-      'invoice.payment_failed',
-      'subscription.payment_succeeded',
-      'subscription.payment_failed'
+      "subscription.created",
+      "subscription.updated",
+      "subscription.cancelled",
+      "subscription.paused",
+      "subscription.resumed",
+      "transaction.completed",
+      "customer.created",
+      "customer.updated",
+      "invoice.paid",
+      "invoice.payment_failed",
+      "subscription.payment_succeeded",
+      "subscription.payment_failed",
     ];
-    
+
     if (!validEventTypes.includes(payload.event_type)) {
       console.warn(`[WEBHOOK WARN] Unknown event type: ${payload.event_type}`);
       return new Response(
@@ -564,25 +567,30 @@ async function handleSubscriptionEvent(
   console.log(
     `[WEBHOOK INFO] EVENT_PROCESSED: Subscription event for user: ${userId}, plan: ${plan.name}, status: ${subscription.status}. Event ID: ${eventId}`
   );
-  
+
   // Handle cancellation-specific logic
-  if (eventType === 'subscription.cancelled') {
+  if (eventType === "subscription.cancelled") {
     // Call the cancellation handler function
     const { error: cancellationError } = await supabaseClient.rpc(
-      'handle_subscription_cancellation',
+      "handle_subscription_cancellation",
       {
         p_user_id: userId,
         p_subscription_id: subscription.id,
-        p_reason: customData.cancelReason || 'user_initiated'
+        p_reason: customData.cancelReason || "user_initiated",
       }
     );
-    
+
     if (cancellationError) {
-      console.error(`[WEBHOOK ERROR] Error calling cancellation handler:`, cancellationError);
-      throw new Error(`Database error handling cancellation for user ${userId}.`);
+      console.error(
+        `[WEBHOOK ERROR] Error calling cancellation handler:`,
+        cancellationError
+      );
+      throw new Error(
+        `Database error handling cancellation for user ${userId}.`
+      );
     }
   }
-  
+
   return {
     success: true,
     message: "Subscription event processed successfully.",
