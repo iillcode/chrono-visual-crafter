@@ -221,6 +221,8 @@ serve(async (req) => {
       "invoice.payment_failed",
       "subscription.payment_succeeded",
       "subscription.payment_failed",
+      "payment_method.saved",
+      "payment_method.deleted",
     ];
 
     if (!validEventTypes.includes(payload.event_type)) {
@@ -266,6 +268,9 @@ serve(async (req) => {
       case "subscription.payment_succeeded":
       case "subscription.payment_failed":
         result = await handleSubscriptionPaymentEvent(supabaseClient, payload);
+        break;
+      case "payment_method.saved":
+        result = await handlePaymentMethodSaved(supabaseClient, payload);
         break;
       default:
         console.log(
@@ -317,6 +322,53 @@ interface HandlerResult {
   success: boolean;
   message?: string;
   // status field removed as we'll rely on throwing for 500s, and always return 200 for non-exceptions.
+}
+
+// Helper function to update subscription record with latest data
+async function updateSubscriptionRecord(
+  supabaseClient: any,
+  subscriptionData: any,
+  eventType: string,
+  userId: string
+): Promise<void> {
+  const updateData: any = {
+    status:
+      subscriptionData.status === "canceled"
+        ? "cancelled"
+        : subscriptionData.status,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Update billing period if available
+  if (subscriptionData.current_billing_period) {
+    updateData.current_period_start =
+      subscriptionData.current_billing_period.starts_at;
+    updateData.current_period_end =
+      subscriptionData.current_billing_period.ends_at;
+  }
+
+  console.log(
+    `[WEBHOOK INFO] Updating subscription record for user ${userId}:`,
+    updateData
+  );
+
+  const { error: subscriptionUpdateError } = await supabaseClient
+    .from("user_subscriptions")
+    .update(updateData)
+    .eq("paddle_subscription_id", subscriptionData.id);
+
+  if (subscriptionUpdateError) {
+    console.error(
+      `[WEBHOOK ERROR] Error updating subscription record for ${eventType}: ${subscriptionUpdateError.message}`
+    );
+    throw new Error(
+      `Database error updating subscription record for user ${userId}.`
+    );
+  }
+
+  console.log(
+    `[WEBHOOK INFO] Successfully updated subscription record for user ${userId}`
+  );
 }
 
 async function handleSubscriptionEvent(
@@ -541,27 +593,35 @@ async function handleSubscriptionEvent(
     `Normalizing status from "${subscription.status}" to "${normalizedStatus}" for upsert`
   );
 
-  const subscriptionData = {
+  // Upsert user subscription record directly
+  console.log("[WEBHOOK INFO] Upserting subscription record with data:", {
     user_id: userId,
     plan_id: plan.id,
     paddle_subscription_id: subscription.id,
     status: normalizedStatus,
     current_period_start: subscription.current_billing_period?.starts_at,
     current_period_end: subscription.current_billing_period?.ends_at,
-    updated_at: new Date().toISOString(),
-  };
-
-  console.log(
-    "[WEBHOOK INFO] Upserting subscription with data:",
-    JSON.stringify(subscriptionData, null, 2)
-  );
+  });
 
   const { data: upsertedSubscription, error: subscriptionUpsertError } =
     await supabaseClient
       .from("user_subscriptions")
-      .upsert(subscriptionData)
-      .select()
-      .single();
+      .upsert(
+        {
+          user_id: userId,
+          plan_id: plan.id,
+          paddle_subscription_id: subscription.id,
+          status: normalizedStatus,
+          current_period_start: subscription.current_billing_period?.starts_at,
+          current_period_end: subscription.current_billing_period?.ends_at,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "user_id",
+          ignoreDuplicates: false,
+        }
+      )
+      .select();
 
   if (subscriptionUpsertError) {
     console.error(
@@ -570,13 +630,41 @@ async function handleSubscriptionEvent(
     );
     throw new Error(
       `Database error upserting subscription for user ${userId}.`
-    ); // Caught by main try-catch, results in 500
+    );
   }
 
   console.log(
     "[WEBHOOK INFO] Subscription upserted successfully:",
     JSON.stringify(upsertedSubscription, null, 2)
   );
+
+  // Log payment history for audit trail
+  const { error: historyError } = await supabaseClient
+    .from("payment_history")
+    .insert({
+      user_id: userId,
+      subscription_id: subscription.id,
+      event_type: eventType,
+      amount: plan.price,
+      currency: "USD",
+      plan_name: plan.name,
+      paddle_data: payload,
+      status: normalizedStatus,
+      processed_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    });
+
+  if (historyError) {
+    console.error(
+      `[WEBHOOK ERROR] Error logging payment history for user ${userId}:`,
+      historyError
+    );
+    // Don't throw error for history logging, just log it
+  } else {
+    console.log(
+      `[WEBHOOK INFO] Payment history logged successfully for user ${userId}`
+    );
+  }
 
   console.log(
     `[WEBHOOK INFO] EVENT_PROCESSED: Subscription event for user: ${userId}, plan: ${plan.name}, status: ${subscription.status}. Event ID: ${eventId}`
@@ -997,6 +1085,54 @@ async function handlePaymentMethodDeleted(
   };
 }
 
+async function handlePaymentMethodSaved(
+  supabaseClient: any,
+  payload: any
+): Promise<HandlerResult> {
+  const paymentMethod = payload.data;
+  const eventId = payload.event_id || "N/A";
+  const customerId = paymentMethod.customer_id;
+
+  console.log("=== PAYMENT METHOD SAVED DEBUG START ===");
+  console.log("[WEBHOOK INFO] Processing payment method saved", {
+    eventId,
+    customerId,
+    paymentMethodId: paymentMethod.id,
+  });
+  console.debug("[WEBHOOK DEBUG] Payment method data", paymentMethod);
+
+  // Log the event for audit purposes
+  console.log(
+    `[WEBHOOK INFO] Payment method ${paymentMethod.id} saved for customer ${customerId}. Event ID: ${eventId}`
+  );
+
+  // If you store payment methods in your database, you might want to save or update them
+  // For example:
+  /*
+  const { error } = await supabaseClient
+    .from('user_payment_methods')
+    .upsert({ 
+      payment_method_id: paymentMethod.id,
+      customer_id: customerId,
+      type: paymentMethod.type,
+      status: 'active',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString() 
+    })
+  
+  if (error) {
+    console.error(`Error saving payment method: ${error.message}`);
+    throw new Error(`Database error saving payment method.`);
+  }
+  */
+
+  console.log("=== PAYMENT METHOD SAVED DEBUG END ===");
+  return {
+    success: true,
+    message: "Payment method saved acknowledged.",
+  };
+}
+
 async function handleCustomerEvent(
   supabaseClient: any,
   payload: any
@@ -1116,7 +1252,8 @@ async function handleSubscriptionPaymentEvent(
 
   // Handle payment failures
   if (payload.event_type === "subscription.payment_failed") {
-    const { error: updateError } = await supabaseClient
+    // Update profile status
+    const { error: profileUpdateError } = await supabaseClient
       .from("profiles")
       .update({
         subscription_status: "past_due",
@@ -1124,20 +1261,60 @@ async function handleSubscriptionPaymentEvent(
       })
       .eq("user_id", userId);
 
-    if (updateError) {
+    if (profileUpdateError) {
       console.error(
-        `[WEBHOOK ERROR] Error updating subscription status for failed payment: ${updateError.message}`
+        `[WEBHOOK ERROR] Error updating profile status for failed payment: ${profileUpdateError.message}`
       );
     } else {
       console.log(
-        `[WEBHOOK INFO] Updated subscription status to 'past_due' for user ${userId} due to failed payment`
+        `[WEBHOOK INFO] Updated profile status to 'past_due' for user ${userId} due to failed payment`
       );
+    }
+
+    // Update subscription record status
+    const { error: subscriptionUpdateError } = await supabaseClient
+      .from("user_subscriptions")
+      .update({
+        status: "past_due",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("paddle_subscription_id", subscription.id);
+
+    if (subscriptionUpdateError) {
+      console.error(
+        `[WEBHOOK ERROR] Error updating subscription record for failed payment: ${subscriptionUpdateError.message}`
+      );
+    } else {
+      console.log(
+        `[WEBHOOK INFO] Updated subscription record to 'past_due' for user ${userId}`
+      );
+    }
+
+    // Log payment failure to payment history
+    const { error: historyError } = await supabaseClient
+      .from("payment_history")
+      .insert({
+        user_id: userId,
+        subscription_id: subscription.id,
+        event_type: "subscription.payment_failed",
+        status: "past_due",
+        paddle_data: payload,
+        processed_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      });
+
+    if (historyError) {
+      console.error(
+        `[WEBHOOK ERROR] Error logging payment failure to history: ${historyError.message}`
+      );
+      // Don't throw error for history logging, just log it
     }
   }
 
   // Handle successful payments
   if (payload.event_type === "subscription.payment_succeeded") {
-    const { error: updateError } = await supabaseClient
+    // Update profile status
+    const { error: profileUpdateError } = await supabaseClient
       .from("profiles")
       .update({
         subscription_status: "active",
@@ -1145,14 +1322,55 @@ async function handleSubscriptionPaymentEvent(
       })
       .eq("user_id", userId);
 
-    if (updateError) {
+    if (profileUpdateError) {
       console.error(
-        `[WEBHOOK ERROR] Error updating subscription status for successful payment: ${updateError.message}`
+        `[WEBHOOK ERROR] Error updating profile status for successful payment: ${profileUpdateError.message}`
       );
     } else {
       console.log(
-        `[WEBHOOK INFO] Updated subscription status to 'active' for user ${userId} due to successful payment`
+        `[WEBHOOK INFO] Updated profile status to 'active' for user ${userId} due to successful payment`
       );
+    }
+
+    // Update subscription record with latest billing period and status
+    const { error: subscriptionUpdateError } = await supabaseClient
+      .from("user_subscriptions")
+      .update({
+        status: "active",
+        current_period_start: subscription.current_billing_period?.starts_at,
+        current_period_end: subscription.current_billing_period?.ends_at,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("paddle_subscription_id", subscription.id);
+
+    if (subscriptionUpdateError) {
+      console.error(
+        `[WEBHOOK ERROR] Error updating subscription record for successful payment: ${subscriptionUpdateError.message}`
+      );
+    } else {
+      console.log(
+        `[WEBHOOK INFO] Updated subscription record for user ${userId} with latest billing period`
+      );
+    }
+
+    // Log payment success to payment history
+    const { error: historyError } = await supabaseClient
+      .from("payment_history")
+      .insert({
+        user_id: userId,
+        subscription_id: subscription.id,
+        event_type: "subscription.payment_succeeded",
+        status: "active",
+        paddle_data: payload,
+        processed_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      });
+
+    if (historyError) {
+      console.error(
+        `[WEBHOOK ERROR] Error logging payment success to history: ${historyError.message}`
+      );
+      // Don't throw error for history logging, just log it
     }
   }
 

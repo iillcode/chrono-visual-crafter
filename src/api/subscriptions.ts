@@ -32,6 +32,20 @@ export async function cancelSubscription({
         "Error calling cancel-subscription function:",
         functionError
       );
+
+      // Check if the error indicates the subscription is already cancelled
+      const errorMessage = functionError.message || "";
+      if (
+        errorMessage.includes("subscription_update_when_canceled") ||
+        errorMessage.includes("subscription is canceled") ||
+        errorMessage.includes("already cancelled")
+      ) {
+        return {
+          success: true,
+          message: "Subscription was already cancelled",
+        };
+      }
+
       return {
         success: false,
         message: functionError.message || "Failed to cancel subscription",
@@ -42,6 +56,21 @@ export async function cancelSubscription({
     // Check response structure
     if (functionData?.success === false) {
       console.error("Cancellation function returned error:", functionData);
+
+      // Check if the error indicates the subscription is already cancelled
+      const errorMessage =
+        functionData.message || functionData.error?.message || "";
+      if (
+        errorMessage.includes("subscription_update_when_canceled") ||
+        errorMessage.includes("subscription is canceled") ||
+        errorMessage.includes("already cancelled")
+      ) {
+        return {
+          success: true,
+          message: "Subscription was already cancelled",
+        };
+      }
+
       return {
         success: false,
         message:

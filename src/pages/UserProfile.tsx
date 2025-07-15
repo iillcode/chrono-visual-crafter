@@ -210,37 +210,83 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
       // Try to cancel via the Edge Function first
       try {
         // Import the API function
-        const { cancelSubscription } = await import('@/api/subscriptions');
-        
+        const { cancelSubscription } = await import("@/api/subscriptions");
+
         // Call the Edge Function
         const result = await cancelSubscription({
           subscriptionId: subscriptionDetails.paddle_subscription_id,
           userId: user.id,
-          reason: 'user_initiated'
+          reason: "user_initiated",
         });
-        
+
         if (result.success) {
           toast({
             title: "Subscription Canceled",
-            description: "Your subscription has been canceled successfully.",
+            description:
+              "Your subscription has been canceled successfully. The page will reload to update your status.",
           });
-          
-          // Refresh subscription details
+
+          // Update local state immediately
           setSubscriptionDetails((prev) =>
             prev
               ? {
                   ...prev,
+                  status: "cancelled",
                   cancel_at_period_end: true,
                 }
               : null
           );
-          
+
           // Refresh subscription status
           await refreshSubscriptionStatus();
+
+          // Close the modal and reload the page to ensure all components update
+          setTimeout(() => {
+            onOpenChange(false);
+            window.location.reload();
+          }, 2000);
+
           return;
         } else {
+          // Check if the error indicates the subscription is already cancelled
+          const errorMessage = result.error?.message || result.message || "";
+          if (
+            errorMessage.includes("subscription_update_when_canceled") ||
+            errorMessage.includes("subscription is canceled") ||
+            errorMessage.includes("already cancelled")
+          ) {
+            // Subscription is already cancelled, treat as success
+            toast({
+              title: "Subscription Already Canceled",
+              description:
+                "Your subscription was already canceled. The page will reload to update your status.",
+            });
+
+            // Update local state immediately
+            setSubscriptionDetails((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: "cancelled",
+                    cancel_at_period_end: true,
+                  }
+                : null
+            );
+
+            // Refresh subscription status
+            await refreshSubscriptionStatus();
+
+            // Close the modal and reload the page to ensure all components update
+            setTimeout(() => {
+              onOpenChange(false);
+              window.location.reload();
+            }, 2000);
+
+            return;
+          }
+
           console.error("Edge function cancellation failed:", result.error);
-          // Fall back to client-side API
+          // Fall back to client-side API for other errors
         }
       } catch (edgeError) {
         console.error("Error with Edge function cancellation:", edgeError);
@@ -253,11 +299,18 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
       );
 
       if (success) {
-        // Refresh subscription details
+        toast({
+          title: "Subscription Canceled",
+          description:
+            "Your subscription has been canceled successfully. The page will reload to update your status.",
+        });
+
+        // Update local state immediately
         setSubscriptionDetails((prev) =>
           prev
             ? {
                 ...prev,
+                status: "cancelled",
                 cancel_at_period_end: true,
               }
             : null
@@ -265,6 +318,12 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
 
         // Refresh subscription status
         await refreshSubscriptionStatus();
+
+        // Close the modal and reload the page to ensure all components update
+        setTimeout(() => {
+          onOpenChange(false);
+          window.location.reload();
+        }, 2000);
       }
     } catch (error) {
       console.error("Error canceling subscription:", error);

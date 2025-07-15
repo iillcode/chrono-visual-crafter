@@ -11,13 +11,26 @@ declare const Deno: {
 };
 
 // SECURITY: Restrict CORS to only necessary origins
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*", // Should be restricted in production
+const getAllowedOrigin = (requestOrigin: string | null): string => {
+  const allowedOrigins = (
+    Deno.env.get("ALLOWED_ORIGIN") || "http://localhost:8080"
+  ).split(",");
+
+  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  // Default to first allowed origin if no match
+  return allowedOrigins[0];
+};
+
+const getCorsHeaders = (requestOrigin: string | null) => ({
+  "Access-Control-Allow-Origin": getAllowedOrigin(requestOrigin),
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
   "Access-Control-Max-Age": "86400", // Cache preflight request for 24 hours
-};
+});
 
 const PADDLE_API_KEY = Deno.env.get("PADDLE_API_KEY");
 const PADDLE_API_URL =
@@ -60,9 +73,24 @@ async function callPaddleAPI(endpoint: string, method = "GET", body?: any) {
   // Check if the response was successful
   if (!response.ok) {
     console.error(`Paddle API error (${method} ${endpoint}):`, data);
-    throw new Error(
+
+    // Create a more detailed error object
+    const errorDetails = {
+      status: response.status,
+      statusText: response.statusText,
+      paddleError: data.error || data,
+      endpoint: endpoint,
+      method: method,
+    };
+
+    const error = new Error(
       `Paddle API error: ${data.error?.message || response.statusText}`
     );
+    // Attach additional details to the error
+    (error as any).details = errorDetails;
+    (error as any).paddleErrorCode = data.error?.code;
+
+    throw error;
   }
 
   return { data, response };
@@ -103,6 +131,8 @@ async function cancelPendingChanges(subscriptionId: string) {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("Origin"));
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -243,30 +273,67 @@ serve(async (req) => {
       }
 
       // Step 3: Now proceed with cancellation
-      const { data: paddleData, response: paddleResponse } =
-        await callPaddleAPI(`/subscriptions/${subscriptionId}/cancel`, "POST", {
-          effective_from: "immediately",
-        });
+      let paddleData;
+      try {
+        const result = await callPaddleAPI(
+          `/subscriptions/${subscriptionId}/cancel`,
+          "POST",
+          {
+            effective_from: "immediately",
+          }
+        );
+        paddleData = result.data;
+      } catch (paddleError: any) {
+        // Check if the subscription is already cancelled
+        if (
+          paddleError.paddleErrorCode === "subscription_update_when_canceled" ||
+          (paddleError.message &&
+            paddleError.message.includes(
+              "subscription_update_when_canceled"
+            )) ||
+          (paddleError.message &&
+            paddleError.message.includes("subscription is canceled")) ||
+          (paddleError.message &&
+            paddleError.message.includes(
+              "cannot update subscription, as subscription is canceled"
+            ))
+        ) {
+          console.log(
+            "Subscription is already cancelled in Paddle, proceeding with database update"
+          );
+          paddleData = {
+            status: "cancelled",
+            message: "Subscription was already cancelled in Paddle",
+          };
+        } else {
+          // Re-throw other Paddle errors
+          console.error(
+            "Unhandled Paddle error during cancellation:",
+            paddleError
+          );
+          throw paddleError;
+        }
+      }
 
-      // Update subscription in database
+      // Update subscription in database using the new cancel function
       console.log("Updating subscription status in database:", subscriptionId);
-      const { error: updateError } = await supabaseClient
-        .from("user_subscriptions")
-        .update({
-          status: "cancelled", // Using British spelling to match database constraint
-          subscription_plan: "free", // Set plan to free on cancel
-          updated_at: new Date().toISOString(),
-        })
-        .eq("paddle_subscription_id", subscriptionId);
+      const { error: updateError } = await supabaseClient.rpc(
+        "cancel_user_subscription",
+        {
+          p_user_id: userId,
+          p_paddle_subscription_id: subscriptionId,
+          p_reason: reason,
+        }
+      );
 
       if (updateError) {
-        console.error("Error updating subscription in database:", updateError);
+        console.error("Error canceling subscription in database:", updateError);
         return new Response(
           JSON.stringify({
             error: "Database update failed",
-            details: updateError.message,
             paddleStatus:
               "Subscription was canceled in Paddle but database update failed",
+            details: updateError.message,
           }),
           {
             status: 500,
@@ -275,21 +342,10 @@ serve(async (req) => {
         );
       }
 
-      // Update user profile status
-      console.log("Updating user profile for user:", userId);
-      const { error: profileUpdateError } = await supabaseClient
-        .from("profiles")
-        .update({
-          subscription_status: "cancelled", // Using British spelling to match database constraint
-          subscription_plan: "free", // Set plan to free on cancel
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", userId);
-
-      if (profileUpdateError) {
-        console.error("Error updating user profile:", profileUpdateError);
-        // Continue despite profile update error - the webhook will fix it
-      }
+      console.log(
+        "Subscription canceled successfully in database for user:",
+        userId
+      );
 
       // Log to audit table
       try {
@@ -330,7 +386,6 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           error: "Paddle API operation failed",
-          details: error.message,
         }),
         {
           status: 500,
@@ -343,7 +398,6 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         error: "An unexpected error occurred",
-        details: error.message,
       }),
       {
         status: 500,

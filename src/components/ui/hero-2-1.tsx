@@ -68,7 +68,7 @@ const Hero2 = () => {
           <div className="hidden md:flex items-center space-x-6">
             <div className="flex items-center space-x-6">
               <NavItem label="Features" href="#features" />
-              <NavItem label="Testimonials" href="#testimonials" />
+              <NavItem label="About" href="/about" />
               <NavItem label="Pricing" href="/pricing" />
               <NavItem label="Studio" href="/studio" />
             </div>
@@ -117,7 +117,7 @@ const Hero2 = () => {
               </div>
               <div className="mt-8 flex flex-col space-y-6">
                 <MobileNavItem label="Features" href="#features" />
-                <MobileNavItem label="Testimonials" href="#testimonials" />
+                <MobileNavItem label="About" href="/about" />
                 <MobileNavItem label="Pricing" href="/pricing" />
                 <MobileNavItem label="Studio" href="/studio" />
                 <div className="pt-4 flex items-center justify-between">

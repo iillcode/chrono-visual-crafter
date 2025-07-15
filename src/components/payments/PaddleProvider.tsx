@@ -5,6 +5,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { PaddleDebugger } from "@/utils/paddleDebugger";
+import {
+  reloadPageAfterSubscriptionChange,
+  navigateAfterSubscriptionChange,
+} from "@/utils/subscriptionHelpers";
 
 declare global {
   interface Window {
@@ -379,7 +383,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
                 toast({
                   title: "Subscription Canceled",
                   description:
-                    "Your subscription has been canceled successfully.",
+                    "Your subscription has been canceled successfully. The page will reload to update your status.",
                 });
 
                 // Import and log cancellation in audit trail
@@ -399,6 +403,12 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
 
                 // Refresh subscription status after cancellation
                 await refreshSubscriptionStatus();
+
+                // Reload the page to ensure all components update with new subscription status
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1500);
+
                 resolve(true);
               } else if (
                 data.name === "subscription.cancel.error" ||
@@ -439,7 +449,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
                 toast({
                   title: "Subscription Canceled",
                   description:
-                    "Your subscription has been canceled successfully.",
+                    "Your subscription has been canceled successfully. The page will reload to update your status.",
                 });
 
                 // Import and log cancellation in audit trail
@@ -459,6 +469,12 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
 
                 // Refresh subscription status after cancellation
                 await refreshSubscriptionStatus();
+
+                // Reload the page to ensure all components update with new subscription status
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1500);
+
                 resolve(true);
               } else if (data.name === "cancel.error") {
                 console.error("Subscription cancellation error", { data });
@@ -494,6 +510,33 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
           });
 
           if (!result.success) {
+            // Check if the error indicates the subscription is already cancelled
+            const errorMessage = result.error?.message || result.message || "";
+            if (
+              errorMessage.includes("subscription_update_when_canceled") ||
+              errorMessage.includes("subscription is canceled") ||
+              errorMessage.includes("already cancelled")
+            ) {
+              console.log(
+                "Subscription was already cancelled, treating as success"
+              );
+              toast({
+                title: "Subscription Already Canceled",
+                description:
+                  "Your subscription was already canceled. The page will reload to update your status.",
+              });
+
+              // Refresh subscription status after cancellation
+              await refreshSubscriptionStatus();
+
+              // Reload the page to ensure all components update with new subscription status
+              setTimeout(() => {
+                window.location.reload();
+              }, 1500);
+
+              return true;
+            }
+
             console.error("Edge function cancellation failed", result.error);
             toast({
               title: "Cancellation Error",
@@ -508,11 +551,18 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
           console.log("Edge function cancellation successful");
           toast({
             title: "Subscription Canceled",
-            description: "Your subscription has been canceled successfully.",
+            description:
+              "Your subscription has been canceled successfully. The page will reload to update your status.",
           });
 
           // Refresh subscription status after cancellation
           await refreshSubscriptionStatus();
+
+          // Reload the page to ensure all components update with new subscription status
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+
           return true;
         } catch (error) {
           console.error("Error with Edge function cancellation", error);
@@ -613,7 +663,8 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
                 updatedSubscription,
               });
             }
-            navigate("/studio?payment=success");
+            // Navigate to studio with updated subscription status
+            navigateAfterSubscriptionChange("/studio?payment=success", 3000);
           }, 3000); // Increased from 2000ms to 3000ms
         }
 

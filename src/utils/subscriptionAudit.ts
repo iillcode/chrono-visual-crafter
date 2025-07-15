@@ -1,129 +1,112 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export interface AuditLogEntry {
-  id?: string;
-  user_id: string;
-  subscription_id: string;
-  action: 'created' | 'updated' | 'cancelled' | 'reactivated' | 'payment_failed' | 'payment_succeeded';
-  old_status?: string;
-  new_status: string;
-  metadata?: Record<string, any>;
-  timestamp: string;
-  ip_address?: string;
-  user_agent?: string;
-}
-
 export class SubscriptionAuditLogger {
-  static async logAction(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>) {
-    try {
-      const auditEntry: AuditLogEntry = {
-        ...entry,
-        timestamp: new Date().toISOString(),
-        ip_address: await this.getClientIP(),
-        user_agent: navigator.userAgent,
-      };
-
-      const { error } = await supabase
-        .from('subscription_audit_logs')
-        .insert(auditEntry);
-
-      if (error) {
-        console.error('Failed to log audit entry:', error);
-        // Don't throw error to avoid breaking the main flow
-      }
-    } catch (error) {
-      console.error('Error logging audit entry:', error);
-    }
-  }
-
-  static async getAuditHistory(userId: string, subscriptionId?: string) {
-    try {
-      let query = supabase
-        .from('subscription_audit_logs')
-        .select('*')
-        .eq('user_id', userId)
-        .order('timestamp', { ascending: false });
-
-      if (subscriptionId) {
-        query = query.eq('subscription_id', subscriptionId);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Failed to fetch audit history:', error);
-        return [];
-      }
-
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching audit history:', error);
-      return [];
-    }
-  }
-
-  private static async getClientIP(): Promise<string> {
-    try {
-      // In a real implementation, you might want to get the client IP
-      // from your backend or a service like ipify
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      return data.ip || 'unknown';
-    } catch {
-      return 'unknown';
-    }
-  }
-
+  /**
+   * Log subscription cancellation for audit purposes
+   */
   static async logCancellation(
     userId: string,
     subscriptionId: string,
     reason: string,
-    oldStatus: string
-  ) {
-    await this.logAction({
-      user_id: userId,
-      subscription_id: subscriptionId,
-      action: 'cancelled',
-      old_status: oldStatus,
-      new_status: 'cancelling',
-      metadata: {
-        cancellation_reason: reason,
-        grace_period_ends: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      },
-    });
+    previousStatus: string
+  ): Promise<void> {
+    try {
+      const { error } = await supabase.from("subscription_audit_logs").insert({
+        user_id: userId,
+        subscription_id: subscriptionId,
+        action: "cancel",
+        reason: reason,
+        previous_status: previousStatus,
+        details: JSON.stringify({
+          timestamp: new Date().toISOString(),
+          source: "client_side",
+        }),
+        created_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        console.error("Error logging subscription cancellation:", error);
+        // Don't throw error as this is non-critical logging
+      } else {
+        console.log("Subscription cancellation logged successfully");
+      }
+    } catch (error) {
+      console.error(
+        "Exception while logging subscription cancellation:",
+        error
+      );
+      // Don't throw error as this is non-critical logging
+    }
   }
 
-  static async logReactivation(
+  /**
+   * Log subscription activation for audit purposes
+   */
+  static async logActivation(
     userId: string,
     subscriptionId: string,
-    oldStatus: string
-  ) {
-    await this.logAction({
-      user_id: userId,
-      subscription_id: subscriptionId,
-      action: 'reactivated',
-      old_status: oldStatus,
-      new_status: 'active',
-      metadata: {
-        reactivated_from_grace_period: true,
-      },
-    });
+    planName: string
+  ): Promise<void> {
+    try {
+      const { error } = await supabase.from("subscription_audit_logs").insert({
+        user_id: userId,
+        subscription_id: subscriptionId,
+        action: "activate",
+        reason: "payment_completed",
+        details: JSON.stringify({
+          plan: planName,
+          timestamp: new Date().toISOString(),
+          source: "client_side",
+        }),
+        created_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        console.error("Error logging subscription activation:", error);
+      } else {
+        console.log("Subscription activation logged successfully");
+      }
+    } catch (error) {
+      console.error("Exception while logging subscription activation:", error);
+    }
   }
 
-  static async logStatusUpdate(
+  /**
+   * Log subscription status change for audit purposes
+   */
+  static async logStatusChange(
     userId: string,
     subscriptionId: string,
-    oldStatus: string,
+    action: string,
+    previousStatus: string,
     newStatus: string,
-    metadata?: Record<string, any>
-  ) {
-    await this.logAction({
-      user_id: userId,
-      subscription_id: subscriptionId,
-      action: 'updated',
-      old_status: oldStatus,
-      new_status: newStatus,
-      metadata,
-    });
+    reason?: string
+  ): Promise<void> {
+    try {
+      const { error } = await supabase.from("subscription_audit_logs").insert({
+        user_id: userId,
+        subscription_id: subscriptionId,
+        action: action,
+        reason: reason || "status_change",
+        previous_status: previousStatus,
+        details: JSON.stringify({
+          new_status: newStatus,
+          timestamp: new Date().toISOString(),
+          source: "client_side",
+        }),
+        created_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        console.error("Error logging subscription status change:", error);
+      } else {
+        console.log("Subscription status change logged successfully");
+      }
+    } catch (error) {
+      console.error(
+        "Exception while logging subscription status change:",
+        error
+      );
+    }
   }
 }
