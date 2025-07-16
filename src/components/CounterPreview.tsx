@@ -57,7 +57,9 @@ interface CounterPreviewProps {
 }
 
 // Import shared utilities for consistency
-import { easingFunctions } from '../utils/sharedCounterUtils';
+import { easingFunctions } from "../utils/sharedCounterUtils";
+import { performanceMonitor } from "../utils/performanceMonitor";
+import { performanceOptimizer } from "../utils/performanceOptimizer";
 
 const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
   (
@@ -78,6 +80,13 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
     const digitTransitionsRef = useRef<
       Map<number, { oldDigit: string; newDigit: string; startTime: number }>
     >(new Map());
+
+    // Performance monitoring refs
+    const frameCountRef = useRef<number>(0);
+    const lastFPSCheckRef = useRef<number>(0);
+    const currentFPSRef = useRef<number>(60);
+    const performanceOptimizedRef = useRef<boolean>(false);
+    const renderStartTimeRef = useRef<number>(0);
 
     useImperativeHandle(ref, () => canvasRef.current!);
 
@@ -101,7 +110,7 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
 
     const getFontFamily = (fontKey: string, customFont: string) => {
       if (customFont) return `"${customFont}", sans-serif`;
-      
+
       const fontMap = {
         inter: '"Inter", sans-serif',
         mono: '"Roboto Mono", monospace',
@@ -177,65 +186,6 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           return { x, y, opacity: easeInOutCubic };
         },
 
-        "fade-roll": () => {
-          const rollDistance = fontSize * 0.3;
-          const rollY = y - (1 - transitionProgress) * rollDistance;
-          const opacity = transitionProgress;
-
-          ctx.save();
-          ctx.translate(x, rollY);
-          ctx.rotate((1 - transitionProgress) * Math.PI * 0.1);
-          ctx.translate(-x, -rollY);
-
-          return { x, y: rollY, opacity };
-        },
-
-        "flip-down": () => {
-          const scaleY = Math.abs(Math.cos(transitionProgress * Math.PI));
-          const opacity = scaleY > 0.1 ? 1 : 0;
-
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.scale(1, Math.max(0.1, scaleY));
-          ctx.translate(-x, -y);
-
-          return { x, y, opacity };
-        },
-
-        "slide-vertical": () => {
-          const slideDistance = fontSize * 1.2;
-          const slideY = y + (1 - transitionProgress) * slideDistance;
-          return { x, y: slideY, opacity: transitionProgress };
-        },
-
-        bounce: () => {
-          const bounceHeight =
-            Math.sin(transitionProgress * Math.PI) * (fontSize * 0.3);
-          const bounceY = y - bounceHeight;
-          return { x, y: bounceY, opacity: 1 };
-        },
-
-        scale: () => {
-          const scaleValue = 0.3 + transitionProgress * 0.7;
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.scale(scaleValue, scaleValue);
-          ctx.translate(-x, -y);
-          return { x, y, opacity: transitionProgress };
-        },
-
-        slideUp: () => {
-          const distance = fontSize * 1.5;
-          const offset = (1 - transitionProgress) * distance;
-          return { x, y: y + offset, opacity: 0.3 + transitionProgress * 0.7 };
-        },
-
-        slideDown: () => {
-          const distance = fontSize * 1.5;
-          const offset = (1 - transitionProgress) * -distance;
-          return { x, y: y + offset, opacity: 0.3 + transitionProgress * 0.7 };
-        },
-
         glitch: () => {
           if (transitionProgress < 0.8 && Math.random() > 0.7) {
             const glitchX = (Math.random() - 0.5) * 10;
@@ -255,6 +205,34 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
 
         typewriter: () => {
           return { x, y, opacity: 1 };
+        },
+
+        "hologram-flicker": () => {
+          // Hologram flicker effect with scan lines
+          const time = Date.now() * 0.01;
+          const flicker = Math.sin(time * 3) * 0.2 + 0.8;
+          const scanLine = Math.sin(y * 0.1 + time) * 0.1;
+
+          // RGB separation effect
+          const separation = (1 - transitionProgress) * 2;
+          ctx.save();
+
+          // Red channel
+          ctx.globalCompositeOperation = "screen";
+          ctx.fillStyle = `rgba(255, 0, 0, ${0.3 * flicker})`;
+          ctx.fillText(digit, x - separation, y);
+
+          // Blue channel
+          ctx.fillStyle = `rgba(0, 0, 255, ${0.3 * flicker})`;
+          ctx.fillText(digit, x + separation, y);
+
+          ctx.restore();
+
+          return {
+            x,
+            y: y + scanLine,
+            opacity: flicker * transitionProgress,
+          };
         },
       };
 
@@ -626,132 +604,239 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           charWidth + (i < counterText.length - 1 ? letterSpacing : 0);
       }
 
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
+      // Use display dimensions instead of canvas dimensions for proper scaling
+      const centerX = 800 / 2; // displayWidth / 2
+      const centerY = 600 / 2; // displayHeight / 2
       let currentX = centerX - totalWidth / 2;
 
       // Check if we should use multi-digit transitions
-      const isMultiDigitTransition = [
-        "fade-roll",
-        "flip-down",
-        "slide-vertical",
-        "bounce",
-        "scale",
-        "odometer",
-      ].includes(settings.transition);
+      const isMultiDigitTransition = ["odometer", "hologram-flicker"].includes(
+        settings.transition
+      );
 
       if (settings.transition === "odometer") {
-        // Continuous odometer animation
+        // Enhanced odometer animation that handles digit length changes
         const absValue = Math.abs(value);
+        const absEndValue = Math.abs(settings.endValue);
         const decimals = settings.useFloatValues ? 2 : 0;
+
+        // Use the maximum length between current and end value for consistent positioning
+        const maxValue = Math.max(absValue, absEndValue);
+        const maxInteger = Math.floor(maxValue);
+        let maxIntegerStr = maxInteger.toString();
+        if (settings.separator === "comma") {
+          maxIntegerStr = maxIntegerStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // Calculate the maximum number of digits needed
+        const maxDigits = maxIntegerStr.replace(/[^\d]/g, "").length;
+
+        // Format current value with proper padding
         const integer = Math.floor(absValue);
         let integerStr = integer.toString();
         if (settings.separator === "comma") {
           integerStr = integerStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
+
         let decimalStr = "";
         if (decimals > 0) {
           decimalStr = Math.floor((absValue - integer) * Math.pow(10, decimals))
             .toString()
             .padStart(decimals, "0");
         }
+
         let numericStr = integerStr;
         if (decimals > 0) numericStr += "." + decimalStr;
         const sign = value < 0 ? "-" : "";
         const fullStr = settings.prefix + sign + numericStr + settings.suffix;
 
-        // Calculate total width
+        // Create a template string with maximum width for consistent positioning
+        const maxNumericStr =
+          maxIntegerStr + (decimals > 0 ? "." + "0".repeat(decimals) : "");
+        const maxFullStr =
+          settings.prefix +
+          (value < 0 ? "-" : "") +
+          maxNumericStr +
+          settings.suffix;
+
+        // Calculate total width based on maximum possible string
         let totalWidth = 0;
-        for (let i = 0; i < fullStr.length; i++) {
-          const charWidth = ctx.measureText(fullStr[i]).width;
+        for (let i = 0; i < maxFullStr.length; i++) {
+          const charWidth = ctx.measureText(maxFullStr[i]).width;
           totalWidth +=
-            charWidth + (i < fullStr.length - 1 ? letterSpacing : 0);
+            charWidth + (i < maxFullStr.length - 1 ? letterSpacing : 0);
         }
 
         let currentX = centerX - totalWidth / 2;
 
-        // Find digit positions and calculate locals
-        const digitIndices = [];
-        for (let i = 0; i < fullStr.length; i++) {
-          if (/\d/.test(fullStr[i])) {
-            digitIndices.push(i);
+        // Find all digit positions in the max string
+        const maxDigitIndices = [];
+        for (let i = 0; i < maxFullStr.length; i++) {
+          if (/\d/.test(maxFullStr[i])) {
+            maxDigitIndices.push(i);
           }
         }
 
-        const numDigits = digitIndices.length;
-        const integerDigits = decimals > 0 ? numDigits - decimals : numDigits;
-
-        // Calculate local for each digit from right to left
-        const digitLocals = [];
+        // Calculate digit locals for all possible positions
+        const digitLocals = new Array(maxDigits).fill(0);
         let pos = decimals > 0 ? -decimals : 0;
-        for (let j = numDigits - 1; j >= 0; j--) {
+
+        for (let j = maxDigits - 1; j >= 0; j--) {
           const place = Math.pow(10, pos);
           const local = (absValue / place) % 10;
-          digitLocals.unshift(local); // unshift to keep left to right
+          digitLocals[j] = local;
           pos += 1;
         }
 
-        // Draw each character
-        for (let i = 0; i < fullStr.length; i++) {
-          const char = fullStr[i];
-          const charWidth = ctx.measureText(char).width;
+        // Check if we're at the end value
+        const isEndValue = Math.abs(value - settings.endValue) < 0.001;
+        const endValueStr = formatNumber(settings.endValue);
+
+        // Draw each character in the max template
+        for (let i = 0; i < maxFullStr.length; i++) {
+          const templateChar = maxFullStr[i];
+          const charWidth = ctx.measureText(templateChar).width;
           const charX = currentX + charWidth / 2;
           const charY = centerY;
 
-          if (/\d/.test(char)) {
-            // Animate rolling digit
-            const local = digitLocals.shift()!;
-            const floor = Math.floor(local);
-            const frac = local - floor;
-            const next = (floor + 1) % 10;
+          if (/\d/.test(templateChar)) {
+            // This is a digit position
+            const digitIndex = maxDigitIndices.indexOf(i);
+            const digitLocal = digitLocals[digitIndex];
 
-            // Check if we're at the end value and snap to final position
-            const isEndValue = value === settings.endValue;
+            // Check if this digit position exists in current value
+            const currentDigitIndices = [];
+            for (let k = 0; k < fullStr.length; k++) {
+              if (/\d/.test(fullStr[k])) {
+                currentDigitIndices.push(k);
+              }
+            }
 
-            // Clip to digit area
+            // Map from max digit index to current digit index
+            const currentDigitIndex =
+              digitIndex - (maxDigits - currentDigitIndices.length);
+            const hasCurrentDigit = currentDigitIndex >= 0;
+
+            // Enhanced clipping region
             ctx.save();
-            const clipHeight = fontSize * 1.1; // slight extra to avoid cutoff
+            const clipHeight = fontSize * 1.2;
+            const clipWidth = charWidth + 8;
             const clipY = charY - clipHeight / 2;
+            const clipX = charX - clipWidth / 2;
+
             ctx.beginPath();
-            ctx.rect(
-              charX - charWidth / 2 - 2,
-              clipY,
-              charWidth + 4,
-              clipHeight
-            );
+            if (ctx.roundRect) {
+              ctx.roundRect(clipX, clipY, clipWidth, clipHeight, 2);
+            } else {
+              ctx.rect(clipX, clipY, clipWidth, clipHeight);
+            }
             ctx.clip();
 
-            if (isEndValue || frac < 0.001) {
+            if (isEndValue) {
               // Snap to final position
-              applyDesignEffects(ctx, floor.toString(), charX, charY, fontSize);
+              const endDigits = endValueStr.replace(/[^\d]/g, "");
+              const endDigit = endDigits[digitIndex] || "0";
+              applyDesignEffects(ctx, endDigit, charX, charY, fontSize);
+            } else if (!hasCurrentDigit) {
+              // This digit doesn't exist in current value - handle new digit animation
+              const floor = Math.floor(digitLocal);
+              const frac = digitLocal - floor;
+
+              // For new digits (like the "1" in 100), they should roll down from above
+              if (floor > 0) {
+                if (frac < 0.001) {
+                  // Snap to the digit
+                  applyDesignEffects(
+                    ctx,
+                    floor.toString(),
+                    charX,
+                    charY,
+                    fontSize
+                  );
+                } else {
+                  // Rolling animation for new digit - it comes from above
+                  const offset = frac * fontSize;
+
+                  // The new digit rolls down from above
+                  applyDesignEffects(
+                    ctx,
+                    floor.toString(),
+                    charX,
+                    charY - fontSize + offset,
+                    fontSize
+                  );
+
+                  // Previous state was empty/0, so we can show a fading 0 or nothing
+                  if (floor > 1) {
+                    const prevDigit = (floor - 1).toString();
+                    ctx.save();
+                    ctx.globalAlpha = 1 - frac; // Fade out the previous digit
+                    applyDesignEffects(
+                      ctx,
+                      prevDigit,
+                      charX,
+                      charY + offset,
+                      fontSize
+                    );
+                    ctx.restore();
+                  }
+                }
+              }
             } else {
-              // Normal rolling
-              // Offset for rolling up (next comes from top)
-              const offset = frac * fontSize;
+              // Normal rolling animation
+              const floor = Math.floor(digitLocal);
+              const frac = digitLocal - floor;
+              const next = (floor + 1) % 10;
 
-              // Draw next digit
-              applyDesignEffects(
-                ctx,
-                next.toString(),
-                charX,
-                charY - fontSize + offset,
-                fontSize
-              );
+              if (frac < 0.001) {
+                // Snap to current digit
+                applyDesignEffects(
+                  ctx,
+                  floor.toString(),
+                  charX,
+                  charY,
+                  fontSize
+                );
+              } else {
+                // Rolling animation
+                const offset = frac * fontSize;
 
-              // Draw current digit
-              applyDesignEffects(
-                ctx,
-                floor.toString(),
-                charX,
-                charY + offset,
-                fontSize
-              );
+                // Draw next digit (coming from top)
+                applyDesignEffects(
+                  ctx,
+                  next.toString(),
+                  charX,
+                  charY - fontSize + offset,
+                  fontSize
+                );
+
+                // Draw current digit (moving down)
+                applyDesignEffects(
+                  ctx,
+                  floor.toString(),
+                  charX,
+                  charY + offset,
+                  fontSize
+                );
+              }
             }
 
             ctx.restore();
           } else {
-            // Draw fixed character
-            applyDesignEffects(ctx, char, charX, charY, fontSize);
+            // Non-digit character - check if it exists in current string
+            const currentChar = i < fullStr.length ? fullStr[i] : "";
+            if (currentChar && currentChar === templateChar) {
+              applyDesignEffects(ctx, currentChar, charX, charY, fontSize);
+            } else if (templateChar === " " || i >= fullStr.length) {
+              // Empty space or beyond current string length
+              // Don't draw anything
+            } else {
+              // Draw the template character (for consistent spacing)
+              ctx.save();
+              ctx.globalAlpha = 0; // Make it invisible but maintain spacing
+              applyDesignEffects(ctx, templateChar, charX, charY, fontSize);
+              ctx.restore();
+            }
           }
 
           currentX += charWidth + letterSpacing;
@@ -849,19 +934,83 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       }
     };
 
-    const drawFrame = async () => {
+    // Enhanced performance monitoring function
+    const updatePerformanceMetrics = (currentTime: number) => {
+      // Record render time for performance monitoring
+      if (renderStartTimeRef.current > 0) {
+        performanceMonitor.recordRenderTime(renderStartTimeRef.current);
+      }
+
+      frameCountRef.current++;
+
+      if (currentTime - lastFPSCheckRef.current >= 1000) {
+        currentFPSRef.current = frameCountRef.current;
+        frameCountRef.current = 0;
+        lastFPSCheckRef.current = currentTime;
+
+        // Auto-optimize if performance is poor
+        if (currentFPSRef.current < 45 && !performanceOptimizedRef.current) {
+          performanceOptimizedRef.current = true;
+          console.log(
+            "Performance optimization enabled due to low FPS:",
+            currentFPSRef.current
+          );
+        }
+      }
+    };
+
+    const drawFrame = async (currentTime: number = performance.now()) => {
+      // Record render start time for performance monitoring
+      renderStartTimeRef.current = performance.now();
+
+      // Update performance metrics
+      updatePerformanceMetrics(currentTime);
       const canvas = canvasRef.current;
       if (!canvas) return;
 
+      // Enhanced canvas context with optimizations
       const ctx = canvas.getContext("2d", {
         alpha: settings.background === "transparent",
+        desynchronized: true, // Allow async rendering
+        willReadFrequently: false, // Optimize for write operations
       });
       if (!ctx) return;
 
-      canvas.width = 800;
-      canvas.height = 600;
+      // Set canvas size with device pixel ratio for crisp rendering
+      const devicePixelRatio = performanceOptimizedRef.current
+        ? 1
+        : window.devicePixelRatio || 1;
+      const displayWidth = 800;
+      const displayHeight = 600;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Only resize canvas if dimensions changed to avoid unnecessary operations
+      if (
+        canvas.width !== displayWidth * devicePixelRatio ||
+        canvas.height !== displayHeight * devicePixelRatio
+      ) {
+        canvas.width = displayWidth * devicePixelRatio;
+        canvas.height = displayHeight * devicePixelRatio;
+        canvas.style.width = displayWidth + "px";
+        canvas.style.height = displayHeight + "px";
+      }
+
+      // Scale context to match device pixel ratio
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+
+      // Enable anti-aliasing and sub-pixel rendering (with performance consideration)
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = performanceOptimizedRef.current
+        ? "medium"
+        : "high";
+
+      // Set text rendering optimization
+      if ("textRenderingOptimization" in ctx) {
+        (ctx as any).textRenderingOptimization = performanceOptimizedRef.current
+          ? "optimizeSpeed"
+          : "optimizeQuality";
+      }
+
+      ctx.clearRect(0, 0, displayWidth, displayHeight);
 
       const extractColors = (gradientStr: string): string[] => {
         const matches = gradientStr.match(/#[0-9a-fA-F]{3,6}/g);
@@ -878,23 +1027,23 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         const grad = ctx.createLinearGradient(
           0,
           0,
-          canvas.width,
-          canvas.height
+          displayWidth,
+          displayHeight
         );
         const colors = extractColors(settings.backgroundGradient);
         const step = colors.length > 1 ? 1 / (colors.length - 1) : 1;
         colors.forEach((color, i) => grad.addColorStop(i * step, color));
         ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, displayWidth, displayHeight);
       } else if (
         settings.background === "custom" &&
         settings.customBackgroundColor
       ) {
         ctx.fillStyle = settings.customBackgroundColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, displayWidth, displayHeight);
       } else {
         ctx.fillStyle = settings.background === "white" ? "#FFFFFF" : "#000000";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, displayWidth, displayHeight);
       }
 
       // Set text color
@@ -911,8 +1060,8 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           ctx,
           canvas,
           ctx.measureText(formatNumber(currentValue)).width,
-          canvas.width / 2,
-          canvas.height / 2
+          displayWidth / 2,
+          displayHeight / 2
         );
       }
     };
@@ -939,21 +1088,47 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
     }, [settings.fontFamily, textSettings.fontFamily]);
 
     useEffect(() => {
-      const animate = () => {
-        drawFrame();
-        if (isRecording) {
-          animationRef.current = requestAnimationFrame(animate);
-        } else {
-          drawFrame();
+      let lastFrameTime = 0;
+      const targetFPS = 60;
+      const frameInterval = 1000 / targetFPS;
+
+      // Start performance monitoring when animation begins
+      performanceMonitor.startMonitoring();
+
+      // Configure performance optimizer with current settings
+      performanceOptimizer.setOriginalQuality({
+        renderQuality: 1.0,
+        enableAntiAliasing: true,
+        enableSubPixelRendering: true,
+        maxParticles: 1000,
+        effectComplexity: "high",
+        canvasScale: 1.0,
+      });
+
+      performanceOptimizer.startOptimization();
+
+      const animate = (currentTime: number) => {
+        // Throttle to target FPS for consistent performance
+        if (currentTime - lastFrameTime >= frameInterval) {
+          drawFrame(currentTime);
+          lastFrameTime = currentTime;
         }
+
+        // Always request next frame for smooth animations
+        animationRef.current = requestAnimationFrame(animate);
       };
 
-      animate();
+      // Start animation loop
+      animationRef.current = requestAnimationFrame(animate);
 
       return () => {
         if (animationRef.current) {
           cancelAnimationFrame(animationRef.current);
         }
+
+        // Stop performance monitoring when component unmounts
+        performanceMonitor.stopMonitoring();
+        performanceOptimizer.stopOptimization();
       };
     }, [
       settings,

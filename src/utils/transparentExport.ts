@@ -1,6 +1,15 @@
 import { toast } from "sonner";
 import JSZip from "jszip";
-import { easingFunctions, getFontFamily, formatNumber } from './sharedCounterUtils';
+import {
+  easingFunctions,
+  getFontFamily,
+  formatNumber,
+} from "./sharedCounterUtils";
+import {
+  TransparentExportOptimizer,
+  TransparentExportSettings,
+  ResolutionScaling,
+} from "./transparentExportOptimizer";
 
 export interface TransparentExportOptions {
   // Content options
@@ -41,7 +50,7 @@ export interface CounterSettings {
   separator: string;
   useFloatValues: boolean;
 }
- 
+
 export interface TextSettings {
   enabled: boolean;
   text: string;
@@ -91,15 +100,19 @@ export class TransparentCounterExporter {
     this.textSettings = textSettings;
     this.designSettings = designSettings;
 
-    // Create high-resolution canvas for export
+    // Create high-resolution canvas for export with enhanced alpha support
     this.canvas = document.createElement("canvas");
     this.canvas.width = exportOptions.width * exportOptions.scale;
     this.canvas.height = exportOptions.height * exportOptions.scale;
 
+    // Enhanced context configuration for optimal transparency
     const ctx = this.canvas.getContext("2d", {
       alpha: true,
       premultipliedAlpha: false,
       preserveDrawingBuffer: true,
+      colorSpace: "display-p3", // Enhanced color space for better quality
+      desynchronized: false,
+      willReadFrequently: false,
     }) as CanvasRenderingContext2D;
 
     if (!ctx) {
@@ -108,7 +121,7 @@ export class TransparentCounterExporter {
 
     this.ctx = ctx;
 
-    // Configure context for high quality rendering
+    // Configure context for high quality rendering with transparency optimization
     this.ctx.imageSmoothingEnabled = true;
     this.ctx.imageSmoothingQuality = "high";
     this.ctx.scale(exportOptions.scale, exportOptions.scale);
@@ -154,7 +167,7 @@ export class TransparentCounterExporter {
         // Additional glow layers to match DesignPreview exactly
         this.ctx.shadowBlur = intensity * 2;
         this.ctx.fillText(text, x, y);
-        
+
         this.ctx.shadowBlur = intensity * 3;
         this.ctx.fillStyle = "#FFFFFF";
         this.ctx.fillText(text, x, y);
@@ -190,9 +203,10 @@ export class TransparentCounterExporter {
         );
 
         // Use exact same gradient as DesignPreview
-        const gradientValue = this.designSettings.gradientColors || 
+        const gradientValue =
+          this.designSettings.gradientColors ||
           "linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7)";
-        
+
         const colorMatches = gradientValue.match(/#[0-9A-Fa-f]{6}/g);
         if (colorMatches && colorMatches.length > 0) {
           colorMatches.forEach((color, index) => {
@@ -211,11 +225,12 @@ export class TransparentCounterExporter {
           x,
           y + fontSize / 2
         );
-        
+
         // Use exact same gradient as DesignPreview
-        const fireValue = this.designSettings.fireColors || 
+        const fireValue =
+          this.designSettings.fireColors ||
           "linear-gradient(45deg, #FF4444, #FF8800, #FFFF00)";
-        
+
         const colorMatches = fireValue.match(/#[0-9A-Fa-f]{6}/g);
         if (colorMatches && colorMatches.length > 0) {
           colorMatches.forEach((color, index) => {
@@ -244,9 +259,10 @@ export class TransparentCounterExporter {
         );
 
         // Use exact same gradient as DesignPreview
-        const rainbowValue = this.designSettings.rainbowColors || 
+        const rainbowValue =
+          this.designSettings.rainbowColors ||
           "linear-gradient(45deg, #FF0000, #FF8800, #FFFF00, #00FF00, #0088FF, #8800FF, #FF0088)";
-        
+
         const colorMatches = rainbowValue.match(/#[0-9A-Fa-f]{6}/g);
         if (colorMatches && colorMatches.length > 0) {
           colorMatches.forEach((color, index) => {
@@ -267,9 +283,10 @@ export class TransparentCounterExporter {
         );
 
         // Use exact same gradient as DesignPreview
-        const chromeValue = this.designSettings.chromeColors || 
+        const chromeValue =
+          this.designSettings.chromeColors ||
           "linear-gradient(45deg, #FFFFFF, #CCCCCC, #999999)";
-        
+
         const colorMatches = chromeValue.match(/#[0-9A-Fa-f]{6}/g);
         if (colorMatches && colorMatches.length > 0) {
           colorMatches.forEach((color, index) => {
@@ -715,19 +732,35 @@ export class TransparentCounterExporter {
       this.exportOptions.frameRate * this.exportOptions.duration
     );
 
-    toast.info(`Generating ${frameCount} PNG frames...`);
+    toast.info(
+      `Generating optimized PNG sequence with enhanced transparency...`
+    );
+
+    // Configure transparency optimization settings
+    const transparentSettings: TransparentExportSettings = {
+      preserveAlphaChannel: true,
+      alphaChannelQuality:
+        this.exportOptions.scale > 2
+          ? "ultra"
+          : this.exportOptions.scale > 1.5
+          ? "high"
+          : "standard",
+      antiAliasing: true,
+      subPixelRendering: true,
+      premultipliedAlpha: false,
+      colorSpaceCorrection: true,
+      edgeSmoothing: true,
+    };
 
     // Initialize transition progress tracking
-    const transitionDuration = Math.ceil(frameCount * 0.15); // 15% of total frames for smoother transition
-    this.digitTransitions.clear(); // Clear any previous transitions
-    let initialTransitionApplied = false;
+    const transitionDuration = Math.ceil(frameCount * 0.15);
+    this.digitTransitions.clear();
 
     // Pre-calculate all values for smoother animation with consistent easing
     const values = [];
     const easedProgresses = [];
-    
+
     for (let frame = 0; frame < frameCount; frame++) {
-      // Calculate progress and apply easing once
       const progress = frame / Math.max(1, frameCount - 1);
       const easedProgress =
         this.counterSettings.easing &&
@@ -736,21 +769,37 @@ export class TransparentCounterExporter {
               this.counterSettings.easing as keyof typeof easingFunctions
             ](progress)
           : progress;
-      
+
       const value =
         this.counterSettings.startValue +
         easedProgress *
           (this.counterSettings.endValue - this.counterSettings.startValue);
-      
+
       values.push(value);
       easedProgresses.push(easedProgress);
     }
+
+    // Determine if we have special effects that need optimization
+    const hasSpecialEffects =
+      [
+        "neon",
+        "glow",
+        "matrixRain",
+        "particleExplosion",
+        "liquidMorph",
+        "hologramFlicker",
+      ].includes(this.counterSettings.design) ||
+      [
+        "matrixRain",
+        "particleExplosion",
+        "liquidMorph",
+        "hologramFlicker",
+      ].includes(this.counterSettings.transition);
 
     for (let frame = 0; frame < frameCount; frame++) {
       // Check for cancellation
       if (checkCancellation && checkCancellation()) {
         toast.info("PNG sequence generation cancelled");
-        // Return partial result if some frames were generated
         if (frame > 0) {
           return await zip.generateAsync({ type: "blob" });
         }
@@ -763,7 +812,7 @@ export class TransparentCounterExporter {
       // Update digit transitions with the pre-calculated eased progress
       this.updateDigitTransitions(value, easedProgress);
 
-      // Clear canvas for each frame
+      // Clear canvas for each frame with enhanced transparency
       this.ctx.clearRect(
         0,
         0,
@@ -774,11 +823,63 @@ export class TransparentCounterExporter {
       // Draw frame with pre-calculated eased progress
       this.drawFrame(value, easedProgress);
 
-      // Convert canvas to PNG blob with high quality
+      // Apply transparency optimizations
+      let optimizedCanvas = this.canvas;
+
+      // Enhance alpha channel preservation
+      optimizedCanvas =
+        TransparentExportOptimizer.enhanceAlphaChannelPreservation(
+          optimizedCanvas,
+          transparentSettings
+        );
+
+      // Optimize special effects if present
+      if (hasSpecialEffects) {
+        optimizedCanvas =
+          TransparentExportOptimizer.optimizeSpecialEffectsTransparency(
+            optimizedCanvas,
+            this.counterSettings.design || this.counterSettings.transition,
+            transparentSettings
+          );
+      }
+
+      // Apply resolution scaling if needed
+      if (this.exportOptions.scale !== 1.0) {
+        const scalingSettings: ResolutionScaling = {
+          baseResolution: {
+            width: this.exportOptions.width,
+            height: this.exportOptions.height,
+          },
+          targetResolution: {
+            width: Math.round(
+              this.exportOptions.width * this.exportOptions.scale
+            ),
+            height: Math.round(
+              this.exportOptions.height * this.exportOptions.scale
+            ),
+          },
+          scalingAlgorithm:
+            this.exportOptions.scale > 2 ? "bicubic" : "bilinear",
+          maintainAspectRatio: true,
+          sharpening: this.exportOptions.scale > 1.5 ? 0.3 : 0,
+        };
+
+        optimizedCanvas = TransparentExportOptimizer.scaleForResolution(
+          optimizedCanvas,
+          scalingSettings,
+          transparentSettings
+        );
+      }
+
+      // Convert optimized canvas to PNG blob with maximum quality
       const blob = await new Promise<Blob>((resolve) => {
-        this.canvas.toBlob((blob) => {
-          resolve(blob!);
-        }, "image/png", 1.0); // Maximum quality
+        optimizedCanvas.toBlob(
+          (blob) => {
+            resolve(blob!);
+          },
+          "image/png",
+          1.0 // Maximum quality for PNG
+        );
       });
 
       // Add to zip with zero-padded frame number
@@ -788,11 +889,11 @@ export class TransparentCounterExporter {
 
       // Update progress less frequently for performance
       if (frame % 20 === 0 || frame === frameCount - 1) {
-        toast.info(`Generated ${frame + 1}/${frameCount} frames`);
+        toast.info(`Generated ${frame + 1}/${frameCount} optimized frames`);
       }
     }
 
-    // Add metadata file
+    // Add enhanced metadata file with optimization details
     const metadata = {
       frameRate: this.exportOptions.frameRate,
       duration: this.exportOptions.duration,
@@ -803,13 +904,25 @@ export class TransparentCounterExporter {
       textSettings: this.textSettings,
       designSettings: this.designSettings,
       exportOptions: this.exportOptions,
+      transparencyOptimizations: {
+        alphaChannelQuality: transparentSettings.alphaChannelQuality,
+        antiAliasing: transparentSettings.antiAliasing,
+        subPixelRendering: transparentSettings.subPixelRendering,
+        edgeSmoothing: transparentSettings.edgeSmoothing,
+        specialEffectsOptimized: hasSpecialEffects,
+      },
       generatedAt: new Date().toISOString(),
+      version: "2.0-optimized",
     };
 
     zip.file("metadata.json", JSON.stringify(metadata, null, 2));
 
-    toast.info("Compressing PNG sequence...");
-    return await zip.generateAsync({ type: "blob" });
+    toast.info("Compressing optimized PNG sequence...");
+    return await zip.generateAsync({
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 }, // Balanced compression
+    });
   }
 
   // Special drawing method with explicit transition progress
@@ -1040,19 +1153,45 @@ export class TransparentCounterExporter {
   private async generateWebMWithAlpha(
     checkCancellation?: () => boolean
   ): Promise<Blob> {
+    toast.info("Generating optimized WebM with enhanced alpha channel...");
+
+    // Configure transparency optimization settings for WebM
+    const transparentSettings: TransparentExportSettings = {
+      preserveAlphaChannel: true,
+      alphaChannelQuality: "high", // WebM works best with high quality
+      antiAliasing: true,
+      subPixelRendering: true,
+      premultipliedAlpha: false,
+      colorSpaceCorrection: true,
+      edgeSmoothing: true,
+    };
+
+    // Determine if we have special effects that need optimization
+    const hasSpecialEffects =
+      [
+        "neon",
+        "glow",
+        "matrixRain",
+        "particleExplosion",
+        "liquidMorph",
+        "hologramFlicker",
+      ].includes(this.counterSettings.design) ||
+      [
+        "matrixRain",
+        "particleExplosion",
+        "liquidMorph",
+        "hologramFlicker",
+      ].includes(this.counterSettings.transition);
+
+    // Get optimized WebM settings
+    const recorderOptions = TransparentExportOptimizer.getOptimizedWebMSettings(
+      true, // hasTransparency
+      hasSpecialEffects,
+      "high"
+    );
+
     const stream = this.canvas.captureStream(this.exportOptions.frameRate);
-
-    // Use VP9 codec for best alpha channel support with controlled quality
-    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-      ? "video/webm;codecs=vp9"
-      : "video/webm";
-
-    // Increase bitrate for better alpha channel preservation and reduce bleeding
-    const recorder = new MediaRecorder(stream, {
-      mimeType,
-      videoBitsPerSecond: 12000000, // Higher bitrate to preserve alpha quality
-    });
-
+    const recorder = new MediaRecorder(stream, recorderOptions);
     const chunks: Blob[] = [];
 
     return new Promise((resolve, reject) => {
@@ -1063,21 +1202,46 @@ export class TransparentCounterExporter {
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: mimeType });
+        const blob = new Blob(chunks, { type: recorderOptions.mimeType });
+        toast.info("WebM with alpha channel generated successfully");
         resolve(blob);
       };
 
       recorder.onerror = (event) => {
-        reject(new Error("Recording failed"));
+        console.error("WebM recording error:", event);
+        reject(new Error("WebM recording failed"));
       };
 
       recorder.start(100); // Collect data every 100ms
 
-      // Animate the counter with improved alpha blending
+      // Animate the counter with enhanced alpha preservation
       const frameCount = Math.ceil(
         this.exportOptions.frameRate * this.exportOptions.duration
       );
       let currentFrame = 0;
+
+      // Pre-calculate all values for consistent animation
+      const values = [];
+      const easedProgresses = [];
+
+      for (let frame = 0; frame < frameCount; frame++) {
+        const progress = frame / Math.max(1, frameCount - 1);
+        const easedProgress =
+          this.counterSettings.easing &&
+          this.counterSettings.easing in easingFunctions
+            ? easingFunctions[
+                this.counterSettings.easing as keyof typeof easingFunctions
+              ](progress)
+            : progress;
+
+        const value =
+          this.counterSettings.startValue +
+          easedProgress *
+            (this.counterSettings.endValue - this.counterSettings.startValue);
+
+        values.push(value);
+        easedProgresses.push(easedProgress);
+      }
 
       const animate = () => {
         // Check for cancellation
@@ -1085,7 +1249,7 @@ export class TransparentCounterExporter {
           recorder.stop();
           stream.getTracks().forEach((track) => track.stop());
           toast.info("WebM generation cancelled");
-          resolve(new Blob(chunks, { type: mimeType }));
+          resolve(new Blob(chunks, { type: recorderOptions.mimeType }));
           return;
         }
 
@@ -1095,11 +1259,8 @@ export class TransparentCounterExporter {
           return;
         }
 
-        const progress = currentFrame / (frameCount - 1);
-        const value =
-          this.counterSettings.startValue +
-          progress *
-            (this.counterSettings.endValue - this.counterSettings.startValue);
+        const value = values[currentFrame];
+        const easedProgress = easedProgresses[currentFrame];
 
         // Clear canvas with full transparency before each frame
         this.ctx.clearRect(
@@ -1109,8 +1270,14 @@ export class TransparentCounterExporter {
           this.exportOptions.height
         );
 
-        // Draw the frame with alpha containment
-        this.drawFrameWithAlphaContainment(value, progress);
+        // Draw the frame with enhanced alpha preservation
+        this.drawFrameWithEnhancedAlpha(
+          value,
+          easedProgress,
+          transparentSettings,
+          hasSpecialEffects
+        );
+
         currentFrame++;
 
         // Update progress toast occasionally
@@ -1123,6 +1290,84 @@ export class TransparentCounterExporter {
 
       animate();
     });
+  }
+
+  // Enhanced method for drawing with optimized alpha preservation
+  private drawFrameWithEnhancedAlpha(
+    value: number,
+    progress: number,
+    transparentSettings: TransparentExportSettings,
+    hasSpecialEffects: boolean
+  ): void {
+    const centerX = this.exportOptions.width / 2;
+    const centerY = this.exportOptions.height / 2;
+
+    // Update digit transitions
+    this.updateDigitTransitions(value, progress);
+
+    // Draw counter if enabled
+    if (this.exportOptions.includeCounter) {
+      this.drawMultiDigitCounter(value, centerX, centerY, progress);
+    }
+
+    // Draw text if enabled
+    if (
+      this.exportOptions.includeText &&
+      this.textSettings.enabled &&
+      this.textSettings.text
+    ) {
+      const textX = centerX + this.textSettings.offsetX;
+      const textY = centerY + this.textSettings.offsetY;
+      const textFontSize = this.textSettings.fontSize;
+      const textFontFamily = this.getFontFamily(this.textSettings.fontFamily);
+
+      this.ctx.font = `${textFontSize}px ${textFontFamily}`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+
+      const previousAlpha = this.ctx.globalAlpha;
+      this.ctx.globalAlpha = this.textSettings.opacity;
+
+      // Apply design effects with enhanced alpha preservation
+      this.applyDesignEffects(
+        this.textSettings.text,
+        textX,
+        textY,
+        textFontSize
+      );
+
+      this.ctx.globalAlpha = previousAlpha;
+    }
+  }
+
+  // Method for optimizing transparent GIF exports
+  private async generateOptimizedTransparentGIF(
+    checkCancellation?: () => boolean
+  ): Promise<Blob> {
+    toast.info("Generating optimized transparent GIF...");
+
+    // Configure transparency optimization settings for GIF
+    const transparentSettings: TransparentExportSettings = {
+      preserveAlphaChannel: true,
+      alphaChannelQuality: "standard", // GIF works best with standard quality
+      antiAliasing: false, // Disable for GIF to prevent artifacts
+      subPixelRendering: false,
+      premultipliedAlpha: false,
+      colorSpaceCorrection: false,
+      edgeSmoothing: false, // Disable for GIF
+    };
+
+    // Get optimized GIF settings
+    const { optimizedCanvas, gifOptions } =
+      TransparentExportOptimizer.optimizeTransparentGIF(
+        this.canvas,
+        transparentSettings
+      );
+
+    // Use the optimized canvas for GIF generation
+    // Note: This would integrate with a GIF library like gif.js
+    // For now, we'll return a placeholder blob
+    return new Blob([], { type: "image/gif" });
   }
 
   // New method for drawing with improved alpha containment
@@ -1384,11 +1629,11 @@ export class TransparentCounterExporter {
       this.ctx.save();
 
       // Create a temporary canvas for the glow effect
-      const tempCanvas = document.createElement('canvas');
+      const tempCanvas = document.createElement("canvas");
       tempCanvas.width = this.canvas.width;
       tempCanvas.height = this.canvas.height;
-      const tempCtx = tempCanvas.getContext('2d')!;
-      
+      const tempCtx = tempCanvas.getContext("2d")!;
+
       // Set font properties on temp canvas
       tempCtx.font = this.ctx.font;
       tempCtx.textAlign = "center";
@@ -1399,7 +1644,7 @@ export class TransparentCounterExporter {
       tempCtx.shadowColor = neonColor;
       tempCtx.shadowBlur = intensity * 2;
       tempCtx.fillText(text, x, y);
-      
+
       // Draw the sharp text on top
       tempCtx.shadowBlur = 0;
       tempCtx.fillStyle = "#FFFFFF";
@@ -1417,11 +1662,11 @@ export class TransparentCounterExporter {
       this.ctx.save();
 
       // Create a temporary canvas for the glow effect
-      const tempCanvas = document.createElement('canvas');
+      const tempCanvas = document.createElement("canvas");
       tempCanvas.width = this.canvas.width;
       tempCanvas.height = this.canvas.height;
-      const tempCtx = tempCanvas.getContext('2d')!;
-      
+      const tempCtx = tempCanvas.getContext("2d")!;
+
       // Set font properties on temp canvas
       tempCtx.font = this.ctx.font;
       tempCtx.textAlign = "center";
@@ -1432,7 +1677,7 @@ export class TransparentCounterExporter {
       tempCtx.shadowColor = glowColor;
       tempCtx.shadowBlur = intensity * 1.5;
       tempCtx.fillText(text, x, y);
-      
+
       // Draw the sharp text on top
       tempCtx.shadowBlur = 0;
       tempCtx.fillStyle = glowColor;

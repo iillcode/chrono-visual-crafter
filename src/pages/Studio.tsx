@@ -9,6 +9,8 @@ import MobileRecordingControls from "@/components/MobileRecordingControls";
 import StudioSidebar from "@/components/StudioSidebar";
 import StudioRightPanel from "@/components/StudioRightPanel";
 import { TransparentExportModal } from "@/components/TransparentExportModal";
+import ExportQualityModal from "@/components/ExportQualityModal";
+import { ExportQualityManager } from "@/utils/exportQualityManager";
 import AuthButton from "@/components/auth/AuthButton";
 import { RecordingProvider, useRecording } from "@/contexts/RecordingContext";
 import { Square } from "lucide-react";
@@ -21,6 +23,7 @@ import TextControls from "@/components/TextControls";
 import FontSettings from "@/components/FontSettings";
 import StyleSettings from "@/components/StyleSettings";
 import DesignPreview from "@/components/DesignPreview";
+import { PerformanceIndicator } from "@/components/PerformanceIndicator";
 import type { MobileLayoutState } from "@/types/mobile";
 
 // @ts-ignore
@@ -138,6 +141,7 @@ const StudioContent = () => {
   const [isPreviewingVideo, setIsPreviewingVideo] = useState(false);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [showTransparentExport, setShowTransparentExport] = useState(false);
+  const [showExportQuality, setShowExportQuality] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
@@ -427,6 +431,14 @@ const StudioContent = () => {
   };
 
   const handleDownloadVideo = () => {
+    // Open the export quality modal instead of directly downloading
+    setShowExportQuality(true);
+  };
+
+  const handleExportWithQuality = async (
+    presetId: string,
+    format: "webm" | "mp4" | "gif"
+  ) => {
     // Credit gating for Free users
     if (
       profile?.subscription_plan === "free" &&
@@ -452,14 +464,24 @@ const StudioContent = () => {
 
         if (!blobToDownload && canvasRef.current) {
           // Use enhanced video export with alpha channel support
+          const preset = ExportQualityManager.getPresetById(presetId);
+          const quality =
+            preset?.id === "draft"
+              ? "low"
+              : preset?.id === "standard"
+              ? "medium"
+              : preset?.id === "high"
+              ? "high"
+              : "ultra";
+
           blobToDownload = await VideoExportManager.exportWithAlphaChannel(
             canvasRef.current,
             {
               canvas: canvasRef.current,
               settings: counterSettings,
               duration: counterSettings.duration,
-              fps: 60,
-              quality: "high",
+              fps: preset?.fps || 60,
+              quality,
             }
           );
         }
@@ -467,16 +489,21 @@ const StudioContent = () => {
         if (!blobToDownload) return;
 
         // Use enhanced download with validation
+        const fileExtension =
+          format === "webm" ? "webm" : format === "mp4" ? "mp4" : "gif";
         await VideoExportManager.downloadVideo(
           blobToDownload,
-          `counter-animation-${Date.now()}`
+          `counter-animation-${presetId}-${Date.now()}.${fileExtension}`
         );
 
         const hasTransparency = counterSettings.background === "transparent";
+        const preset = ExportQualityManager.getPresetById(presetId);
 
         toast({
           title: "Video Downloaded",
-          description: `Your counter animation video has been saved${
+          description: `Your ${
+            preset?.name || "quality"
+          } counter animation has been saved${
             hasTransparency ? " with transparency support" : ""
           }.`,
         });
@@ -733,6 +760,13 @@ const StudioContent = () => {
               )}
             </div>
 
+            {/* Performance Indicator */}
+            <PerformanceIndicator
+              className="hidden md:flex"
+              showDetails={false}
+              autoStart={true}
+            />
+
             <div className="flex items-center gap-2 ">
               {user && <AuthButton mode="user" />}
             </div>
@@ -835,8 +869,6 @@ const StudioContent = () => {
               {mobileLayoutState.activeTab === "counter" && (
                 <div className="p-4">
                   <StudioSidebar
-                    isOpen={true}
-                    onToggle={() => {}}
                     counterSettings={counterSettings}
                     onCounterSettingsChange={setCounterSettings}
                     textSettings={textSettings}
@@ -895,8 +927,6 @@ const StudioContent = () => {
           <>
             {/* Left Studio Sidebar */}
             <StudioSidebar
-              isOpen={sidebarOpen}
-              onToggle={() => setSidebarOpen(!sidebarOpen)}
               counterSettings={counterSettings}
               onCounterSettingsChange={setCounterSettings}
               textSettings={textSettings}
@@ -985,6 +1015,19 @@ const StudioContent = () => {
         counterSettings={counterSettings}
         textSettings={textSettings}
         designSettings={designSettings}
+      />
+
+      {/* Export Quality Modal */}
+      <ExportQualityModal
+        isOpen={showExportQuality}
+        onClose={() => setShowExportQuality(false)}
+        onExport={handleExportWithQuality}
+        counterSettings={counterSettings}
+        duration={counterSettings.duration}
+        hasRecordedVideo={
+          recordedChunks.current.length > 0 || videoBlob !== null
+        }
+        isExporting={isProcessingVideo}
       />
     </div>
   );

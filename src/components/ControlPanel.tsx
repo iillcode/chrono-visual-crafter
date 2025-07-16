@@ -228,6 +228,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               onSelectEasing={(easing) =>
                 onSettingsChange({ ...settings, easing })
               }
+              counterSettings={{
+                hasTransparency: settings.background === "transparent",
+                isHighResolution: false, // Could be determined by canvas size
+                isMultiDigit:
+                  Math.abs(settings.endValue - settings.startValue) >= 10,
+                exportFormat: "webm", // Default format, could be made configurable
+              }}
             />
           </Card>
 

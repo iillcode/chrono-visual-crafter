@@ -1,4 +1,9 @@
 import { toast } from "sonner";
+import {
+  TransparentExportOptimizer,
+  TransparentExportSettings,
+  ResolutionScaling,
+} from "./transparentExportOptimizer";
 
 export interface VideoExportOptions {
   canvas: HTMLCanvasElement;
@@ -13,8 +18,32 @@ export interface VideoExportOptions {
   quality?: "low" | "medium" | "high" | "ultra";
 }
 
+export interface FormatCapability {
+  mimeType: string;
+  supportsTransparency: boolean;
+  quality: "excellent" | "good" | "fair" | "poor";
+  browserSupport: "universal" | "modern" | "limited";
+  description: string;
+  limitations: string[];
+}
+
+export interface ExportValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  recommendedFormat?: string;
+  fallbackOptions: string[];
+}
+
 export class VideoExportManager {
-  private static readonly CODEC_PREFERENCES = [
+  // Enhanced codec preferences with transparency support prioritization
+  private static readonly TRANSPARENCY_CODECS = [
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
+    "video/webm",
+  ];
+
+  private static readonly STANDARD_CODECS = [
     "video/webm;codecs=vp9,opus",
     "video/webm;codecs=vp8,opus",
     "video/webm;codecs=h264,opus",
@@ -30,8 +59,62 @@ export class VideoExportManager {
     ultra: { videoBitsPerSecond: 15000000, audioBitsPerSecond: 320000 },
   };
 
-  static getSupportedMimeType(): string {
-    for (const mimeType of this.CODEC_PREFERENCES) {
+  // Format capability database
+  private static readonly FORMAT_CAPABILITIES: FormatCapability[] = [
+    {
+      mimeType: "video/webm;codecs=vp9",
+      supportsTransparency: true,
+      quality: "excellent",
+      browserSupport: "modern",
+      description: "WebM VP9 - Best quality with transparency support",
+      limitations: ["Not supported in Safari < 14", "Requires modern browser"],
+    },
+    {
+      mimeType: "video/webm;codecs=vp8",
+      supportsTransparency: true,
+      quality: "good",
+      browserSupport: "modern",
+      description: "WebM VP8 - Good quality with transparency support",
+      limitations: [
+        "Lower compression than VP9",
+        "Not supported in Safari < 14",
+      ],
+    },
+    {
+      mimeType: "video/webm",
+      supportsTransparency: true,
+      quality: "good",
+      browserSupport: "modern",
+      description: "WebM - Standard web video format",
+      limitations: ["Codec depends on browser", "Not supported in Safari < 14"],
+    },
+    {
+      mimeType: "video/mp4;codecs=h264,aac",
+      supportsTransparency: false,
+      quality: "good",
+      browserSupport: "universal",
+      description: "MP4 H.264 - Universal compatibility",
+      limitations: ["No transparency support", "Larger file sizes"],
+    },
+    {
+      mimeType: "video/mp4",
+      supportsTransparency: false,
+      quality: "fair",
+      browserSupport: "universal",
+      description: "MP4 - Universal video format",
+      limitations: ["No transparency support", "Codec depends on browser"],
+    },
+  ];
+
+  /**
+   * Get the best supported MIME type based on requirements
+   */
+  static getSupportedMimeType(requiresTransparency: boolean = false): string {
+    const codecList = requiresTransparency
+      ? this.TRANSPARENCY_CODECS
+      : this.STANDARD_CODECS;
+
+    for (const mimeType of codecList) {
       if (MediaRecorder.isTypeSupported(mimeType)) {
         console.log("Using codec:", mimeType);
         return mimeType;
@@ -42,12 +125,195 @@ export class VideoExportManager {
     return "video/webm";
   }
 
+  /**
+   * Detect format capabilities for the current browser
+   */
+  static detectFormatCapabilities(): FormatCapability[] {
+    return this.FORMAT_CAPABILITIES.filter((capability) =>
+      MediaRecorder.isTypeSupported(capability.mimeType)
+    );
+  }
+
+  /**
+   * Get the best format for given requirements
+   */
+  static getBestFormat(
+    requiresTransparency: boolean,
+    prioritizeQuality: boolean = true
+  ): FormatCapability | null {
+    const supportedFormats = this.detectFormatCapabilities();
+
+    // Filter by transparency requirement
+    const compatibleFormats = supportedFormats.filter(
+      (format) => !requiresTransparency || format.supportsTransparency
+    );
+
+    if (compatibleFormats.length === 0) {
+      return null;
+    }
+
+    // Sort by quality if prioritizing quality, otherwise by browser support
+    if (prioritizeQuality) {
+      const qualityOrder = { excellent: 4, good: 3, fair: 2, poor: 1 };
+      return compatibleFormats.sort(
+        (a, b) => qualityOrder[b.quality] - qualityOrder[a.quality]
+      )[0];
+    } else {
+      const supportOrder = { universal: 3, modern: 2, limited: 1 };
+      return compatibleFormats.sort(
+        (a, b) =>
+          supportOrder[b.browserSupport] - supportOrder[a.browserSupport]
+      )[0];
+    }
+  }
+
+  /**
+   * Validate export settings and provide recommendations
+   */
+  static validateExportSettings(
+    hasTransparency: boolean,
+    hasComplexEffects: boolean,
+    targetFormat?: string
+  ): ExportValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const fallbackOptions: string[] = [];
+
+    // Check if any formats are supported
+    const supportedFormats = this.detectFormatCapabilities();
+    if (supportedFormats.length === 0) {
+      errors.push("No supported video formats detected in this browser");
+      return { isValid: false, errors, warnings, fallbackOptions };
+    }
+
+    // Check transparency requirements
+    if (hasTransparency) {
+      const transparencyFormats = supportedFormats.filter(
+        (f) => f.supportsTransparency
+      );
+      if (transparencyFormats.length === 0) {
+        errors.push(
+          "Transparency required but no supported formats support alpha channel"
+        );
+        fallbackOptions.push("Consider using PNG sequence export instead");
+        fallbackOptions.push("Switch to non-transparent background");
+      } else if (
+        transparencyFormats.length === 1 &&
+        transparencyFormats[0].quality === "fair"
+      ) {
+        warnings.push("Limited transparency support - quality may be reduced");
+      }
+    }
+
+    // Check target format compatibility
+    if (targetFormat) {
+      const targetCapability = supportedFormats.find((f) =>
+        f.mimeType.includes(targetFormat)
+      );
+      if (!targetCapability) {
+        errors.push(
+          `Target format ${targetFormat} is not supported in this browser`
+        );
+        const alternatives = supportedFormats
+          .slice(0, 2)
+          .map((f) => f.description);
+        fallbackOptions.push(...alternatives);
+      } else if (hasTransparency && !targetCapability.supportsTransparency) {
+        warnings.push(
+          `${targetFormat} format does not support transparency - background will be opaque`
+        );
+      }
+    }
+
+    // Check for complex effects
+    if (hasComplexEffects) {
+      const highQualityFormats = supportedFormats.filter(
+        (f) => f.quality === "excellent" || f.quality === "good"
+      );
+      if (highQualityFormats.length === 0) {
+        warnings.push(
+          "Complex effects may not render optimally with available formats"
+        );
+      }
+    }
+
+    // Provide recommendations
+    let recommendedFormat: string | undefined;
+    if (errors.length === 0) {
+      const bestFormat = this.getBestFormat(hasTransparency, true);
+      recommendedFormat = bestFormat?.mimeType;
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      recommendedFormat,
+      fallbackOptions,
+    };
+  }
+
+  /**
+   * Get format information for user guidance
+   */
+  static getFormatInfo(mimeType: string): FormatCapability | null {
+    return (
+      this.FORMAT_CAPABILITIES.find(
+        (capability) =>
+          capability.mimeType === mimeType ||
+          capability.mimeType.includes(mimeType)
+      ) || null
+    );
+  }
+
+  /**
+   * Get user-friendly format recommendations
+   */
+  static getFormatRecommendations(
+    hasTransparency: boolean,
+    hasComplexEffects: boolean,
+    userPriority: "quality" | "compatibility" | "size" = "quality"
+  ): { primary: FormatCapability | null; alternatives: FormatCapability[] } {
+    const supportedFormats = this.detectFormatCapabilities();
+    const compatibleFormats = supportedFormats.filter(
+      (format) => !hasTransparency || format.supportsTransparency
+    );
+
+    if (compatibleFormats.length === 0) {
+      return { primary: null, alternatives: [] };
+    }
+
+    let primary: FormatCapability | null = null;
+
+    switch (userPriority) {
+      case "quality":
+        primary = this.getBestFormat(hasTransparency, true);
+        break;
+      case "compatibility":
+        primary = this.getBestFormat(hasTransparency, false);
+        break;
+      case "size":
+        // VP9 generally provides better compression
+        primary =
+          compatibleFormats.find((f) => f.mimeType.includes("vp9")) ||
+          compatibleFormats[0];
+        break;
+    }
+
+    const alternatives = compatibleFormats
+      .filter((f) => f !== primary)
+      .slice(0, 3); // Limit to top 3 alternatives
+
+    return { primary, alternatives };
+  }
+
   static getRecorderOptions(
     hasTransparency: boolean,
     hasEffects: boolean,
     quality: "low" | "medium" | "high" | "ultra" = "high"
   ): MediaRecorderOptions {
-    const mimeType = this.getSupportedMimeType();
+    // Use enhanced format detection
+    const mimeType = this.getSupportedMimeType(hasTransparency);
     const qualitySettings = this.QUALITY_SETTINGS[quality];
 
     const options: MediaRecorderOptions = {
@@ -55,15 +321,24 @@ export class VideoExportManager {
       ...qualitySettings,
     };
 
-    // Increase bitrate for transparency and effects
+    // Enhanced bitrate calculation for transparency and effects
     if (hasTransparency) {
+      // VP9 handles transparency better, so adjust bitrate accordingly
+      const isVP9 = mimeType.includes("vp9");
+      const multiplier = isVP9 ? 1.3 : 1.5; // VP9 is more efficient
       options.videoBitsPerSecond =
-        (options.videoBitsPerSecond || 8000000) * 1.5;
+        (options.videoBitsPerSecond || 8000000) * multiplier;
     }
 
     if (hasEffects) {
+      // Complex effects need higher bitrate to maintain quality
       options.videoBitsPerSecond =
         (options.videoBitsPerSecond || 8000000) * 1.2;
+    }
+
+    // Ensure minimum bitrate for transparency
+    if (hasTransparency && (options.videoBitsPerSecond || 0) < 5000000) {
+      options.videoBitsPerSecond = 5000000; // Minimum 5Mbps for transparency
     }
 
     return options;
@@ -154,11 +429,41 @@ export class VideoExportManager {
     }
   }
 
+  /**
+   * Enhanced export with comprehensive validation and fallback handling
+   */
   static async exportWithAlphaChannel(
     canvas: HTMLCanvasElement,
     options: VideoExportOptions
   ): Promise<Blob> {
     const { settings, duration, fps = 60, quality = "high" } = options;
+
+    const hasTransparency = settings.background === "transparent";
+    const hasEffects = [
+      "neon",
+      "glow",
+      "fire",
+      "rainbow",
+      "matrixRain",
+      "particleExplosion",
+      "liquidMorph",
+      "hologramFlicker",
+    ].includes(settings.design);
+
+    // Validate export settings before starting
+    const validation = this.validateExportSettings(hasTransparency, hasEffects);
+
+    if (!validation.isValid) {
+      const errorMessage = validation.errors.join("; ");
+      throw new Error(`Export validation failed: ${errorMessage}`);
+    }
+
+    // Show warnings to user
+    if (validation.warnings.length > 0) {
+      validation.warnings.forEach((warning) => {
+        toast.warning(warning);
+      });
+    }
 
     // Setup canvas for optimal export
     this.setupCanvasForExport(canvas, settings);
@@ -168,24 +473,66 @@ export class VideoExportManager {
       toast.warning("Effects may be clipped in export due to canvas size");
     }
 
-    const hasTransparency = settings.background === "transparent";
-    const hasEffects = ["neon", "glow", "fire", "rainbow"].includes(
-      settings.design
-    );
+    // Get optimized recorder options with fallback handling
+    let recorderOptions: MediaRecorderOptions;
+    try {
+      recorderOptions = this.getRecorderOptions(
+        hasTransparency,
+        hasEffects,
+        quality
+      );
+    } catch (error) {
+      // Fallback to basic options if advanced options fail
+      console.warn("Advanced recorder options failed, using fallback:", error);
+      recorderOptions = {
+        mimeType: this.getSupportedMimeType(false), // Fallback without transparency requirement
+        videoBitsPerSecond: this.QUALITY_SETTINGS[quality].videoBitsPerSecond,
+      };
+      toast.warning(
+        "Using fallback export settings due to browser limitations"
+      );
+    }
 
-    // Get optimized recorder options
-    const recorderOptions = this.getRecorderOptions(
-      hasTransparency,
-      hasEffects,
-      quality
-    );
-
-    // Create optimized stream
-    const stream = await this.createOptimizedStream(canvas, fps);
+    // Create optimized stream with error handling
+    let stream: MediaStream;
+    try {
+      stream = await this.createOptimizedStream(canvas, fps);
+    } catch (error) {
+      console.error("Failed to create optimized stream:", error);
+      throw new Error(
+        "Failed to initialize video recording. Please check your browser compatibility."
+      );
+    }
 
     return new Promise((resolve, reject) => {
       const chunks: Blob[] = [];
-      const recorder = new MediaRecorder(stream, recorderOptions);
+      let recorder: MediaRecorder;
+
+      try {
+        recorder = new MediaRecorder(stream, recorderOptions);
+      } catch (error) {
+        // Final fallback - try with minimal options
+        console.warn(
+          "MediaRecorder creation failed, trying minimal options:",
+          error
+        );
+        try {
+          recorder = new MediaRecorder(stream, {
+            mimeType: "video/webm",
+          });
+          toast.warning("Using basic export settings for compatibility");
+        } catch (fallbackError) {
+          stream.getTracks().forEach((track) => track.stop());
+          reject(
+            new Error(
+              "Your browser does not support video recording. Please try a different browser."
+            )
+          );
+          return;
+        }
+      }
+
+      let recordingTimeout: NodeJS.Timeout;
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -194,39 +541,108 @@ export class VideoExportManager {
       };
 
       recorder.onstop = () => {
-        try {
-          const blob = new Blob(chunks, { type: recorderOptions.mimeType });
+        clearTimeout(recordingTimeout);
 
-          // Validate blob
+        try {
+          const blob = new Blob(chunks, {
+            type: recorderOptions.mimeType || "video/webm",
+          });
+
+          // Enhanced blob validation
           if (blob.size === 0) {
-            reject(new Error("Generated video blob is empty"));
+            reject(
+              new Error(
+                "Export failed: Generated video is empty. Please try again with different settings."
+              )
+            );
             return;
           }
 
-          console.log(`Video exported: ${blob.size} bytes, type: ${blob.type}`);
+          if (blob.size < 1000) {
+            // Less than 1KB is suspicious
+            reject(
+              new Error(
+                "Export failed: Generated video is too small and may be corrupted."
+              )
+            );
+            return;
+          }
+
+          console.log(
+            `Video exported successfully: ${blob.size} bytes, type: ${blob.type}`
+          );
           resolve(blob);
         } catch (error) {
-          reject(error);
+          reject(
+            new Error(
+              `Export failed during video processing: ${
+                error instanceof Error ? error.message : "Unknown error"
+              }`
+            )
+          );
         }
       };
 
       recorder.onerror = (event) => {
+        clearTimeout(recordingTimeout);
         console.error("MediaRecorder error:", event);
-        reject(new Error("Recording failed"));
-      };
 
-      // Start recording
-      recorder.start(100); // Collect data every 100ms
+        // Provide specific error messages based on the error
+        const error = (event as any).error;
+        let errorMessage = "Recording failed due to an unknown error.";
 
-      // Stop recording after duration
-      setTimeout(() => {
-        if (recorder.state === "recording") {
-          recorder.stop();
+        if (error) {
+          if (error.name === "NotSupportedError") {
+            errorMessage =
+              "Recording format not supported. Please try a different browser or export settings.";
+          } else if (error.name === "SecurityError") {
+            errorMessage =
+              "Recording blocked by browser security settings. Please check your browser permissions.";
+          } else if (error.name === "InvalidStateError") {
+            errorMessage =
+              "Recording failed due to invalid state. Please refresh the page and try again.";
+          } else {
+            errorMessage = `Recording failed: ${error.message || error.name}`;
+          }
         }
 
-        // Stop all tracks
+        reject(new Error(errorMessage));
+      };
+
+      // Enhanced recording start with error handling
+      try {
+        recorder.start(100); // Collect data every 100ms
+
+        // Set up recording timeout with cleanup
+        recordingTimeout = setTimeout(() => {
+          try {
+            if (recorder.state === "recording") {
+              recorder.stop();
+            }
+          } catch (error) {
+            console.warn("Error stopping recorder:", error);
+          }
+
+          // Stop all tracks
+          stream.getTracks().forEach((track) => {
+            try {
+              track.stop();
+            } catch (error) {
+              console.warn("Error stopping track:", error);
+            }
+          });
+        }, duration * 1000 + 1000); // Add 1 second buffer
+      } catch (error) {
+        clearTimeout(recordingTimeout);
         stream.getTracks().forEach((track) => track.stop());
-      }, duration * 1000);
+        reject(
+          new Error(
+            `Failed to start recording: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`
+          )
+        );
+      }
     });
   }
 

@@ -1,101 +1,47 @@
-/* Custom scrollbar styles for the TransparentExportModal */
+/* Custom scrollbar styles for modals */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(43, 166, 255, 0.3) rgba(0, 0, 0, 0.2);
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
-/* For WebKit browsers (Chrome, Safari, etc.) */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
+  background: transparent;
+  border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(43, 166, 255, 0.3);
-  border-radius: 4px;
-  transition: background 0.2s ease;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(43, 166, 255, 0.5);
+  background: rgba(255, 255, 255, 0.3);
 }
 
-/* Apply the styles to the modal content */
-[data-dialog-content] {
+/* Additional scrollbar styles for specific height containers */
+.max-h-\[90vh\]\.overflow-y-auto {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.2);
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
-[data-dialog-content]::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-[data-dialog-content]::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-[data-dialog-content]::-webkit-scrollbar-thumb {
-  background: rgba(43, 166, 255, 0.3);
-  border-radius: 4px;
-  transition: background 0.2s ease;
-}
-
-[data-dialog-content]::-webkit-scrollbar-thumb:hover {
-  background: rgba(43, 166, 255, 0.5);
-}
-
-/* Additional styles for tabbed content areas */
-.TabsContent {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(43, 166, 255, 0.3) rgba(0, 0, 0, 0.2);
-}
-
-.TabsContent::-webkit-scrollbar {
+.max-h-\[90vh\]\.overflow-y-auto::-webkit-scrollbar {
   width: 6px;
-  height: 6px;
 }
 
-.TabsContent::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
+.max-h-\[90vh\]\.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
   border-radius: 3px;
 }
 
-.TabsContent::-webkit-scrollbar-thumb {
-  background: rgba(43, 166, 255, 0.3);
+.max-h-\[90vh\]\.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
 }
 
-.TabsContent::-webkit-scrollbar-thumb:hover {
-  background: rgba(43, 166, 255, 0.5);
-}
-
-/* Ensure these styles also apply to overflow-y-auto elements inside the modal */
-.max-h-\\[90vh\\].overflow-y-auto {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(43, 166, 255, 0.3) rgba(0, 0, 0, 0.2);
-}
-
-.max-h-\\[90vh\\].overflow-y-auto::-webkit-scrollbar {
-  width: 8px;
-}
-
-.max-h-\\[90vh\\].overflow-y-auto::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-.max-h-\\[90vh\\].overflow-y-auto::-webkit-scrollbar-thumb {
-  background: rgba(43, 166, 255, 0.3);
-  border-radius: 4px;
-}
-
-.max-h-\\[90vh\\].overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: rgba(43, 166, 255, 0.5);
+.max-h-\[90vh\]\.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }

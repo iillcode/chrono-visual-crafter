@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import React, { useState, useEffect, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -8,12 +7,47 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import {
+  Info,
+  Zap,
+  Cpu,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 
 interface TransitionLibraryProps {
   selectedTransition: string;
   onSelectTransition: (transition: string) => void;
   selectedEasing?: string;
   onSelectEasing?: (easing: string) => void;
+  counterSettings?: {
+    hasTransparency?: boolean;
+    isHighResolution?: boolean;
+    isMultiDigit?: boolean;
+    exportFormat?: string;
+  };
+}
+
+interface TransitionData {
+  id: string;
+  name: string;
+  category: "basic" | "multi-digit" | "special" | "advanced";
+  description: string;
+  complexity: "low" | "medium" | "high";
+  supportsTransparency: boolean;
+  requiresGPU: boolean;
+  performance: "excellent" | "good" | "moderate" | "intensive";
+  tooltip: string;
+  compatibilityNotes?: string[];
+  previewAnimation: string;
 }
 
 const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
@@ -21,47 +55,124 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
   onSelectTransition,
   selectedEasing = "linear",
   onSelectEasing = () => {},
+  counterSettings = {},
 }) => {
   // Category state for filtering transitions
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [previewStates, setPreviewStates] = useState<Record<string, boolean>>(
+    {}
+  );
+  const previewTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
-  // Define all transitions including new multi-digit ones
-  const transitions = [
+  // Define all transitions with enhanced categorization and metadata
+  const transitions: TransitionData[] = [
+    // Basic Transitions
     {
       id: "none",
       name: "None",
       category: "basic",
-      description: "No animation effect",
+      description: "No animation effect - instant number change",
+      complexity: "low",
+      supportsTransparency: true,
+      requiresGPU: false,
+      performance: "excellent",
+      tooltip:
+        "Perfect for simple counters where you want instant updates without any visual effects.",
+      previewAnimation: "text-white",
     },
     {
       id: "fadeIn",
       name: "Fade In",
       category: "basic",
-      description: "Simple fade in transition",
+      description: "Simple fade in transition with smooth opacity change",
+      complexity: "low",
+      supportsTransparency: true,
+      requiresGPU: false,
+      performance: "excellent",
+      tooltip:
+        "Classic fade effect that smoothly transitions from transparent to opaque. Works great for subtle animations.",
+      previewAnimation: "text-white animate-fade-in",
     },
+
+    // Multi-Digit Transitions
+    {
+      id: "odometer",
+      name: "Odometer",
+      category: "multi-digit",
+      description: "Rolling digits like a mechanical odometer",
+      complexity: "medium",
+      supportsTransparency: true,
+      requiresGPU: false,
+      performance: "good",
+      tooltip:
+        "Each digit rolls independently like a car odometer. Perfect for realistic counting animations.",
+      compatibilityNotes: [
+        "Works best with multi-digit counters",
+        "Requires consistent digit spacing",
+      ],
+      previewAnimation: "text-white animate-counter-spin",
+    },
+
+    // Special Effects
     {
       id: "glitch",
       name: "Glitch",
       category: "special",
-      description: "Digital glitch effect",
+      description: "Digital glitch effect with random displacement",
+      complexity: "medium",
+      supportsTransparency: true,
+      requiresGPU: false,
+      performance: "good",
+      tooltip:
+        "Cyberpunk-style glitch effect with random position shifts. Perfect for tech or gaming themes.",
+      previewAnimation: "text-white animate-counter-shake",
     },
     {
       id: "blur",
       name: "Blur",
       category: "special",
-      description: "Blurs into focus",
+      description: "Numbers blur in and out of focus",
+      complexity: "medium",
+      supportsTransparency: true,
+      requiresGPU: false,
+      performance: "good",
+      tooltip:
+        "Smooth blur-to-focus transition. Creates a dreamy, cinematic effect for your counters.",
+      compatibilityNotes: ["May affect text clarity during transition"],
+      previewAnimation: "text-white animate-pulse",
     },
     {
       id: "typewriter",
       name: "Typewriter",
       category: "special",
-      description: "Types text character by character",
+      description: "Types numbers character by character",
+      complexity: "medium",
+      supportsTransparency: true,
+      requiresGPU: false,
+      performance: "good",
+      tooltip:
+        "Reveals numbers one character at a time like typing. Great for dramatic reveals or storytelling.",
+      compatibilityNotes: ["Animation duration scales with digit count"],
+      previewAnimation: "text-white animate-pulse",
     },
+
+    // Advanced Transitions
     {
-      id: "odometer",
-      name: "Odometer",
-      category: "multi-digit",
-      description: "Rolling digits like an odometer",
+      id: "hologram-flicker",
+      name: "Hologram Flicker",
+      category: "advanced",
+      description: "Sci-fi holographic effect with scan lines and interference",
+      complexity: "high",
+      supportsTransparency: true,
+      requiresGPU: false,
+      performance: "moderate",
+      tooltip:
+        "Authentic holographic display with scan lines, RGB separation, static noise, and glitch effects. Perfect for sci-fi themes.",
+      compatibilityNotes: [
+        "Best with transparent or dark backgrounds",
+        "Includes flickering effects",
+      ],
+      previewAnimation: "text-cyan-400 animate-counter-glow",
     },
   ];
 
@@ -96,7 +207,71 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
     { id: "basic", name: "Basic" },
     { id: "multi-digit", name: "Multi-Digit" },
     { id: "special", name: "Special" },
+    { id: "advanced", name: "Advanced" },
   ];
+
+  // Compatibility checking system
+  const checkTransitionCompatibility = (transition: TransitionData) => {
+    const issues: string[] = [];
+    const warnings: string[] = [];
+
+    // Check transparency compatibility
+    if (counterSettings.hasTransparency && !transition.supportsTransparency) {
+      issues.push("This transition doesn't support transparent backgrounds");
+    }
+
+    // Check multi-digit compatibility
+    if (
+      counterSettings.isMultiDigit &&
+      transition.category !== "multi-digit" &&
+      transition.category !== "advanced"
+    ) {
+      warnings.push("This transition may not animate individual digits");
+    }
+
+    // Check performance for high resolution
+    if (
+      counterSettings.isHighResolution &&
+      transition.performance === "moderate"
+    ) {
+      warnings.push("May impact performance at high resolutions");
+    }
+
+    // Check export format compatibility
+    if (
+      counterSettings.exportFormat === "gif" &&
+      transition.complexity === "high"
+    ) {
+      warnings.push("Complex transitions may result in large GIF files");
+    }
+
+    return { issues, warnings, isCompatible: issues.length === 0 };
+  };
+
+  // Live preview animation trigger
+  const triggerPreviewAnimation = (transitionId: string) => {
+    // Clear existing timer
+    if (previewTimers.current[transitionId]) {
+      clearTimeout(previewTimers.current[transitionId]);
+    }
+
+    // Set preview state
+    setPreviewStates((prev) => ({ ...prev, [transitionId]: true }));
+
+    // Reset after animation duration
+    previewTimers.current[transitionId] = setTimeout(() => {
+      setPreviewStates((prev) => ({ ...prev, [transitionId]: false }));
+    }, 1000);
+  };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(previewTimers.current).forEach((timer) =>
+        clearTimeout(timer)
+      );
+    };
+  }, []);
 
   // Filter transitions by active category
   const filteredTransitions =
@@ -126,42 +301,183 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
       </div>
 
       {/* Transition grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {filteredTransitions.map((transition) => (
-          <button
-            key={transition.id}
-            onClick={() => onSelectTransition(transition.id)}
-            className={`p-3 rounded-lg border transition-colors relative ${
-              selectedTransition === transition.id
-                ? "border-[#2BA6FF] bg-[#2BA6FF]/10"
-                : "border-gray-700 bg-[#171717] hover:border-gray-500"
-            }`}
-          >
-            <div className="flex flex-col items-center">
-              {/* Transition preview animation */}
-              <div className="w-full h-14 flex items-center justify-center overflow-hidden relative">
-                <div
-                  className={`text-lg font-bold ${getPreviewAnimationClass(
-                    transition.id
-                  )}`}
-                >
-                  {transition.category === "multi-digit" ? "123" : "123"}
-                </div>
-              </div>
-              <div className="mt-2 text-xs text-white text-center">
-                {transition.name}
-              </div>
-              {transition.category === "multi-digit" && (
-                <div className="absolute top-1 right-1">
-                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                </div>
-              )}
-            </div>
-          </button>
-        ))}
-      </div>
+      <TooltipProvider>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {filteredTransitions.map((transition) => {
+            const compatibility = checkTransitionCompatibility(transition);
+            const isAnimating = previewStates[transition.id];
 
-      {/* Multi-digit info */}
+            return (
+              <Tooltip key={transition.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => onSelectTransition(transition.id)}
+                    onMouseEnter={() => triggerPreviewAnimation(transition.id)}
+                    className={`p-3 rounded-lg border transition-colors relative group ${
+                      selectedTransition === transition.id
+                        ? "border-[#2BA6FF] bg-[#2BA6FF]/10"
+                        : "border-gray-700 bg-[#171717] hover:border-gray-500"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center">
+                      {/* Transition preview animation */}
+                      <div className="w-full h-14 flex items-center justify-center overflow-hidden relative">
+                        <div
+                          className={`text-lg font-bold transition-all duration-300 ${
+                            isAnimating
+                              ? transition.previewAnimation
+                              : "text-white"
+                          }`}
+                        >
+                          {transition.category === "multi-digit"
+                            ? "123"
+                            : "123"}
+                        </div>
+                      </div>
+
+                      {/* Transition name and badges */}
+                      <div className="mt-2 text-xs text-white text-center">
+                        {transition.name}
+                      </div>
+
+                      {/* Performance and complexity badges */}
+                      {/* <div className="flex gap-1 mt-1">
+                        <Badge
+                          variant="outline"
+                          className={`text-xs px-1 py-0 ${
+                            transition.performance === "excellent"
+                              ? "border-green-500 text-green-400"
+                              : transition.performance === "good"
+                              ? "border-blue-500 text-blue-400"
+                              : transition.performance === "moderate"
+                              ? "border-yellow-500 text-yellow-400"
+                              : "border-red-500 text-red-400"
+                          }`}
+                        >
+                          {transition.performance}
+                        </Badge>
+                        {transition.complexity === "high" && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs px-1 py-0 border-purple-500 text-purple-400"
+                          >
+                            <Zap className="w-2 h-2 mr-1" />
+                            Advanced
+                          </Badge>
+                        )}
+                      </div> */}
+                    </div>
+
+                    {/* Category indicators */}
+                    {transition.category === "multi-digit" && (
+                      <div className="absolute top-1 right-1">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                      </div>
+                    )}
+                    {transition.category === "advanced" && (
+                      <div className="absolute top-1 right-1">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                      </div>
+                    )}
+
+                    {/* Compatibility indicators */}
+                    {!compatibility.isCompatible && (
+                      <div className="absolute top-1 left-1">
+                        <XCircle className="w-3 h-3 text-red-400" />
+                      </div>
+                    )}
+                    {compatibility.warnings.length > 0 &&
+                      compatibility.isCompatible && (
+                        <div className="absolute top-1 left-1">
+                          <AlertTriangle className="w-3 h-3 text-yellow-400" />
+                        </div>
+                      )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  className="max-w-xs p-3 bg-gray-900 border-gray-700"
+                >
+                  <div className="space-y-2">
+                    <div className="font-medium text-white">
+                      {transition.name}
+                    </div>
+                    <div className="text-sm text-gray-300">
+                      {transition.tooltip}
+                    </div>
+
+                    {/* Performance info */}
+                    <div className="flex items-center gap-2 text-xs">
+                      <Cpu className="w-3 h-3" />
+                      <span className="text-gray-400">
+                        Performance: {transition.performance} | Complexity:{" "}
+                        {transition.complexity}
+                      </span>
+                    </div>
+
+                    {/* Compatibility notes */}
+                    {transition.compatibilityNotes &&
+                      transition.compatibilityNotes.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-blue-400">
+                            Notes:
+                          </div>
+                          {transition.compatibilityNotes.map((note, index) => (
+                            <div
+                              key={index}
+                              className="text-xs text-gray-400 flex items-start gap-1"
+                            >
+                              <Info className="w-2 h-2 mt-0.5 flex-shrink-0" />
+                              {note}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                    {/* Compatibility warnings */}
+                    {compatibility.warnings.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-yellow-400">
+                          Warnings:
+                        </div>
+                        {compatibility.warnings.map((warning, index) => (
+                          <div
+                            key={index}
+                            className="text-xs text-yellow-300 flex items-start gap-1"
+                          >
+                            <AlertTriangle className="w-2 h-2 mt-0.5 flex-shrink-0" />
+                            {warning}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Compatibility issues */}
+                    {compatibility.issues.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-red-400">
+                          Issues:
+                        </div>
+                        {compatibility.issues.map((issue, index) => (
+                          <div
+                            key={index}
+                            className="text-xs text-red-300 flex items-start gap-1"
+                          >
+                            <XCircle className="w-2 h-2 mt-0.5 flex-shrink-0" />
+                            {issue}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      </TooltipProvider>
+
+      {/* Category information panels */}
       {activeCategory === "multi-digit" && (
         <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mt-4">
           <div className="flex items-start gap-2">
@@ -171,6 +487,53 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
               <p>
                 These effects animate each digit individually for more dynamic
                 and engaging counter animations.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeCategory === "advanced" && (
+        <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 mt-4">
+          <div className="flex items-start gap-2">
+            <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 flex-shrink-0"></div>
+            <div className="text-xs text-purple-400">
+              <p className="font-medium mb-1">Advanced Transitions</p>
+              <p>
+                Complex visual effects with particle systems, physics
+                simulations, and advanced rendering techniques. These
+                transitions offer stunning visual impact but may require more
+                processing power.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeCategory === "special" && (
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mt-4">
+          <div className="flex items-start gap-2">
+            <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
+            <div className="text-xs text-blue-400">
+              <p className="font-medium mb-1">Special Effects</p>
+              <p>
+                Unique transition styles that add character and personality to
+                your counters. Perfect for themed content or creative projects.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeCategory === "basic" && (
+        <div className="bg-gray-500/10 border border-gray-500/30 rounded-lg p-3 mt-4">
+          <div className="flex items-start gap-2">
+            <div className="w-2 h-2 bg-gray-400 rounded-full mt-2 flex-shrink-0"></div>
+            <div className="text-xs text-gray-400">
+              <p className="font-medium mb-1">Basic Transitions</p>
+              <p>
+                Simple, reliable effects that work well in any context.
+                Excellent performance and universal compatibility.
               </p>
             </div>
           </div>
@@ -202,41 +565,5 @@ const TransitionLibrary: React.FC<TransitionLibraryProps> = ({
     </div>
   );
 };
-
-// Helper function to get the appropriate animation class for each transition type
-function getPreviewAnimationClass(transitionId: string): string {
-  const baseClasses = "text-white";
-
-  switch (transitionId) {
-    case "none":
-      return `${baseClasses}`;
-    case "fadeIn":
-      return `${baseClasses} animate-fade-in`;
-    case "fade-roll":
-      return `${baseClasses} animate-fade-in transform rotate-1`;
-    case "flip-down":
-      return `${baseClasses} animate-flip`;
-    case "slide-vertical":
-      return `${baseClasses} animate-slide-up`;
-    case "bounce":
-      return `${baseClasses} animate-bounce`;
-    case "scale":
-      return `${baseClasses} animate-scale`;
-    case "slideUp":
-      return `${baseClasses} animate-slide-up`;
-    case "slideDown":
-      return `${baseClasses} animate-slide-down`;
-    case "glitch":
-      return `${baseClasses} animate-glitch`;
-    case "blur":
-      return `${baseClasses} animate-blur`;
-    case "typewriter":
-      return `${baseClasses} animate-typewriter`;
-    case "odometer":
-      return `${baseClasses} animate-odometer`;
-    default:
-      return baseClasses;
-  }
-}
 
 export default TransitionLibrary;
