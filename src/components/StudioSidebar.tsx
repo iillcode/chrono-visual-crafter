@@ -9,8 +9,6 @@ import DesignPreview from "./DesignPreview";
 import TextControls from "./TextControls";
 
 interface StudioSidebarProps {
-  isOpen: boolean;
-  onToggle: () => void;
   counterSettings: any;
   onCounterSettingsChange: (settings: any) => void;
   textSettings: any;
@@ -24,8 +22,6 @@ interface StudioSidebarProps {
 }
 
 const StudioSidebar: React.FC<StudioSidebarProps> = ({
-  isOpen,
-  onToggle,
   counterSettings,
   onCounterSettingsChange,
   textSettings,
@@ -45,227 +41,161 @@ const StudioSidebar: React.FC<StudioSidebarProps> = ({
   const handleTabChange =
     isMobileView && onTabChange ? onTabChange : setInternalActiveTab;
 
-  // Handle keyboard navigation for sidebar toggle
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "Escape") {
-      if (isOpen) onToggle();
-    }
-  };
-
   return (
-    <>
-      {/* Backdrop - improved with aria labels - Don't show in mobile view */}
-      {isOpen && !isMobileView && (
-        <div
-          className="fixed inset-0  bg-black/50 z-40 lg:hidden"
-          onClick={onToggle}
-          aria-label="Close sidebar"
-          role="button"
-          tabIndex={-1}
-        />
-      )}
-
-      {/* Sidebar - improved with ARIA role, tab index and keyboard support */}
-      <div
-        className={`
-        ${
-          isMobileView
-            ? "w-full h-full bg-transparent"
-            : `fixed left-0 top-0 h-full w-80 bg-[#171717] z-50 transform transition-transform duration-300 ease-in-out
-             ${isOpen ? "translate-x-0" : "-translate-x-full"}
-             lg:relative lg:translate-x-0 lg:z-auto
-             ${!isOpen && "lg:w-0 lg:border-r-0"}`
-        }
+    <div
+      className={`
+        ${isMobileView ? "w-full h-full bg-transparent" : "w-80 bg-[#171717]"}
       `}
-        role="region"
-        aria-label="Studio Controls Sidebar"
-        onKeyDown={handleKeyDown}
-        tabIndex={isOpen ? 0 : -1}
-      >
-        <div className="flex flex-col h-full">
-          {isOpen && (
-            <>
-              {/* Header */}
-              {/* <div className="flex items-center justify-between p-4 border-b border-gray-700/50">
-                <h2 className="text-white font-semibold px-3 py-1 rounded border border-gray-700/50 flex items-center">
-                  <Settings className="w-4 h-4 mr-2" aria-hidden="true" />
-                  Studio Controls
-                </h2>
-
-                <Button
-                  onClick={onToggle}
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-[#101010] hover:bg-[#2BA6FF]/20 focus:ring-2 focus:ring-[#2BA6FF] border border-gray-700/50"
-                  size="sm"
-                  aria-label="Close sidebar"
+      role="region"
+      aria-label="Studio Controls Sidebar"
+    >
+      <div className="flex flex-col h-full">
+        {/* Tabs */}
+        <div className="flex-1 overflow-hidden">
+          <Tabs
+            value={activeTab}
+            onValueChange={handleTabChange}
+            className="h-full flex flex-col"
+          >
+            {/* Hide tab list in mobile view since tabs are handled by MobileTabNavigation */}
+            {!isMobileView && (
+              <TabsList
+                className="grid grid-cols-3 gap-x-2 m-4 bg-[#101010] border border-gray-700/50"
+                aria-label="Editor Sections"
+              >
+                <TabsTrigger
+                  value="counter"
+                  className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/10 data-[state=active]:text-[#2BA6FF] "
+                  aria-label="Counter settings tab"
                 >
-                  <ChevronLeft className="w-4 h-4" aria-hidden="true" />
-                </Button>
-              </div> */}
-
-              {/* Tabs */}
-              <div className="flex-1 overflow-hidden">
-                <Tabs
-                  value={activeTab}
-                  onValueChange={handleTabChange}
-                  className="h-full flex flex-col"
+                  <Hash className="w-3 h-3" aria-hidden="true" />
+                  Counter
+                </TabsTrigger>
+                <TabsTrigger
+                  value="text"
+                  className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/10 data-[state=active]:text-[#2BA6FF] "
+                  aria-label="Text settings tab"
                 >
-                  {/* Hide tab list in mobile view since tabs are handled by MobileTabNavigation */}
-                  {!isMobileView && (
-                    <TabsList
-                      className="grid grid-cols-3 gap-x-2 m-4 bg-[#101010] border border-gray-700/50"
-                      aria-label="Editor Sections"
+                  <Type className="w-3 h-3" aria-hidden="true" />
+                  Text
+                </TabsTrigger>
+                <TabsTrigger
+                  value="design"
+                  className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/10 data-[state=active]:text-[#2BA6FF] "
+                  aria-label="Design settings tab"
+                >
+                  <Palette className="w-3 h-3" aria-hidden="true" />
+                  Design
+                </TabsTrigger>
+              </TabsList>
+            )}
+
+            <div
+              className={`flex-1 ${
+                isMobileView ? "px-0 pb-0" : "overflow-hidden px-4 pb-4"
+              }`}
+            >
+              {isMobileView ? (
+                // Mobile view: Conditional rendering based on active tab
+                <div>
+                  {activeTab === "counter" && (
+                    <div
+                      className="mt-0 space-y-4"
+                      role="tabpanel"
+                      aria-label="Counter settings"
                     >
-                      <TabsTrigger
-                        value="counter"
-                        className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/10 data-[state=active]:text-[#2BA6FF] "
-                        aria-label="Counter settings tab"
-                      >
-                        <Hash className="w-3 h-3" aria-hidden="true" />
-                        Counter
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="text"
-                        className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/10 data-[state=active]:text-[#2BA6FF] "
-                        aria-label="Text settings tab"
-                      >
-                        <Type className="w-3 h-3" aria-hidden="true" />
-                        Text
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="design"
-                        className="flex items-center gap-1 text-xs border data-[state=active]:border-[#2BA6FF] border-transparent data-[state=active]:bg-[#2BA6FF]/10 data-[state=active]:text-[#2BA6FF] "
-                        aria-label="Design settings tab"
-                      >
-                        <Palette className="w-3 h-3" aria-hidden="true" />
-                        Design
-                      </TabsTrigger>
-                    </TabsList>
+                      <ControlPanel
+                        settings={counterSettings}
+                        onSettingsChange={onCounterSettingsChange}
+                      />
+                    </div>
                   )}
 
-                  <div
-                    className={`flex-1 ${
-                      isMobileView ? "px-0 pb-0" : "overflow-hidden px-4 pb-4"
-                    }`}
+                  {activeTab === "text" && (
+                    <div
+                      className="mt-0 space-y-4"
+                      role="tabpanel"
+                      aria-label="Text settings"
+                    >
+                      <TextControls
+                        settings={textSettings}
+                        onSettingsChange={onTextSettingsChange}
+                      />
+                    </div>
+                  )}
+
+                  {activeTab === "design" && (
+                    <div
+                      className="mt-0 space-y-4"
+                      role="tabpanel"
+                      aria-label="Design settings"
+                    >
+                      <DesignPreview
+                        selectedDesign={counterSettings.design}
+                        onDesignChange={(design) =>
+                          onCounterSettingsChange({
+                            ...counterSettings,
+                            design,
+                          })
+                        }
+                        designSettings={designSettings}
+                        onDesignSettingsChange={onDesignSettingsChange}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Desktop view: Use ScrollArea as before
+                <ScrollArea className="h-full custom-scrollbar">
+                  <TabsContent
+                    value="counter"
+                    className="mt-0"
+                    role="tabpanel"
+                    aria-label="Counter settings"
                   >
-                    {isMobileView ? (
-                      // Mobile view: No ScrollArea, let the parent container handle scrolling
-                      <div>
-                        <TabsContent
-                          value="counter"
-                          className="mt-0 space-y-4"
-                          role="tabpanel"
-                          aria-label="Counter settings"
-                        >
-                          <ControlPanel
-                            settings={counterSettings}
-                            onSettingsChange={onCounterSettingsChange}
-                          />
-                        </TabsContent>
+                    <ControlPanel
+                      settings={counterSettings}
+                      onSettingsChange={onCounterSettingsChange}
+                    />
+                  </TabsContent>
 
-                        <TabsContent
-                          value="text"
-                          className="mt-0 space-y-4"
-                          role="tabpanel"
-                          aria-label="Text settings"
-                        >
-                          <TextControls
-                            settings={textSettings}
-                            onSettingsChange={onTextSettingsChange}
-                          />
-                        </TabsContent>
+                  <TabsContent
+                    value="text"
+                    className="mt-0"
+                    role="tabpanel"
+                    aria-label="Text settings"
+                  >
+                    <TextControls
+                      settings={textSettings}
+                      onSettingsChange={onTextSettingsChange}
+                    />
+                  </TabsContent>
 
-                        <TabsContent
-                          value="design"
-                          className="mt-0 space-y-4"
-                          role="tabpanel"
-                          aria-label="Design settings"
-                        >
-                          <DesignPreview
-                            selectedDesign={counterSettings.design}
-                            onDesignChange={(design) =>
-                              onCounterSettingsChange({
-                                ...counterSettings,
-                                design,
-                              })
-                            }
-                            designSettings={designSettings}
-                            onDesignSettingsChange={onDesignSettingsChange}
-                          />
-                        </TabsContent>
-                      </div>
-                    ) : (
-                      // Desktop view: Use ScrollArea as before
-                      <ScrollArea className="h-full custom-scrollbar">
-                        <TabsContent
-                          value="counter"
-                          className="mt-0"
-                          role="tabpanel"
-                          aria-label="Counter settings"
-                        >
-                          <ControlPanel
-                            settings={counterSettings}
-                            onSettingsChange={onCounterSettingsChange}
-                          />
-                        </TabsContent>
-
-                        <TabsContent
-                          value="text"
-                          className="mt-0"
-                          role="tabpanel"
-                          aria-label="Text settings"
-                        >
-                          <TextControls
-                            settings={textSettings}
-                            onSettingsChange={onTextSettingsChange}
-                          />
-                        </TabsContent>
-
-                        <TabsContent
-                          value="design"
-                          className="mt-0"
-                          role="tabpanel"
-                          aria-label="Design settings"
-                        >
-                          <DesignPreview
-                            selectedDesign={counterSettings.design}
-                            onDesignChange={(design) =>
-                              onCounterSettingsChange({
-                                ...counterSettings,
-                                design,
-                              })
-                            }
-                            designSettings={designSettings}
-                            onDesignSettingsChange={onDesignSettingsChange}
-                          />
-                        </TabsContent>
-                      </ScrollArea>
-                    )}
-                  </div>
-                </Tabs>
-              </div>
-            </>
-          )}
+                  <TabsContent
+                    value="design"
+                    className="mt-0"
+                    role="tabpanel"
+                    aria-label="Design settings"
+                  >
+                    <DesignPreview
+                      selectedDesign={counterSettings.design}
+                      onDesignChange={(design) =>
+                        onCounterSettingsChange({
+                          ...counterSettings,
+                          design,
+                        })
+                      }
+                      designSettings={designSettings}
+                      onDesignSettingsChange={onDesignSettingsChange}
+                    />
+                  </TabsContent>
+                </ScrollArea>
+              )}
+            </div>
+          </Tabs>
         </div>
       </div>
-
-      {/* Toggle Button (when sidebar is closed) - enhanced for accessibility - hidden in mobile view */}
-      {!isOpen && !isMobileView && (
-        <Button
-          onClick={onToggle}
-          className="fixed left-4 top-20 z-30 bg-[#171717] hover:bg-[#2BA6FF]/20 border border-[#2BA6FF]/30 text-white p-3 h-auto focus:ring-2 focus:ring-[#2BA6FF]"
-          size="default"
-          aria-label="Open studio controls sidebar"
-        >
-          <ChevronRight className="w-5 h-5 mr-1" aria-hidden="true" />
-          <span className="text-sm">Studio Controls</span>
-        </Button>
-      )}
-
-      {/* Keyboard shortcut help - screen reader only */}
-      <div className="sr-only">
-        Press Escape to close the sidebar. Use Tab to navigate between controls.
-      </div>
-    </>
+    </div>
   );
 };
 

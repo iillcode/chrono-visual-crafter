@@ -1,7 +1,7 @@
 // Mobile responsive types and interfaces
 
 export interface MobileLayoutState {
-  activeTab: "counter" | "design" | "visual" | null;
+  activeTab: "counter" | "text" | "font" | "design" | "styles" | null;
   bottomPanelOpen: boolean;
   isRecording: boolean;
   orientation: "portrait" | "landscape";

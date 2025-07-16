@@ -17,6 +17,10 @@ import MobileBottomPanel from "@/components/MobileBottomPanel";
 import MobileTabNavigation from "@/components/MobileTabNavigation";
 import MobileHeader from "@/components/MobileHeader";
 import VisualSettings from "@/components/VisualSettings";
+import TextControls from "@/components/TextControls";
+import FontSettings from "@/components/FontSettings";
+import StyleSettings from "@/components/StyleSettings";
+import DesignPreview from "@/components/DesignPreview";
 import type { MobileLayoutState } from "@/types/mobile";
 
 // @ts-ignore
@@ -143,7 +147,7 @@ const StudioContent = () => {
   const handleMobileTabChange = (tab: string) => {
     setMobileLayoutState((prev) => ({
       ...prev,
-      activeTab: tab as "counter" | "design" | "visual",
+      activeTab: tab as "counter" | "text" | "font" | "design" | "styles",
       bottomPanelOpen: true,
     }));
   };
@@ -740,9 +744,6 @@ const StudioContent = () => {
         {mobileDetection.isMobile ? (
           // Mobile Layout
           <>
-          
-           
-
             {/* Main Content Area - Full width on mobile */}
             <div className="flex-1 flex flex-col transition-all duration-300 overflow-hidden h-full">
               {/* Preview Area - Takes most of the screen */}
@@ -856,11 +857,34 @@ const StudioContent = () => {
                   />
                 </div>
               )}
-              {mobileLayoutState.activeTab === "visual" && (
+              {mobileLayoutState.activeTab === "text" && (
                 <div className="p-4">
-                  <VisualSettings
-                    counterSettings={counterSettings}
-                    onCounterSettingsChange={setCounterSettings}
+                  <TextControls
+                    settings={textSettings}
+                    onSettingsChange={setTextSettings}
+                  />
+                </div>
+              )}
+              {mobileLayoutState.activeTab === "font" && (
+                <div className="p-4">
+                  <FontSettings
+                    settings={counterSettings}
+                    onSettingsChange={setCounterSettings}
+                  />
+                </div>
+              )}
+              {mobileLayoutState.activeTab === "styles" && (
+                <div className="p-4">
+                  <DesignPreview
+                    selectedDesign={counterSettings.design}
+                    onDesignChange={(design) =>
+                      setCounterSettings({
+                        ...counterSettings,
+                        design,
+                      })
+                    }
+                    designSettings={designSettings}
+                    onDesignSettingsChange={setDesignSettings}
                   />
                 </div>
               )}

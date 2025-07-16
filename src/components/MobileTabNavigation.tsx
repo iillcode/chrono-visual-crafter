@@ -1,9 +1,9 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Hash, Type, Palette, LucideIcon } from "lucide-react";
+import { Hash, Type, Palette, Settings, Brush, LucideIcon } from "lucide-react";
 
 interface TabItem {
-  id: "counter" | "design" | "visual";
+  id: "counter" | "text" | "font" | "design" | "styles";
   label: string;
   icon: LucideIcon;
 }
@@ -26,14 +26,24 @@ const MobileTabNavigation: React.FC<MobileTabNavigationProps> = ({
       icon: Hash,
     },
     {
+      id: "text",
+      label: "Text",
+      icon: Type,
+    },
+    {
+      id: "font",
+      label: "Font",
+      icon: Settings,
+    },
+    {
       id: "design",
       label: "Design",
       icon: Palette,
     },
     {
-      id: "visual",
-      label: "Visual",
-      icon: Type,
+      id: "styles",
+      label: "Styles",
+      icon: Brush,
     },
   ];
 
