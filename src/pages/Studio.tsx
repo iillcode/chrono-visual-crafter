@@ -87,7 +87,7 @@ const StudioContent = () => {
     startValue: 0,
     endValue: 100,
     duration: 5,
-    fontFamily: "orbitron",
+    fontFamily: "roboto",
     fontSize: 120,
     fontWeight: 400,
     letterSpacing: 0,

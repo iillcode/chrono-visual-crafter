@@ -192,6 +192,51 @@ export type Database = {
           }
         ];
       };
+      payment_history: {
+        Row: {
+          id: string;
+          user_id: string;
+          subscription_id: string | null;
+          transaction_id: string | null;
+          event_type: string;
+          amount: number | null;
+          currency: string | null;
+          plan_name: string | null;
+          paddle_data: Json;
+          status: string;
+          processed_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          subscription_id?: string | null;
+          transaction_id?: string | null;
+          event_type: string;
+          amount?: number | null;
+          currency?: string | null;
+          plan_name?: string | null;
+          paddle_data?: Json;
+          status: string;
+          processed_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          subscription_id?: string | null;
+          transaction_id?: string | null;
+          event_type?: string;
+          amount?: number | null;
+          currency?: string | null;
+          plan_name?: string | null;
+          paddle_data?: Json;
+          status?: string;
+          processed_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
