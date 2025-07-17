@@ -79,7 +79,6 @@ export const LandingHeader = () => {
             <NavItem label="Studio" href="/studio" />
           </div>
           <div className="flex items-center space-x-3">
-            <ThemeToggle />
             <AuthButton />
           </div>
         </div>

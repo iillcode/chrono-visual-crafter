@@ -9,12 +9,7 @@ import {
   reloadPageAfterSubscriptionChange,
   navigateAfterSubscriptionChange,
 } from "@/utils/subscriptionHelpers";
-
-declare global {
-  interface Window {
-    Paddle: any;
-  }
-}
+import { initializePaddle, Paddle } from "@paddle/paddle-js";
 
 interface SubscriptionState {
   status: string;
@@ -25,6 +20,7 @@ interface SubscriptionState {
 
 interface PaddleContextType {
   isLoaded: boolean;
+  paddle: Paddle | null;
   subscription: SubscriptionState | null;
   openCheckout: (priceId: string, customData?: any) => void;
   refreshSubscriptionStatus: () => Promise<any>;
@@ -54,6 +50,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
   onSubscriptionUpdate,
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [paddle, setPaddle] = useState<Paddle | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionState | null>(
     null
   );
@@ -62,23 +59,19 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadPaddle = () => {
-      if (window.Paddle) {
-        setIsLoaded(true);
-        return;
-      }
+    const loadPaddle = async () => {
+      try {
+        const paddleInstance = await initializePaddle({
+          environment:
+            (import.meta.env.VITE_PADDLE_ENVIRONMENT as
+              | "sandbox"
+              | "production") || "sandbox",
+          token: import.meta.env.VITE_PADDLE_CLIENT_TOKEN || "",
+        });
 
-      const script = document.createElement("script");
-      script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
-      script.async = true;
-      script.onload = () => {
-        if (window.Paddle) {
-          window.Paddle.Environment.set(
-            import.meta.env.VITE_PADDLE_ENVIRONMENT || "sandbox"
-          );
-          window.Paddle.Setup({
-            token: import.meta.env.VITE_PADDLE_CLIENT_TOKEN,
-          });
+        if (paddleInstance) {
+          setPaddle(paddleInstance);
+          setIsLoaded(true);
 
           // Debug Paddle state in development
           if (process.env.NODE_ENV === "development") {
@@ -87,19 +80,22 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
             }, 1000);
           }
 
-          setIsLoaded(true);
+          logger.info("Paddle initialized successfully", {
+            environment: import.meta.env.VITE_PADDLE_ENVIRONMENT || "sandbox",
+          });
+        } else {
+          throw new Error("Failed to initialize Paddle instance");
         }
-      };
-      script.onerror = () => {
-        console.error("Failed to load Paddle SDK");
+      } catch (error) {
+        console.error("Failed to initialize Paddle SDK", error);
+        logger.error("Paddle initialization failed", { error });
         toast({
           title: "Payment System Error",
           description:
             "Failed to load payment system. Please refresh the page.",
           variant: "destructive",
         });
-      };
-      document.head.appendChild(script);
+      }
     };
 
     loadPaddle();
@@ -191,7 +187,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
 
   const validateSubscription = async (): Promise<boolean> => {
     if (!user) return false;
-    if (!isLoaded || !window.Paddle) return false;
+    if (!isLoaded || !paddle) return false;
 
     try {
       // First check if we have a subscription
@@ -255,7 +251,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
       return false;
     }
 
-    if (!isLoaded || !window.Paddle) {
+    if (!isLoaded || !paddle) {
       toast({
         title: "Payment System Not Ready",
         description: "Please wait for the payment system to load.",
@@ -280,7 +276,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
       });
 
       // Open Paddle's cancel flow
-      window.Paddle.Subscription.cancelPreview({
+      paddle.Subscription.cancelPreview({
         subscriptionId: subscription.subscriptionId,
         eventCallback: async (data: any) => {
           logger.info("Paddle cancel event received", {
@@ -350,7 +346,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
         "@/utils/subscriptionAudit"
       );
 
-      if (!isLoaded || !window.Paddle) {
+      if (!isLoaded || !paddle) {
         toast({
           title: "Payment System Not Ready",
           description: "Please wait for the payment system to load.",
@@ -361,12 +357,12 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
 
       // Check if the modern Paddle API is available
       if (
-        window.Paddle.Subscription &&
-        typeof window.Paddle.Subscription.cancel === "function"
+        paddle.Subscription &&
+        typeof paddle.Subscription.cancel === "function"
       ) {
         // Use the modern Paddle API
         return new Promise((resolve) => {
-          window.Paddle.Subscription.cancel({
+          paddle.Subscription.cancel({
             subscriptionId: subscriptionId,
             effectiveFrom: "next_billing_period",
             eventCallback: async (data: any) => {
@@ -431,11 +427,11 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
 
       // Fallback: Try the legacy cancelPreview method
       else if (
-        window.Paddle.Subscription &&
-        typeof window.Paddle.Subscription.cancelPreview === "function"
+        paddle.Subscription &&
+        typeof paddle.Subscription.cancelPreview === "function"
       ) {
         return new Promise((resolve) => {
-          window.Paddle.Subscription.cancelPreview({
+          paddle.Subscription.cancelPreview({
             subscriptionId: subscriptionId,
             effectiveFrom: "next_billing_period",
             eventCallback: async (data: any) => {
@@ -594,10 +590,10 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
     console.log("Opening Paddle checkout with:", { priceId, customData });
 
     // Enhanced error handling and validation
-    if (!isLoaded || !window.Paddle) {
+    if (!isLoaded || !paddle) {
       console.error("Paddle not loaded:", {
         isLoaded,
-        hasPaddle: !!window.Paddle,
+        hasPaddle: !!paddle,
       });
       toast({
         title: "Payment System Not Ready",
@@ -623,73 +619,27 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
       email: user.primaryEmailAddress?.emailAddress,
     });
 
-    window.Paddle.Checkout.open({
-      items: [{ priceId }],
-      customer: {
-        email: user.primaryEmailAddress?.emailAddress,
-      },
-      customData: {
-        userId: user.id,
-        email: user.primaryEmailAddress?.emailAddress,
-        full_name: user.fullName,
-        timestamp: new Date().toISOString(),
-        ...customData,
-      },
-      settings: {
-        displayMode: "overlay",
-        theme: "dark",
-        locale: "en",
-        successUrl: `${window.location.origin}/studio?payment=success`,
-      },
+    // Navigate to the inline checkout page instead of opening overlay
+    const checkoutUrl = new URL("/checkout", window.location.origin);
+    checkoutUrl.searchParams.set("priceId", priceId);
 
-      eventCallback: (data: any) => {
-        logger.info("Paddle event received", { eventName: data.name, data });
+    // Add custom data as URL parameters
+    if (customData?.planName) {
+      checkoutUrl.searchParams.set("plan", customData.planName);
+    }
+    if (customData?.planPrice) {
+      checkoutUrl.searchParams.set("price", customData.planPrice);
+    }
 
-        if (data.name === "checkout.completed") {
-          logger.info("Payment completed, processing subscription update");
-
-          toast({
-            title: "Payment Successful!",
-            description:
-              "Your subscription has been activated. Redirecting to studio...",
-          });
-
-          // Wait a moment for webhook processing, then refresh and navigate
-          // Increased timeout to allow for webhook processing
-          setTimeout(async () => {
-            const updatedSubscription = await refreshSubscriptionStatus();
-            if (updatedSubscription) {
-              logger.info("Subscription updated after payment", {
-                updatedSubscription,
-              });
-            }
-            // Navigate to studio with updated subscription status
-            navigateAfterSubscriptionChange("/studio?payment=success", 3000);
-          }, 3000); // Increased from 2000ms to 3000ms
-        }
-
-        if (data.name === "checkout.closed") {
-          logger.info("Checkout was closed");
-        }
-
-        if (data.name === "checkout.error") {
-          logger.error("Checkout error occurred", { data });
-          toast({
-            title: "Payment Error",
-            description:
-              data.error?.message ||
-              "There was an issue processing your payment. Please try again.",
-            variant: "destructive",
-          });
-        }
-      },
-    });
+    // Navigate to checkout page
+    navigate(checkoutUrl.pathname + checkoutUrl.search);
   };
 
   return (
     <PaddleContext.Provider
       value={{
         isLoaded,
+        paddle,
         subscription,
         openCheckout,
         refreshSubscriptionStatus,

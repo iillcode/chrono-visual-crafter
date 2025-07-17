@@ -1,6 +1,6 @@
 import React from "react";
 import { SignInButton, SignUpButton, useUser } from "@clerk/clerk-react";
-import { Button } from "@/components/ui/button";
+import { Button as NeonButton } from "@/components/ui/neon-button";
 import { motion } from "framer-motion";
 import { LogIn, UserPlus } from "lucide-react";
 import UserMenu from "@/components/user/UserMenu";
@@ -8,13 +8,15 @@ import UserMenu from "@/components/user/UserMenu";
 interface AuthButtonProps {
   mode?: "signin" | "signup" | "user";
   className?: string;
-  variant?: "default" | "outline" | "ghost";
+  variant?: "default" | "solid" | "ghost";
+  neon?: boolean;
 }
 
 const AuthButton: React.FC<AuthButtonProps> = ({
   mode = "signin",
   className = "",
   variant = "default",
+  neon = true,
 }) => {
   const { isSignedIn } = useUser();
 
@@ -35,24 +37,24 @@ const AuthButton: React.FC<AuthButtonProps> = ({
     return (
       <SignUpButton mode="modal">
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          <Button variant={variant} className={className}>
+          <NeonButton variant={variant} className={className} neon={neon}>
             <UserPlus className="w-4 h-4 mr-2" />
             Sign Up
-          </Button>
+          </NeonButton>
         </motion.div>
       </SignUpButton>
     );
   }
 
   return (
-    <SignInButton mode="modal">
-      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-        <Button variant={variant} className={className}>
-          <LogIn className="w-4 h-4 mr-2" />
+    // <SignInButton mode="modal">
+    <div >
+      <motion.div  whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <NeonButton variant={variant} className={className} neon={neon}>
           Sign In
-        </Button>
+        </NeonButton>
       </motion.div>
-    </SignInButton>
+    </div>
   );
 };
 

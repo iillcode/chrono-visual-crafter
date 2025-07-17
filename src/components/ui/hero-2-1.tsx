@@ -8,6 +8,8 @@ import { useUser } from "@clerk/clerk-react";
 import AuthButton from "@/components/auth/AuthButton";
 import { useTheme } from "@/contexts/ThemeContext";
 import ThemeToggle from "@/components/theme/ThemeToggle";
+import { Button as NeonButton } from "@/components/ui/neon-button";
+import { BorderTrail } from "@/components/ui/border-trail";
 
 const Hero2 = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -33,18 +35,7 @@ const Hero2 = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black">
-      {/* Gradient background with grain effect */}
-      <div className="flex flex-col items-end absolute -right-60 -top-10 blur-xl z-0 ">
-        <div className="h-[10rem] rounded-full w-[60rem] z-1 bg-gradient-to-b blur-[6rem] from-[#1FB4FF]/10 to-[#1FB4FF]/10"></div>
-        <div className="h-[10rem] rounded-full w-[90rem] z-1 bg-gradient-to-b blur-[6rem] from-[#1FB4FF] to-[#1FB4FF]/40"></div>
-        <div className="h-[10rem] rounded-full w-[60rem] z-1 bg-gradient-to-b blur-[6rem] from-[#1FB4FF]/50 to-[#1FB4FF]/10"></div>
-      </div>
-      <div className="absolute inset-0 z-0 bg-noise opacity-30"></div>
-
-      {/* Deep black overlay to maintain deep black background */}
-      <div className="absolute inset-0 z-1 bg-black/50"></div>
-
+    <div className="relative min-h-screen overflow-hidden">
       {/* Content container */}
       <div className="relative z-10">
         {/* Navigation */}
@@ -68,12 +59,12 @@ const Hero2 = () => {
           <div className="hidden md:flex items-center space-x-6">
             <div className="flex items-center space-x-6">
               <NavItem label="Features" href="#features" />
-              <NavItem label="About" href="/about" />
+              {/* <NavItem label="About" href="/about" /> */}
               <NavItem label="Pricing" href="/pricing" />
               <NavItem label="Studio" href="/studio" />
             </div>
             <div className="flex items-center space-x-3">
-              <ThemeToggle />
+              {/* <ThemeToggle /> */}
               <AuthButton />
             </div>
           </div>
@@ -135,11 +126,11 @@ const Hero2 = () => {
         </AnimatePresence>
 
         {/* Badge */}
-        <div className="mx-auto mt-6 flex max-w-fit items-center justify-center space-x-2 rounded-full bg-white/10 px-4 py-2 backdrop-blur-sm">
-          <span className="text-sm font-medium text-white">
+        <div className="mx-auto mt-20 flex max-w-fit items-center justify-center ">
+          {/* <span className="text-sm font-medium text-white">
             Create stunning animated counters
           </span>
-          <ArrowRight className="h-4 w-4 text-white" />
+          <ArrowRight className="h-4 w-4 text-white" /> */}
         </div>
 
         {/* Hero section */}
@@ -160,23 +151,41 @@ const Hero2 = () => {
             >
               Get Started Free
             </button>
-            <button
+            <NeonButton
               onClick={() => navigate("/pricing")}
+              variant="ghost"
               className="h-12 rounded-full border border-gray-600 px-8 text-base font-medium text-white hover:bg-white/10"
             >
               View All Features
-            </button>
+            </NeonButton>
           </div>
 
           <div className="relative mx-auto my-20 w-full max-w-6xl">
             <div className="absolute inset-0 rounded shadow-lg bg-white blur-[10rem] bg-grainy opacity-20" />
 
-            {/* Hero Image */}
-            <img
-              src="/studio.png"
-              alt="Counter Animation Studio"
-              className="relative w-full h-auto shadow-md rounded-xl border border-white/10"
-            />
+            {/* Hero Image with BorderTrail */}
+            <div className="relative rounded-xl">
+              <BorderTrail
+                style={{
+                  boxShadow:
+                    "0px 0px 60px 30px rgb(6 182 212 / 20%), 0 0 100px 60px rgb(6 182 212 / 10%)",
+                  background:
+                    "linear-gradient(270deg, rgba(34,211,238,1) 0%, rgba(59,130,246,0.7) 50%, rgba(59,130,246,0.2) 100%)",
+                }}
+                size={120}
+                transition={{
+                  repeat: Infinity,
+                  duration: 10,
+                  ease: "linear",
+                }}
+                className="w-[120px] h-[20px] p-2"
+              />
+              <img
+                src="/studio.png"
+                alt="Counter Animation Studio"
+                className="relative w-full h-auto shadow-md rounded-xl border-4 border-white/10"
+              />
+            </div>
           </div>
         </div>
       </div>

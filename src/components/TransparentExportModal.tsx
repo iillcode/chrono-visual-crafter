@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useClerkAuth } from "@/hooks/useClerkAuth";
 import {
   Download,
   Settings,
@@ -92,6 +93,7 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
   const [customSize, setCustomSize] = useState({ width: 800, height: 600 });
   const [isCancelRequested, setIsCancelRequested] = useState(false);
   const { toast } = useToast();
+  const { user, profile, updateProfile, refreshProfile } = useClerkAuth();
 
   const handlePresetChange = (presetIndex: number) => {
     setSelectedPreset(presetIndex);
@@ -124,6 +126,21 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
   };
 
   const handleExport = async () => {
+    // Credit gating for Free users
+    if (
+      profile?.subscription_plan === "free" &&
+      typeof profile?.credits === "number" &&
+      profile.credits <= 0
+    ) {
+      toast({
+        title: "Out of Credits",
+        description:
+          "You have reached your monthly export limit. Upgrade to Pro for unlimited exports.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsExporting(true);
     setIsCancelRequested(false);
 
@@ -154,11 +171,23 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
         "transparent-counter-overlay"
       );
 
+      const hasTransparency = counterSettings.background === "transparent";
       toast({
         title: "Export Complete",
-        description:
-          "Your transparent counter overlay has been exported successfully!",
+        description: `Your transparent counter overlay has been exported successfully${
+          hasTransparency ? " with transparency support" : ""
+        }!`,
       });
+
+      // Decrement credits for free users
+      if (
+        profile?.subscription_plan === "free" &&
+        typeof profile?.credits === "number" &&
+        profile.credits > 0
+      ) {
+        updateProfile({ credits: profile.credits - 1 });
+        refreshProfile();
+      }
 
       onOpenChange(false);
     } catch (error) {
@@ -677,18 +706,28 @@ export const TransparentExportModal: React.FC<TransparentExportModalProps> = ({
             onClick={handleExport}
             disabled={
               isExporting ||
-              (!exportOptions.includeCounter && !exportOptions.includeText)
+              (!exportOptions.includeCounter && !exportOptions.includeText) ||
+              (profile?.subscription_plan === "free" &&
+                typeof profile?.credits === "number" &&
+                profile.credits <= 0)
             }
-            className="flex-1 bg-[#2BA6FF]/60 hover:bg-[#2BA6FF]/80 text-white"
+            className="flex-1 bg-[#2BA6FF]/60 hover:bg-[#2BA6FF]/80 text-white disabled:opacity-50"
           >
             {isExporting ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Exporting...
               </>
+            ) : profile?.subscription_plan === "free" &&
+              typeof profile?.credits === "number" &&
+              profile.credits <= 0 ? (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Out of Credits
+              </>
             ) : (
               <>
-                <Download className=" w-4 h-4 mr-2" />
+                <Download className="w-4 h-4 mr-2" />
                 Export Overlay
               </>
             )}

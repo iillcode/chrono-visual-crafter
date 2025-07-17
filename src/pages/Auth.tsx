@@ -23,124 +23,23 @@ const Auth = () => {
     },
   };
 
-  // Elegant shape component from landing page
-  const ElegantShape = ({
-    className,
-    delay = 0,
-    width = 400,
-    height = 100,
-    rotate = 0,
-    gradient = "from-white/[0.08]",
-  }: {
-    className?: string;
-    delay?: number;
-    width?: number;
-    height?: number;
-    rotate?: number;
-    gradient?: string;
-  }) => {
-    return (
-      <motion.div
-        initial={{
-          opacity: 0,
-          y: -150,
-          rotate: rotate - 15,
-        }}
-        animate={{
-          opacity: 1,
-          y: 0,
-          rotate: rotate,
-        }}
-        transition={{
-          duration: 2.4,
-          delay,
-          ease: [0.23, 0.86, 0.39, 0.96],
-          opacity: { duration: 1.2 },
-        }}
-        className={cn("absolute", className)}
-      >
-        <motion.div
-          animate={{
-            y: [0, 15, 0],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "easeInOut",
-          }}
-          style={{
-            width,
-            height,
-          }}
-          className="relative"
-        >
-          <div
-            className={cn(
-              "absolute inset-0 rounded-full",
-              "bg-gradient-to-r to-transparent",
-              gradient,
-              "backdrop-blur-[2px] border-2 border-white/[0.15]",
-              "shadow-[0_8px_32px_0_rgba(255,255,255,0.1)]",
-              "after:absolute after:inset-0 after:rounded-full",
-              "after:bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]"
-            )}
-          />
-        </motion.div>
-      </motion.div>
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-[#030303] text-white overflow-hidden flex items-center justify-center p-4">
-      {/* Background gradients */}
-      <div className="absolute inset-0 blur-3xl bg-gradient-to-br from-indigo-500/[0.05] via-transparent to-rose-500/[0.05]" />
+    <div className="relative min-h-screen overflow-hidden bg-black flex items-center justify-center p-4">
+      {/* Background effects - same as Pricing page */}
+      <div className="absolute inset-0 z-0">
+        <div className="flex flex-col items-end absolute -right-60 -top-10 blur-xl z-0">
+          <div className="h-[10rem] rounded-full w-[60rem] z-1 bg-gradient-to-b blur-[6rem] from-[#1FB4FF] to-sky-400"></div>
+          <div className="h-[10rem] rounded-full w-[90rem] z-1 bg-gradient-to-b blur-[6rem] from-[#1FB4FF]/10 to-sky-400"></div>
+          <div className="h-[10rem] rounded-full w-[60rem] z-1 bg-gradient-to-b blur-[6rem] from-[#1FB4FF]/10 to-sky-400"></div>
+        </div>
+        <div className="absolute inset-0 z-0 bg-noise opacity-30"></div>
 
-      {/* Elegant shapes background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <ElegantShape
-          delay={0.3}
-          width={600}
-          height={140}
-          rotate={12}
-          gradient="from-indigo-500/[0.15]"
-          className="left-[-10%] md:left-[-5%] top-[15%] md:top-[20%]"
-        />
+        {/* Additional gradients for more visual interest */}
+        <div className="absolute bottom-0 left-0 h-[30rem] w-[30rem] rounded-full blur-[8rem] bg-gradient-to-tr from-purple-600/10 to-transparent"></div>
+        <div className="absolute top-1/2 left-1/4 h-[20rem] w-[20rem] rounded-full blur-[7rem] bg-gradient-to-br from-cyan-500/10 to-transparent"></div>
 
-        <ElegantShape
-          delay={0.5}
-          width={500}
-          height={120}
-          rotate={-15}
-          gradient="from-rose-500/[0.15]"
-          className="right-[-5%] md:right-[0%] top-[70%] md:top-[75%]"
-        />
-
-        <ElegantShape
-          delay={0.4}
-          width={300}
-          height={80}
-          rotate={-8}
-          gradient="from-violet-500/[0.15]"
-          className="left-[5%] md:left-[10%] bottom-[5%] md:bottom-[10%]"
-        />
-
-        <ElegantShape
-          delay={0.6}
-          width={200}
-          height={60}
-          rotate={20}
-          gradient="from-amber-500/[0.15]"
-          className="right-[15%] md:right-[20%] top-[10%] md:top-[15%]"
-        />
-
-        <ElegantShape
-          delay={0.7}
-          width={150}
-          height={40}
-          rotate={-25}
-          gradient="from-cyan-500/[0.15]"
-          className="left-[20%] md:left-[25%] top-[5%] md:top-[10%]"
-        />
+        {/* Deep black overlay to maintain deep black background */}
+        <div className="absolute inset-0 z-1 bg-black/50"></div>
       </div>
 
       <div className="absolute top-6 left-6 z-20">

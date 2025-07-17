@@ -14,6 +14,7 @@ if (process.env.NODE_ENV === "development") {
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Pricing from "./pages/Pricing";
+import Checkout from "./pages/Checkout";
 import Studio from "./pages/Studio";
 import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
@@ -38,6 +39,7 @@ const App = () => {
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/pricing" element={<Pricing />} />
+                <Route path="/checkout" element={<Checkout />} />
                 <Route path="/about" element={<About />} />
 
                 <Route

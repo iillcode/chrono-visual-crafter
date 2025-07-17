@@ -94,4 +94,63 @@ export async function cancelSubscription({
   }
 }
 
+/**
+ * Gets the customer portal URL for managing billing
+ * @param userId The user ID
+ * @param subscriptionId The Paddle subscription ID
+ * @returns Promise that resolves to the customer portal URL
+ */
+export async function getCustomerPortalUrl(
+  userId: string,
+  subscriptionId: string
+): Promise<{
+  success: boolean;
+  portal_url?: string;
+  message: string;
+  error?: any;
+}> {
+  try {
+    const { data: functionData, error: functionError } =
+      await supabase.functions.invoke("get-customer-portal", {
+        method: "POST",
+        body: { userId, subscriptionId },
+      });
+
+    if (functionError) {
+      console.error(
+        "Error calling get-customer-portal function:",
+        functionError
+      );
+      return {
+        success: false,
+        message: functionError.message || "Failed to get customer portal URL",
+        error: functionError,
+      };
+    }
+
+    if (!functionData?.success || !functionData?.portal_url) {
+      console.error("Customer portal function returned error:", functionData);
+      return {
+        success: false,
+        message:
+          functionData?.error || "Failed to generate customer portal URL",
+        error: functionData,
+      };
+    }
+
+    return {
+      success: true,
+      portal_url: functionData.portal_url,
+      message: "Customer portal URL generated successfully",
+    };
+  } catch (error) {
+    console.error("Exception during customer portal URL generation:", error);
+    return {
+      success: false,
+      message: error.message || "An unexpected error occurred",
+      error,
+    };
+  }
+}
+
 // Additional subscription-related functions can be added here

@@ -1,25 +1,29 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  ModernPricingPage,
-  PricingCardProps,
-} from "@/components/ui/animated-glassy-pricing";
+import { ModernPricingCards } from "@/components/ui/modern-pricing-cards";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { LandingHeader } from "@/components/ui/landing-header";
 import { useTheme } from "@/contexts/ThemeContext";
-import { cn } from "@/lib/utils";
+
+interface PricingPlan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  discount?: string;
+  features: string[];
+  paddlePriceId?: string;
+  isPopular?: boolean;
+  billingCycle: "monthly" | "yearly";
+}
 
 const Pricing = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const [plans, setPlans] = useState<PricingCardProps[]>([]);
+  const [plans, setPlans] = useState<PricingPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
-  const isDark = theme === "dark";
 
   useEffect(() => {
     fetchPlans();
@@ -41,7 +45,7 @@ const Pricing = () => {
         ["Free", "Pro"].includes(plan.name)
       );
 
-      const formattedPlans = filtered.map((plan, index) => {
+      const formattedPlans = filtered.map((plan) => {
         const features = Array.isArray(plan.features)
           ? plan.features
           : JSON.parse((plan.features as string) || "[]");
@@ -52,16 +56,14 @@ const Pricing = () => {
         });
 
         return {
-          planName: plan.name,
+          id: plan.id.toString(),
+          name: plan.name,
           description: plan.description || "",
-          price: plan.price.toString(),
+          price: plan.price,
           features: features,
-          buttonText: plan.name === "Free" ? "Get Started" : "Subscribe Now",
-          isPopular: index === 1, // Make the middle plan popular
-          buttonVariant: (plan.name === "Free" ? "secondary" : "primary") as
-            | "secondary"
-            | "primary",
           paddlePriceId: plan.paddle_price_id || undefined,
+          isPopular: plan.name === "Pro",
+          billingCycle: "monthly" as const,
         };
       });
 
@@ -77,39 +79,27 @@ const Pricing = () => {
       // Use fallback plans if database fails
       setPlans([
         {
-          planName: "Basic",
+          id: "1",
+          name: "Free",
           description: "Perfect for personal projects and hobbyists.",
-          price: "0",
+          price: 0,
           features: ["1 Project", "Basic Transitions", "Export as GIF"],
-          buttonText: "Get Started",
-          buttonVariant: "secondary" as const,
+          billingCycle: "monthly",
         },
         {
-          planName: "Pro",
+          id: "2",
+          name: "Pro",
           description: "Professional features for creators.",
-          price: "19",
+          price: 19,
           features: [
             "Unlimited Projects",
             "All Transitions",
             "HD Video Export",
             "Priority Support",
           ],
-          buttonText: "Subscribe Now",
           isPopular: true,
-          buttonVariant: "primary" as const,
-        },
-        {
-          planName: "Team",
-          description: "For teams and businesses.",
-          price: "49",
-          features: [
-            "Everything in Pro",
-            "Team Collaboration",
-            "White Label Export",
-            "API Access",
-          ],
-          buttonText: "Subscribe Now",
-          buttonVariant: "primary" as const,
+          billingCycle: "monthly",
+          paddlePriceId: "pro_price_id",
         },
       ]);
     } finally {
@@ -148,7 +138,7 @@ const Pricing = () => {
       <div className="relative z-10">
         <LandingHeader />
 
-        <ModernPricingPage
+        <ModernPricingCards
           title={
             <>
               Choose Your <span className="text-cyan-400">Perfect Plan</span>
@@ -156,7 +146,6 @@ const Pricing = () => {
           }
           subtitle="Unlock powerful features to enhance your timer experience. Start free and upgrade when you're ready."
           plans={plans}
-          showAnimatedBackground={false}
         />
       </div>
     </div>

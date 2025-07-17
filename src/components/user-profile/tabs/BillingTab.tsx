@@ -8,6 +8,8 @@ import {
   Activity,
   AlertTriangle,
   Download,
+  Settings,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +49,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({
     []
   );
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isLoadingPortal, setIsLoadingPortal] = useState(false);
   const { toast } = useToast();
 
   // Format date
@@ -125,6 +128,77 @@ export const BillingTab: React.FC<BillingTabProps> = ({
     fetchPaymentHistory();
   }, [userId, toast]);
 
+  // Handle customer portal redirect
+  const handleManageBilling = async () => {
+    if (!subscriptionDetails?.paddle_subscription_id) {
+      toast({
+        title: "Error",
+        description: "No subscription found to manage.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoadingPortal(true);
+
+    try {
+      // Get customer ID from profiles table
+      const { data: userProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("paddle_customer_id")
+        .eq("user_id", userId)
+        .single();
+
+      if (profileError || !userProfile?.paddle_customer_id) {
+        console.error("Error fetching customer ID:", profileError);
+        toast({
+          title: "Error",
+          description: "Unable to find customer information.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Call Supabase Edge Function to get customer portal URL
+      const { data, error } = await supabase.functions.invoke(
+        "get-customer-portal",
+        {
+          body: {
+            userId,
+            subscriptionId: subscriptionDetails.paddle_subscription_id,
+            customerId: userProfile.paddle_customer_id,
+          },
+        }
+      );
+
+      if (error) {
+        console.error("Error invoking get-customer-portal function:", error);
+        throw error;
+      }
+
+      if (data.success) {
+        console.log(data,'customer urls');
+        
+        // Redirect to customer portal
+        window.open(
+          data.portal_url[0].update_subscription_payment_method,
+          "_blank"
+        );
+      } else {
+        throw new Error("No portal URL received");
+      }
+    } catch (error) {
+      console.error("Error opening customer portal:", error);
+      toast({
+        title: "Portal Access Failed",
+        description: "Unable to open billing portal. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingPortal(false);
+    }
+  };
+
   // Download invoice from Paddle
   const handleDownloadInvoice = async (payment: PaymentHistoryItem) => {
     const transactionId = payment.transaction_id;
@@ -200,26 +274,41 @@ export const BillingTab: React.FC<BillingTabProps> = ({
         </CardHeader>
 
         <CardContent className="relative z-10 pt-0">
-          {profile?.subscription_plan !== "Free" ? (
+          {profile?.subscription_plan !== "free" &&
+          profile?.subscription_plan !== "Free" ? (
             <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-md bg-[#202020] flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-white" />
+                    <Settings className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-white">
-                      Visa ending in 4242
+                      Billing Management
                     </h3>
-                    <p className="text-xs text-white/40">Expires 12/25</p>
+                    <p className="text-xs text-white/40">
+                      Manage your payment methods and billing details
+                    </p>
                   </div>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={handleManageBilling}
+                  disabled={isLoadingPortal}
                   className="border-[#2BA6FF]/30 bg-[#2BA6FF]/10 hover:bg-[#2BA6FF]/20 text-[#2BA6FF] w-full sm:w-auto"
                 >
-                  Update
+                  {isLoadingPortal ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Settings className="w-4 h-4 mr-2" />
+                      Manage Billing
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -285,7 +374,8 @@ export const BillingTab: React.FC<BillingTabProps> = ({
                 <label className="text-xs text-white/40">Plan</label>
                 <p className="text-white mt-1">
                   {profile?.subscription_plan ||
-                    profile?.subscription_plan||"-"}
+                    profile?.subscription_plan ||
+                    "-"}
                 </p>
               </div>
 
@@ -317,21 +407,24 @@ export const BillingTab: React.FC<BillingTabProps> = ({
                 )}
 
               <div className="flex flex-col sm:flex-row justify-end gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 w-full sm:w-auto text-sm"
-                  onClick={onCancelSubscription}
-                  disabled={isCanceling}
-                >
-                  <span className="truncate">
-                    {subscriptionDetails?.cancel_at_period_end
-                      ? "Resume Subscription"
-                      : isCanceling
-                      ? "Canceling..."
-                      : "Cancel Subscription"}
-                  </span>
-                </Button>
+                {/* Only show cancel subscription button for paid users */}
+                {profile?.subscription_plan !== "free" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 w-full sm:w-auto text-sm"
+                    onClick={onCancelSubscription}
+                    disabled={isCanceling}
+                  >
+                    <span className="truncate">
+                      {subscriptionDetails?.cancel_at_period_end
+                        ? "Resume Subscription"
+                        : isCanceling
+                        ? "Canceling..."
+                        : "Cancel Subscription"}
+                    </span>
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   className="bg-[#2BA6FF]/60 hover:bg-[#2BA6FF]/80 text-white w-full sm:w-auto"
