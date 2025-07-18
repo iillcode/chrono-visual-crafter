@@ -5,10 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { PaddleDebugger } from "@/utils/paddleDebugger";
-import {
-  reloadPageAfterSubscriptionChange,
-  navigateAfterSubscriptionChange,
-} from "@/utils/subscriptionHelpers";
 import { initializePaddle, Paddle } from "@paddle/paddle-js";
 
 interface SubscriptionState {
@@ -276,7 +272,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
       });
 
       // Open Paddle's cancel flow
-      paddle.Subscription.cancelPreview({
+      paddle.Subscription?.cancelPreview?.({
         subscriptionId: subscription.subscriptionId,
         eventCallback: async (data: any) => {
           logger.info("Paddle cancel event received", {
@@ -341,11 +337,6 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
         subscriptionId,
       });
 
-      // Import audit logger
-      const { SubscriptionAuditLogger } = await import(
-        "@/utils/subscriptionAudit"
-      );
-
       if (!isLoaded || !paddle) {
         toast({
           title: "Payment System Not Ready",
@@ -362,7 +353,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
       ) {
         // Use the modern Paddle API
         return new Promise((resolve) => {
-          paddle.Subscription.cancel({
+          paddle.Subscription?.cancel?.({
             subscriptionId: subscriptionId,
             effectiveFrom: "next_billing_period",
             eventCallback: async (data: any) => {
@@ -431,7 +422,7 @@ const PaddleProvider: React.FC<PaddleProviderProps> = ({
         typeof paddle.Subscription.cancelPreview === "function"
       ) {
         return new Promise((resolve) => {
-          paddle.Subscription.cancelPreview({
+          paddle.Subscription?.cancelPreview?.({
             subscriptionId: subscriptionId,
             effectiveFrom: "next_billing_period",
             eventCallback: async (data: any) => {
