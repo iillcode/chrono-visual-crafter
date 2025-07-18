@@ -116,7 +116,9 @@ export const UsageTab: React.FC<UsageTabProps> = ({ profile, onNavigate }) => {
                   />
                 </div>
                 <div className="flex justify-between text-xs text-white/40">
-                  <span className="truncate">0 credits used</span>
+                  <span className="truncate">
+                    {usedCredits ?? 0} credits used
+                  </span>
                   <span className="truncate">
                     {INITIAL_CREDITS} credits total
                   </span>
@@ -152,7 +154,6 @@ export const UsageTab: React.FC<UsageTabProps> = ({ profile, onNavigate }) => {
       </Card>
 
       {/* Usage Breakdown */}
-     
     </div>
   );
 };

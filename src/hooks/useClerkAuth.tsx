@@ -5,6 +5,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { logger } from "@/lib/logger";
 
+// Static variables to track fetch status across renders
+const fetchedUsers = new Set<string>();
+const fetchInProgress = new Set<string>();
+
 export const useClerkAuth = () => {
   const { user, isLoaded: userLoaded } = useUser();
   const { isSignedIn, signOut: clerkSignOut } = useClerkAuthHook();
@@ -14,6 +18,10 @@ export const useClerkAuth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const paymentToastShown = useRef(false);
+  const syncedUserRef = useRef<string | null>(null);
+  const profileSyncedRef = useRef(false);
+  const profileCache = useRef<Map<string, any>>(new Map());
+  const syncInProgress = useRef(false);
 
   // Function to refresh profile data from database
   const refreshProfile = useCallback(async () => {
@@ -66,20 +74,57 @@ export const useClerkAuth = () => {
       // Remove the parameter from URL
       navigate(window.location.pathname, { replace: true });
     }
-  }, [searchParams, navigate, refreshProfile, toast]);
+  }, [searchParams, navigate, refreshProfile]);
+
+  // Track initial fetch completion
+  const initialFetchDone = useRef(false);
 
   useEffect(() => {
-    const syncUserWithSupabase = async () => {
-      if (!user || !isSignedIn) {
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
+    // Function to handle user sign out
+    const handleSignOut = () => {
+      setProfile(null);
+      syncedUserRef.current = null;
+      profileSyncedRef.current = false;
+      profileCache.current.clear();
+      initialFetchDone.current = false;
+      setLoading(false);
+    };
+
+    // Don't do anything if user data isn't loaded yet
+    if (!userLoaded) {
+      return;
+    }
+
+    // Handle sign out case
+    if (!isSignedIn || !user) {
+      handleSignOut();
+      return;
+    }
+
+    // If we already fetched data for this user, use the cached version
+    const cachedProfile = profileCache.current.get(user.id);
+    if (cachedProfile && syncedUserRef.current === user.id) {
+      logger.info("Using cached profile from memory", { userId: user.id });
+      setProfile(cachedProfile);
+      setLoading(false);
+      return;
+    }
+
+    // If we're already fetching, don't start another fetch
+    if (syncInProgress.current) {
+      logger.info("Sync already in progress, skipping", { userId: user.id });
+      return;
+    }
+
+    // Only fetch from database once per user session
+    const fetchUserProfile = async () => {
+      syncInProgress.current = true;
 
       try {
-        console.log("Syncing user with Supabase:", user.id);
+        logger.info("Fetching user profile from Supabase (one-time)", {
+          userId: user.id,
+        });
 
-        // Check if user exists in Supabase
         const { data: existingProfile, error: fetchError } = await supabase
           .from("profiles")
           .select("*")
@@ -87,14 +132,17 @@ export const useClerkAuth = () => {
           .single();
 
         if (fetchError && fetchError.code !== "PGRST116") {
-          console.error("Error fetching profile:", fetchError);
+          logger.error("Error fetching profile", {
+            error: fetchError,
+            userId: user.id,
+          });
           setLoading(false);
           return;
         }
 
+        // Create profile if it doesn't exist
         if (!existingProfile) {
-          console.log("Creating new profile for user:", user.id);
-          // Create new profile in Supabase
+          logger.info("Creating new profile for user", { userId: user.id });
           const { data: newProfile, error: insertError } = await supabase
             .from("profiles")
             .insert({
@@ -110,61 +158,66 @@ export const useClerkAuth = () => {
             .single();
 
           if (insertError) {
-            console.error("Error creating profile:", insertError);
+            logger.error("Error creating profile", {
+              error: insertError,
+              userId: user.id,
+            });
             toast({
               title: "Profile Creation Error",
               description: "Failed to create user profile. Please try again.",
               variant: "destructive",
             });
           } else {
-            console.log("Profile created successfully:", newProfile);
+            logger.info("Profile created successfully", {
+              profile: newProfile,
+              userId: user.id,
+            });
             setProfile(newProfile);
+            profileCache.current.set(user.id, newProfile);
+            syncedUserRef.current = user.id;
+            profileSyncedRef.current = true;
+            initialFetchDone.current = true;
           }
         } else {
-          console.log("Updating existing profile:", existingProfile);
-          // Update existing profile with latest Clerk data
-          const { data: updatedProfile, error: updateError } = await supabase
-            .from("profiles")
-            .update({
-              email:
-                user.primaryEmailAddress?.emailAddress || existingProfile.email,
-              full_name: user.fullName || existingProfile.full_name,
-              avatar_url: user.imageUrl || existingProfile.avatar_url,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", user.id)
-            .select()
-            .single();
-
-          if (updateError) {
-            console.error("Error updating profile:", updateError);
-            setProfile(existingProfile);
-          } else {
-            console.log("Profile updated successfully:", updatedProfile);
-            setProfile(updatedProfile);
-          }
+          // Use existing profile
+          logger.info("Using existing profile from database", {
+            userId: user.id,
+          });
+          setProfile(existingProfile);
+          profileCache.current.set(user.id, existingProfile);
+          syncedUserRef.current = user.id;
+          profileSyncedRef.current = true;
+          initialFetchDone.current = true;
         }
       } catch (error) {
-        console.error("Error syncing user with Supabase:", error);
+        logger.error("Error syncing user with Supabase", {
+          error,
+          userId: user.id,
+        });
         toast({
           title: "Sync Error",
           description: "Failed to sync user data. Please refresh the page.",
           variant: "destructive",
         });
       } finally {
+        syncInProgress.current = false;
         setLoading(false);
       }
     };
 
-    if (userLoaded) {
-      syncUserWithSupabase();
+    // Only fetch if we haven't already fetched for this user
+    if (
+      user?.id &&
+      (!initialFetchDone.current || syncedUserRef.current !== user.id)
+    ) {
+      fetchUserProfile();
     }
-  }, [user, isSignedIn, userLoaded, toast]);
+  }, [user?.id, isSignedIn, userLoaded]);
 
   const updateProfile = async (updates: any) => {
     if (!user) return { error: "No user" };
-    console.log(updates,'------u');
-    
+    console.log(updates, "------u");
+
     try {
       const { data, error } = await supabase
         .from("profiles")

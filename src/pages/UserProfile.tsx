@@ -34,7 +34,8 @@ interface SubscriptionDetails {
 
 const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useClerkAuth();
+  const { user, profile, signOut, updateProfile, refreshProfile } =
+    useClerkAuth();
   const { toast } = useToast();
   const { cancelSubscriptionAPI, refreshSubscriptionStatus } = usePaddle();
   const [activeTab, setActiveTab] = useState("overview");
@@ -365,7 +366,11 @@ const UserProfile = ({ open, onOpenChange }: UserProfileProps) => {
 
               {/* Security Tab */}
               {activeTab === "security" && (
-                <SecurityTab user={user} profile={profile} />
+                <SecurityTab
+                  user={user}
+                  profile={profile}
+                  onProfileUpdate={updateProfile}
+                />
               )}
             </div>
           </div>
