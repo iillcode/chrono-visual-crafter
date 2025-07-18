@@ -28,9 +28,49 @@ const CheckoutPage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [productInfo, setProductInfo] = useState<ProductInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   const priceId = searchParams.get("priceId");
   const planName = searchParams.get("plan") || "Premium Plan";
+
+  // Check user subscription status and redirect if already subscribed
+  useEffect(() => {
+    const checkUserSubscription = async () => {
+      if (!user?.id || !isSignedIn) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("subscription_status")
+          .eq("user_id", user.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching user profile:", error);
+          return;
+        }
+
+        setUserProfile(profile);
+
+        // Check if user has an active subscription
+        if (profile?.subscription_status === "active") {
+          toast({
+            title: "Already Subscribed",
+            description:
+              "You already have an active subscription. Redirecting to studio...",
+          });
+          navigate("/studio");
+          return;
+        }
+
+        console.log("User subscription status:", profile?.subscription_status);
+      } catch (error) {
+        console.error("Error checking user subscription:", error);
+      }
+    };
+
+    checkUserSubscription();
+  }, [user?.id, isSignedIn, navigate, toast]);
 
   // Fetch product information from Supabase
   useEffect(() => {

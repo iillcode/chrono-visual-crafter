@@ -49,6 +49,7 @@ export interface CounterSettings {
   suffix: string;
   separator: string;
   useFloatValues: boolean;
+  counterOpacity?: number; // Added counterOpacity property
 }
 
 export interface TextSettings {
@@ -472,6 +473,14 @@ export class TransparentCounterExporter {
     const fontFamily = this.getFontFamily(this.counterSettings.fontFamily);
     const letterSpacing = this.counterSettings.letterSpacing || 0;
 
+    // Save the current context state
+    this.ctx.save();
+
+    // Apply counter opacity if specified
+    if (this.counterSettings.counterOpacity !== undefined) {
+      this.ctx.globalAlpha = this.counterSettings.counterOpacity;
+    }
+
     this.ctx.font = `${
       this.counterSettings.fontWeight || 400
     } ${fontSize}px ${fontFamily}`;
@@ -660,8 +669,12 @@ export class TransparentCounterExporter {
           transform();
         }
 
-        // Apply opacity
-        this.ctx.globalAlpha = tOpacity;
+        // Apply opacity - combine transition opacity with counter opacity
+        const counterOpacity =
+          this.counterSettings.counterOpacity !== undefined
+            ? this.counterSettings.counterOpacity
+            : 1;
+        this.ctx.globalAlpha = tOpacity * counterOpacity;
 
         // Draw the digit with design effects
         this.applyDesignEffects(char, tX, tY, fontSize);
@@ -672,6 +685,9 @@ export class TransparentCounterExporter {
         currentX += charWidth + letterSpacing;
       }
     }
+
+    // Restore the context state to reset opacity
+    this.ctx.restore();
   }
 
   private drawFrame(value: number, progress: number): void {

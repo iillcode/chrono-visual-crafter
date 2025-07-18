@@ -226,6 +226,7 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           portal_url: paddleData?.data?.urls?.subscriptions,
+          alldata:paddleData
         }),
         {
           status: 200,

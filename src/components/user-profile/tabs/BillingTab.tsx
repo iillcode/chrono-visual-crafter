@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tables } from "@/integrations/supabase/types";
+import { useNavigate } from "react-router-dom";
 
 type PaymentHistoryItem = Tables<"payment_history">;
 
@@ -58,6 +59,10 @@ export const BillingTab: React.FC<BillingTabProps> = ({
     return new Date(dateString).toLocaleDateString();
   };
 
+const navigate = useNavigate();
+const handelOnNavigate = (path: string) => {
+  navigate(path);
+};
   // Fetch payment history from the payment_history table
   useEffect(() => {
     const fetchPaymentHistory = async () => {
@@ -177,8 +182,8 @@ export const BillingTab: React.FC<BillingTabProps> = ({
       }
 
       if (data.success) {
-        console.log(data,'customer urls');
-        
+        console.log(data, "customer urls");
+
         // Redirect to customer portal
         window.open(
           data.portal_url[0].update_subscription_payment_method,
@@ -315,7 +320,10 @@ export const BillingTab: React.FC<BillingTabProps> = ({
           ) : (
             <div className="p-3 rounded-lg bg-[#181818] border border-white/[0.08]">
               <p className="text-white/60 mb-3">No payment method on file</p>
-              <Button className="w-full sm:w-auto bg-[#2BA6FF]/60 hover:bg-[#2BA6FF]/80 text-white">
+              <Button
+                className="w-full sm:w-auto bg-[#2BA6FF]/60 hover:bg-[#2BA6FF]/80 text-white"
+                onClick={() => handelOnNavigate("/pricing")}
+              >
                 Add Payment Method
               </Button>
             </div>
@@ -425,12 +433,6 @@ export const BillingTab: React.FC<BillingTabProps> = ({
                     </span>
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  className="bg-[#2BA6FF]/60 hover:bg-[#2BA6FF]/80 text-white w-full sm:w-auto"
-                >
-                  Change Plan
-                </Button>
               </div>
             </div>
           ) : (

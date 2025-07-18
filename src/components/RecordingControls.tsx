@@ -201,42 +201,86 @@ const RecordingControls: React.FC<RecordingControlsProps> = ({
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  onClick={onDownloadVideo}
-                  disabled={
-                    recordedChunksLength === 0 ||
-                    isProcessingVideo ||
-                    !hasCredits
-                  }
-                  variant="ghost"
-                  className="w-12 h-12 rounded-full text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 disabled:opacity-30 disabled:cursor-not-allowed border-0"
-                  aria-label="Export video"
-                >
-                  {isProcessingVideo ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Film className="w-5 h-5" />
-                  )}
-                </Button>
+                {recordedChunksLength > 0 && !hasCredits ? (
+                  <div className="flex flex-col items-center">
+                    <Button
+                      onClick={onDownloadVideo}
+                      disabled={isProcessingVideo || !hasCredits}
+                      variant="ghost"
+                      className="w-12 h-12 rounded-full text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 disabled:opacity-30 disabled:cursor-not-allowed border-0"
+                      aria-label="Export video"
+                    >
+                      {isProcessingVideo ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Film className="w-5 h-5" />
+                      )}
+                    </Button>
+                    <span className="text-xs text-amber-400 mt-1 px-2 py-0.5 bg-amber-500/20 rounded-full">
+                      Upgrade
+                    </span>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={onDownloadVideo}
+                    disabled={
+                      recordedChunksLength === 0 ||
+                      isProcessingVideo ||
+                      !hasCredits
+                    }
+                    variant="ghost"
+                    className="w-12 h-12 rounded-full text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 disabled:opacity-30 disabled:cursor-not-allowed border-0"
+                    aria-label="Export video"
+                  >
+                    {isProcessingVideo ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Film className="w-5 h-5" />
+                    )}
+                  </Button>
+                )}
               </TooltipTrigger>
-              <TooltipContent side="bottom">Export Video</TooltipContent>
+              <TooltipContent side="bottom">
+                {!hasCredits && recordedChunksLength > 0
+                  ? "Upgrade to Export"
+                  : "Export Video"}
+              </TooltipContent>
             </Tooltip>
 
             {onTransparentExport && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    onClick={onTransparentExport}
-                    disabled={recordedChunksLength === 0}
-                    variant="ghost"
-                    className="w-12 h-12 rounded-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 border-0"
-                    aria-label="Export transparent overlay"
-                  >
-                    <Layers className="w-5 h-5" />
-                  </Button>
+                  {recordedChunksLength > 0 && !hasCredits ? (
+                    <div className="flex flex-col items-center">
+                      <Button
+                        onClick={onTransparentExport}
+                        disabled={recordedChunksLength === 0 || !hasCredits}
+                        variant="ghost"
+                        className="w-12 h-12 rounded-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 border-0"
+                        aria-label="Export transparent overlay"
+                      >
+                        <Layers className="w-5 h-5" />
+                      </Button>
+                      <span className="text-xs text-amber-400 mt-1 px-2 py-0.5 bg-amber-500/20 rounded-full">
+                        Upgrade
+                      </span>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={onTransparentExport}
+                      disabled={recordedChunksLength === 0 || !hasCredits}
+                      variant="ghost"
+                      className="w-12 h-12 rounded-full text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 border-0"
+                      aria-label="Export transparent overlay"
+                    >
+                      <Layers className="w-5 h-5" />
+                    </Button>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  Export Transparent Overlay
+                  {!hasCredits && recordedChunksLength > 0
+                    ? "Upgrade to Export"
+                    : "Export Transparent Overlay"}
                 </TooltipContent>
               </Tooltip>
             )}

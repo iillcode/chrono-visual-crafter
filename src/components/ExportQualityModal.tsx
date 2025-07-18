@@ -197,7 +197,7 @@ const ExportQualityModal: React.FC<ExportQualityModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[800px] bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <DialogContent className="sm:max-w-[800px] bg-[#171717]/60 border border-white/[0.08] backdrop-blur-sm max-h-[90vh] overflow-y-auto custom-scrollbar">
         <DialogHeader>
           <DialogTitle className="text-white flex items-center gap-2">
             <Film className="w-5 h-5 text-cyan-400" />

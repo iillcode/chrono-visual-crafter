@@ -110,12 +110,23 @@ const StudioRightPanel: React.FC<StudioRightPanelProps> = ({
                 {backgroundOptions.map((bg) => (
                   <button
                     key={bg.id}
-                    onClick={() =>
-                      onCounterSettingsChange({
-                        ...counterSettings,
-                        background: bg.id,
-                      })
-                    }
+                    onClick={() => {
+                      const updated = { ...counterSettings, background: bg.id };
+
+                      // Initialize gradient properties when gradient is selected
+                      if (
+                        bg.id === "gradient" &&
+                        !counterSettings.backgroundGradient
+                      ) {
+                        updated.gradientAngle = 45;
+                        updated.gradientColor1 = "#2193b0";
+                        updated.gradientColor2 = "#6dd5ed";
+                        updated.backgroundGradient =
+                          "linear-gradient(45deg, #2193b0, #6dd5ed)";
+                      }
+
+                      onCounterSettingsChange(updated);
+                    }}
                     className={`relative p-3 rounded border ${
                       mobileDetection.isMobile ? "h-20 min-h-[44px]" : "h-16"
                     } flex flex-col items-center justify-center transition-all ${
@@ -167,12 +178,14 @@ const StudioRightPanel: React.FC<StudioRightPanelProps> = ({
                     <Slider
                       value={[counterSettings.gradientAngle ?? 45]}
                       onValueChange={([angle]) => {
+                        const color1 =
+                          counterSettings.gradientColor1 || "#2193b0";
+                        const color2 =
+                          counterSettings.gradientColor2 || "#6dd5ed";
                         const updated = {
                           ...counterSettings,
                           gradientAngle: angle,
-                          backgroundGradient: `linear-gradient(${angle}deg, ${
-                            counterSettings.gradientColor1 || "#2193b0"
-                          }, ${counterSettings.gradientColor2 || "#6dd5ed"})`,
+                          backgroundGradient: `linear-gradient(${angle}deg, ${color1}, ${color2})`,
                         };
                         onCounterSettingsChange(updated);
                       }}
@@ -390,6 +403,29 @@ const StudioRightPanel: React.FC<StudioRightPanelProps> = ({
                     min={-5}
                     max={20}
                     step={0.5}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Counter Opacity */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label className="text-white">Counter Opacity</Label>
+                    <span className="text-sm text-white">
+                      {Math.round((counterSettings.counterOpacity || 1) * 100)}%
+                    </span>
+                  </div>
+                  <Slider
+                    value={[counterSettings.counterOpacity || 1]}
+                    onValueChange={([opacity]) =>
+                      onCounterSettingsChange({
+                        ...counterSettings,
+                        counterOpacity: opacity,
+                      })
+                    }
+                    min={0}
+                    max={1}
+                    step={0.01}
                     className="w-full"
                   />
                 </div>

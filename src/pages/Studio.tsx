@@ -103,6 +103,7 @@ const StudioContent = () => {
     backgroundGradient: "linear-gradient(45deg, #2193b0, #6dd5ed)",
     textColor: "#FFFFFF",
     useFloatValues: false, // Use float values toggle
+    counterOpacity: 1, // Default to fully opaque
   });
 
   const [textSettings, setTextSettings] = useState({
@@ -761,11 +762,6 @@ const StudioContent = () => {
             </div>
 
             {/* Performance Indicator */}
-            <PerformanceIndicator
-              className="hidden md:flex"
-              showDetails={false}
-              autoStart={true}
-            />
 
             <div className="flex items-center gap-2 ">
               {user && <AuthButton mode="user" />}

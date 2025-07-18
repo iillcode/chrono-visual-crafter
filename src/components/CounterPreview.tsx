@@ -28,6 +28,10 @@ interface CounterPreviewProps {
     textColor?: string;
     countDirection?: string;
     useFloatValues: boolean;
+    fontStretch?: number;
+    strokeWidth?: number;
+    strokeColor?: string;
+    counterOpacity?: number;
   };
   textSettings: {
     enabled: boolean;
@@ -325,25 +329,30 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
     ) => {
       const effects = {
         classic: () => {
+          // Use the custom text color if provided, otherwise use default based on background
           ctx.fillStyle =
-            settings.background === "white" ? "#000000" : "#FFFFFF";
+            settings.textColor ||
+            (settings.background === "white" ? "#000000" : "#FFFFFF");
           ctx.fillText(text, x, y);
         },
 
         neon: () => {
           const neonColor = designSettings.neonColor || "#00FFFF";
           const intensity = designSettings.neonIntensity || 10;
+          const currentAlpha = ctx.globalAlpha; // Preserve current opacity
 
           ctx.save();
           ctx.shadowBlur = 0;
           ctx.shadowColor = "rgba(0,0,0,0)";
 
           if (settings.background === "transparent") {
-            ctx.globalAlpha = 0.7;
+            // Apply relative opacity while preserving the user-set opacity
+            const relativeOpacity = currentAlpha;
+            ctx.globalAlpha = 0.7 * relativeOpacity;
             ctx.fillStyle = "#FFFFFF";
             ctx.fillText(text, x, y);
 
-            ctx.globalAlpha = 0.9;
+            ctx.globalAlpha = 0.9 * relativeOpacity;
             ctx.shadowColor = neonColor;
             ctx.shadowBlur = Math.max(5, intensity * 1.5);
             ctx.strokeStyle = neonColor;
@@ -355,10 +364,11 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
             ctx.fillText(text, x, y);
 
             ctx.shadowBlur = 0;
-            ctx.globalAlpha = 1.0;
+            ctx.globalAlpha = relativeOpacity; // Maintain the user-set opacity
             ctx.fillStyle = "#FFFFFF";
             ctx.fillText(text, x, y);
           } else {
+            // For non-transparent backgrounds, maintain the user-set opacity
             ctx.shadowColor = neonColor;
             ctx.shadowBlur = intensity * 3;
             ctx.strokeStyle = neonColor;
@@ -378,31 +388,36 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
             designSettings.glowColor ||
             (settings.background === "white" ? "#000000" : "#FFFFFF");
           const intensity = designSettings.glowIntensity || 15;
+          const currentAlpha = ctx.globalAlpha; // Preserve current opacity
 
           ctx.save();
 
           if (settings.background === "transparent") {
-            ctx.globalAlpha = 0.4;
+            // Use relative opacity values that respect the user-set opacity
+            const relativeOpacity = currentAlpha;
+
+            ctx.globalAlpha = 0.4 * relativeOpacity;
             ctx.shadowColor = glowColor;
             ctx.shadowBlur = intensity * 2;
             ctx.fillStyle = glowColor;
             ctx.fillText(text, x, y);
 
-            ctx.globalAlpha = 0.6;
+            ctx.globalAlpha = 0.6 * relativeOpacity;
             ctx.shadowBlur = intensity * 1.3;
             ctx.fillText(text, x, y);
 
-            ctx.globalAlpha = 0.8;
+            ctx.globalAlpha = 0.8 * relativeOpacity;
             ctx.shadowBlur = intensity * 0.8;
             ctx.fillText(text, x, y);
 
-            ctx.globalAlpha = 1.0;
+            ctx.globalAlpha = relativeOpacity; // Maintain user-set opacity
             ctx.shadowBlur = intensity * 0.4;
             ctx.fillText(text, x, y);
 
             ctx.shadowBlur = 0;
             ctx.fillText(text, x, y);
           } else {
+            // For non-transparent backgrounds, maintain the user-set opacity
             for (let i = 0; i < 3; i++) {
               ctx.shadowColor = glowColor;
               ctx.shadowBlur = intensity + i * 10;
@@ -590,6 +605,13 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
       );
       const letterSpacing = settings.letterSpacing || 0;
       const fontWeight = settings.fontWeight || 400;
+      const counterOpacity = settings.counterOpacity ?? 1;
+
+      // Save the current context state
+      ctx.save();
+
+      // Apply counter opacity
+      ctx.globalAlpha = counterOpacity;
 
       ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
       ctx.textAlign = "center";
@@ -881,7 +903,8 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
             settings.transition
           );
 
-          ctx.globalAlpha = tOpacity;
+          // Combine the transition opacity with the user-set opacity
+          ctx.globalAlpha = tOpacity * counterOpacity;
           applyDesignEffects(ctx, char, tX, tY, fontSize);
           ctx.restore();
 
@@ -909,7 +932,8 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
           settings.transition
         );
 
-        ctx.globalAlpha = tOpacity;
+        // Combine the transition opacity with the user-set opacity
+        ctx.globalAlpha = tOpacity * counterOpacity;
 
         if (letterSpacing !== 0) {
           // Draw each character with spacing
@@ -932,6 +956,9 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
 
         ctx.restore();
       }
+
+      // Restore the context state (including opacity)
+      ctx.restore();
     };
 
     // Enhanced performance monitoring function
@@ -1024,12 +1051,18 @@ const CounterPreview = forwardRef<HTMLCanvasElement, CounterPreviewProps>(
         settings.background === "gradient" &&
         settings.backgroundGradient
       ) {
-        const grad = ctx.createLinearGradient(
-          0,
-          0,
-          displayWidth,
-          displayHeight
-        );
+        // Calculate gradient direction based on angle
+        const angle = (settings.gradientAngle ?? 45) * (Math.PI / 180);
+        const centerX = displayWidth / 2;
+        const centerY = displayHeight / 2;
+        const radius = Math.max(displayWidth, displayHeight) / 2;
+
+        const x1 = centerX - Math.cos(angle) * radius;
+        const y1 = centerY - Math.sin(angle) * radius;
+        const x2 = centerX + Math.cos(angle) * radius;
+        const y2 = centerY + Math.sin(angle) * radius;
+
+        const grad = ctx.createLinearGradient(x1, y1, x2, y2);
         const colors = extractColors(settings.backgroundGradient);
         const step = colors.length > 1 ? 1 / (colors.length - 1) : 1;
         colors.forEach((color, i) => grad.addColorStop(i * step, color));

@@ -199,7 +199,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                   Plan
                 </h3>
                 <p className="text-sm text-white/50">
-                  {profile?.subscription_plan === "Free"
+                  {profile?.subscription_plan.toLocaleLowerCase() === "free"
                     ? "Limited features"
                     : "Full access to all features"}
                 </p>
@@ -222,44 +222,17 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 >
                   {statusInfo.text}
                 </Badge>
-                <Button
-                  onClick={() => onNavigate("/pricing")}
-                  className="bg-[#2BA6FF]/60 hover:bg-[#2BA6FF]/80 text-white border-none w-full sm:w-auto"
-                  size="sm"
-                >
-                  {profile?.subscription_plan === "Free"
-                    ? "Upgrade Plan"
-                    : "Manage Plan"}
-                </Button>
+                {profile?.subscription_plan.toLocaleLowerCase() === "free" && (
+                  <Button
+                    onClick={() => onNavigate("/pricing")}
+                    className="bg-[#2BA6FF]/60 hover:bg-[#2BA6FF]/80 text-white border-none w-full sm:w-auto"
+                    size="sm"
+                  >
+                    Upgrade Plan
+                  </Button>
+                )}
               </div>
-            </div>
-
-            {/* Subscription Actions */}
-            {subscriptionDetails &&
-              subscriptionDetails.paddle_subscription_id && (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {subscriptionDetails.cancel_at_period_end ? (
-                    <Button
-                      onClick={onReactivateSubscription}
-                      disabled={isCanceling}
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-                    >
-                      Reactivate
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={onCancelSubscription}
-                      disabled={isCanceling}
-                      variant="outline"
-                      size="sm"
-                      className="border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 w-full sm:w-auto"
-                    >
-                      {isCanceling ? "Canceling..." : "Cancel Subscription"}
-                    </Button>
-                  )}
-                </div>
-              )}
+            </div>            
           </div>
         </CardContent>
       </Card>
